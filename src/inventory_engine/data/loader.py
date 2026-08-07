@@ -42,6 +42,7 @@ from inventory_engine.config import (
 from inventory_engine.data.schema import (
     DIM_CALENDAR,
     DIM_CALENDAR_DDL,
+    DIM_ITEM_STRATUM,
     FACT_SALES,
     FACT_SALES_DDL,
 )
@@ -232,38 +233,24 @@ def _load_prices(con: duckdb.DuckDBPyConnection, prices_path: Path) -> None:
     """)
 
 
-def _apply_stratified_sample(
-    con: duckdb.DuckDBPyConnection, scope: Scope
-) -> tuple[StratumSummary, ...]:
-    """Draw ``scope.items_per_dept`` items per department, stratified by intermittency.
+def _classify_intermittency(con: duckdb.DuckDBPyConnection, scope: Scope) -> None:
+    """Measure each item's zero-day share and assign it an intermittency stratum.
 
-    Sampling by volume rank would quietly select the problem away: the densest
-    SKUs are the easy ones, and Phase 3's Croston/TSB work only earns its place
-    if genuinely intermittent series survive scoping. So each department's items
-    are split into ``scope.n_strata`` equal-count bands by their share of
-    zero-sales days, and an equal quota is drawn from each band.
+    Runs whether or not a sample is being drawn, because the stratum label is useful
+    downstream in its own right: E3 and E5 report accuracy per band, and "the GBM beats
+    TSB overall but loses on the sparse third" is exactly the finding a single headline
+    number hides.
 
-    Two details matter for defensibility:
-
-    * The intermittency statistic is measured over a
-      :data:`~inventory_engine.config.STRATIFY_WINDOW_DAYS` window that ends
-      before the backtest region starts. Selecting SKUs on statistics computed
-      over the evaluation period is selection leakage, even offline.
-    * Selection order comes from ``hash(item_id || seed)``, not ``random()``.
-      A hash is deterministic across DuckDB versions, platforms and thread
-      counts, so the sampled universe is reproducible in a way a PRNG seed is
-      not guaranteed to be.
+    The statistic is measured over a
+    :data:`~inventory_engine.config.STRATIFY_WINDOW_DAYS` window that ends before the
+    backtest region starts. Classifying SKUs on statistics computed over the evaluation
+    period would be selection leakage, even though scoping happens once and offline.
 
     Args:
         con: Open connection holding ``sales_wide``, ``sales_long``, ``prices``.
-        scope: Scope carrying the item budget, stratum count and seed.
-
-    Returns:
-        Per (department, stratum) summaries of the drawn sample.
+        scope: Scope carrying the stratum count.
 
     """
-    quota, remainder = divmod(scope.items_per_dept, scope.n_strata)
-
     con.execute(
         f"""
         CREATE TEMP TABLE item_intermittency AS
@@ -298,24 +285,45 @@ def _apply_stratified_sample(
         GROUP BY 1, 2
         """
     )
+    con.execute(
+        f"""
+        CREATE TEMP TABLE item_stratum AS
+        SELECT dept_id, item_id, zero_share,
+               ntile({scope.n_strata}) OVER (
+                   PARTITION BY dept_id ORDER BY zero_share, item_id
+               ) AS stratum
+        FROM item_intermittency
+        """
+    )
 
+
+def _apply_stratified_sample(con: duckdb.DuckDBPyConnection, scope: Scope) -> None:
+    """Draw ``scope.items_per_dept`` items per department, an equal quota from each band.
+
+    Sampling by volume rank would quietly select the problem away: the densest SKUs are
+    the easy ones, and Phase 3's Croston/TSB work only earns its place if genuinely
+    intermittent series survive scoping.
+
+    Selection order comes from ``hash(item_id || seed)``, not ``random()``. A hash is
+    deterministic across DuckDB versions, platforms and thread counts, so the sampled
+    universe is reproducible in a way a PRNG seed is not guaranteed to be.
+
+    Args:
+        con: Open connection holding ``item_stratum``, ``sales_wide``, ``sales_long``.
+        scope: Scope carrying the item budget, stratum count and seed.
+
+    """
+    quota, remainder = divmod(scope.items_per_dept, scope.n_strata)
     con.execute(
         f"""
         CREATE TEMP TABLE sampled_items AS
-        WITH strat AS (
-            SELECT dept_id, item_id, zero_share,
-                   ntile({scope.n_strata}) OVER (
-                       PARTITION BY dept_id ORDER BY zero_share, item_id
-                   ) AS stratum
-            FROM item_intermittency
-        ),
-        ranked AS (
+        WITH ranked AS (
             SELECT *,
                    row_number() OVER (
                        PARTITION BY dept_id, stratum
                        ORDER BY hash(item_id || '#' || {scope.sampling_seed})
                    ) AS pick
-            FROM strat
+            FROM item_stratum
         )
         SELECT dept_id, stratum, item_id, zero_share
         FROM ranked
@@ -327,10 +335,32 @@ def _apply_stratified_sample(
 
     con.execute("DELETE FROM sales_wide WHERE item_id NOT IN (SELECT item_id FROM sampled_items)")
     con.execute("DELETE FROM sales_long WHERE item_id NOT IN (SELECT item_id FROM sampled_items)")
+    con.execute("DELETE FROM item_stratum WHERE item_id NOT IN (SELECT item_id FROM sampled_items)")
 
-    rows = con.execute("""
+
+def _persist_dim_series(con: duckdb.DuckDBPyConnection) -> tuple[StratumSummary, ...]:
+    """Write the surviving items' intermittency labels to a durable table.
+
+    Phase 1 originally computed strata into a temp table and dropped them, which would
+    have forced E5 to recompute the classification with a second copy of the window logic
+    -- and any drift between the two copies would silently mislabel the bands every result
+    is reported over. One table, written once, read by everything.
+    """
+    con.execute(f"DROP TABLE IF EXISTS {DIM_ITEM_STRATUM}")
+    con.execute(f"""
+        CREATE TABLE {DIM_ITEM_STRATUM} AS
+        SELECT s.item_id,
+               s.dept_id,
+               s.zero_share,
+               s.stratum,
+               CASE s.stratum WHEN 1 THEN 'dense' WHEN 2 THEN 'mid' WHEN 3 THEN 'sparse'
+                    ELSE CAST(s.stratum AS VARCHAR) END AS stratum_name
+        FROM item_stratum s
+        WHERE s.item_id IN (SELECT DISTINCT item_id FROM {FACT_SALES})
+    """)
+    rows = con.execute(f"""
         SELECT dept_id, stratum, count(*), min(zero_share), avg(zero_share), max(zero_share)
-        FROM sampled_items GROUP BY 1, 2 ORDER BY 1, 2
+        FROM {DIM_ITEM_STRATUM} GROUP BY 1, 2 ORDER BY 1, 2
     """).fetchall()
     return tuple(StratumSummary(r[0], r[1], r[2], r[3], r[4], r[5]) for r in rows)
 
@@ -476,7 +506,7 @@ def build_warehouse(
     in_transaction = False
     try:
         existing = {r[0] for r in con.execute("SHOW TABLES").fetchall()}
-        clashes = existing & {FACT_SALES, DIM_CALENDAR}
+        clashes = existing & {FACT_SALES, DIM_CALENDAR, DIM_ITEM_STRATUM}
         if clashes and not overwrite:
             raise ValueError(
                 f"{db_path} already contains {sorted(clashes)}. "
@@ -487,15 +517,17 @@ def build_warehouse(
         in_transaction = True
         con.execute(f"DROP TABLE IF EXISTS {FACT_SALES}")
         con.execute(f"DROP TABLE IF EXISTS {DIM_CALENDAR}")
+        con.execute(f"DROP TABLE IF EXISTS {DIM_ITEM_STRATUM}")
 
         _load_calendar(con, files[RAW_CALENDAR_FILE])
         _select_series(con, files[RAW_SALES_FILE], scope)
         _unpivot_to_long(con)
         _load_prices(con, files[RAW_PRICES_FILE])
-        strata: tuple[StratumSummary, ...] = ()
+        _classify_intermittency(con, scope)
         if scope.items_per_dept is not None:
-            strata = _apply_stratified_sample(con, scope)
+            _apply_stratified_sample(con, scope)
         _build_fact(con, scope)
+        strata = _persist_dim_series(con)
         con.execute("COMMIT")
         in_transaction = False
 

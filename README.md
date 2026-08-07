@@ -7,8 +7,8 @@ SKU-level demand, reconciles those forecasts across a store hierarchy so they st
 coherent, converts the forecast *distribution* into optimal stocking quantities via
 newsvendor theory, and reports the cost delta against baseline stocking practice.
 
-> **Build status:** Phases 1–2 complete (data foundation, leakage-free features).
-> Phases 3–10 in progress.
+> **Build status:** Phases 1–3 complete (data foundation, leakage-free features,
+> baselines). Phases 4–10 in progress.
 
 ---
 
@@ -46,9 +46,9 @@ work, one tag per phase.
 |---|---|---|
 | 1. Data foundation (DuckDB warehouse) | [E1](docs/backlog/epic-01-data-foundation.md) | ✅ Complete |
 | 2. Features + leakage test | [E2](docs/backlog/epic-02-features.md) | ✅ Complete |
-| 3. Baselines (Seasonal Naive, Croston/TSB, ETS/AutoARIMA) | [E3](docs/backlog/epic-03-baselines.md) | 🔜 Next |
-| 4. LightGBM global model + MLflow | [E4](docs/backlog/epic-04-global-model.md) | ⬜ |
-| 5. Rolling-origin backtest harness | [E5](docs/backlog/epic-05-backtest.md) | ⬜ |
+| 3. Baselines (Seasonal Naive, Croston/TSB, ETS/AutoARIMA) | [E3](docs/backlog/epic-03-baselines.md) | ✅ Complete |
+| 4. LightGBM global model + MLflow | [E4](docs/backlog/epic-04-global-model.md) | 🔜 Next |
+| 5. Rolling-origin backtest harness | [E5](docs/backlog/epic-05-backtest.md) | 🔨 S1–S5 done (WRMSSE blocked on E6) |
 | 6. MinT hierarchical reconciliation | [E6](docs/backlog/epic-06-reconciliation.md) | ⬜ |
 | 7. Newsvendor optimization layer | [E7](docs/backlog/epic-07-optimization.md) | ⬜ |
 | 8. FastAPI service | [E8](docs/backlog/epic-08-api.md) | ⬜ |
@@ -222,6 +222,63 @@ covers that gap.
 
 ---
 
+## Phase 3 — baselines, and a real finding
+
+Four baselines, scored by the rolling-origin harness built alongside them (E5-S1..S5 — see
+the ordering note in [`docs/BACKLOG.md`](docs/BACKLOG.md)): 5 folds × 28-day horizon ×
+720 series.
+
+| Model | MASE | RMSSE | Bias |
+|---|---:|---:|---:|
+| **AutoETS** | **1.024** ± 0.026 | **0.763** ± 0.023 | −0.042 ± 0.065 |
+| TSB | 1.045 ± 0.026 | 0.778 ± 0.024 | +0.017 ± 0.078 |
+| Croston | 1.112 ± 0.012 | 0.798 ± 0.009 | +0.111 ± 0.057 |
+| Seasonal naive | 1.204 ± 0.034 | 0.989 ± 0.029 | −0.063 ± 0.086 |
+
+All four clear seasonal naive comfortably — the honest bar is doing its job.
+
+### The finding: the intermittent-demand specialists lose on their own turf
+
+**Croston loses to plain seasonal naive on the sparse stratum** (MASE 1.127 vs 1.107),
+and **AutoETS — a classical method with no special handling for zero-inflated demand —
+beats both Croston and TSB across every stratum, sparse included.** This is the opposite
+of the textbook expectation, and it is reported as found rather than tuned away, per this
+project's own ground rule.
+
+| Stratum | AutoETS | TSB | Croston | Seasonal naive |
+|---|---:|---:|---:|---:|
+| dense | 1.042 | 1.068 | 1.076 | 1.284 |
+| mid | 1.037 | 1.056 | 1.134 | 1.221 |
+| sparse | **0.993** | 1.009 | 1.127 | 1.107 |
+
+Two things explain most of it:
+
+1. **Croston and TSB forecast a flat rate** — "probability of a sale" × "size when it
+   sells" — constant across the whole 28-day horizon. This panel has real day-of-week
+   seasonality (weekend uplift, SNAP-day effects) that a flat-rate method cannot
+   represent at all, and that AutoETS's seasonal component captures directly.
+2. **TSB earns its inclusion over Croston, just not enough to beat AutoETS.** TSB was
+   added specifically because Croston never decays its estimate through a long zero run,
+   and the data confirms that reasoning — TSB beats Croston on every stratum and every
+   fold. It just isn't enough on its own to also model the weekly cycle.
+
+**Croston's bias is the more consequential number for Phase 7.** +0.11 mean, worst fold
++0.17, is a *systematic* over-forecast, and for fresh food — where overstock cost runs
+close to 100% of unit cost — that bias is spoilage, priced directly into whatever policy
+uses it. TSB's bias is close to zero (+0.02); AutoETS's is slightly negative (−0.04, a
+mild under-forecast). Bias sign and magnitude will matter as much as MASE when Phase 7
+picks which forecast the newsvendor layer trusts.
+
+**Consequence for Phase 4:** the LightGBM global model's bar to clear is AutoETS at
+MASE 1.024, not the intermittent-demand baselines. If it wins mainly on the sparse
+stratum specifically, that's the more interesting result than an aggregate win.
+
+Full breakdown, including the TSB smoothing parameters (a stated assumption — statsforecast
+has no optimised TSB variant) and the excluded-series accounting, in
+[`docs/backlog/epic-03-baselines.md`](docs/backlog/epic-03-baselines.md).
+
+---
+
 ## Setup
 
 ```bash
@@ -239,7 +296,9 @@ if you skip this.
 ```bash
 build-warehouse --overwrite      # ~30s
 build-features                   # ~4s
-pytest                           # 60 tests
+pip install -e ".[models]"       # statsforecast, for the baselines
+run-baselines                    # fit + score all four baselines on 5 folds
+pytest                           # 108 tests
 ruff check . && ruff format --check .
 ```
 
@@ -256,10 +315,21 @@ build-features --horizon 7                  # shorter horizon, features shift le
 
 ## Backtest methodology
 
-_Pending Phase 5._ Rolling-origin, 5 folds, 28-day horizon. Never a random split, never a
-single holdout. Metrics: WRMSSE, MASE, Bias/ME, pinball loss — reported as mean **and
-spread across folds**. MAPE is deliberately excluded; it is undefined on zero-demand days,
-which are 61.6% of this panel.
+Rolling-origin, 5 folds, 28-day horizon, origins stepping backwards from the panel end;
+training is expanding, not sliding. Never a random split, never a single holdout. Defined
+once in `backtest/folds.py` and imported by every model and the scorer, so "model A beats
+model B" cannot silently become "model A was evaluated on easier weeks".
+
+Metrics: **MASE** and **RMSSE** (scale-free, survive the 61.6% zero-demand days that make
+MAPE undefined — MAPE is deliberately excluded), **Bias/ME** (signed — over-forecast is
+dead stock, under-forecast is a stockout, and Phase 7 acts on the sign), **pinball loss**
+(wired up once Phase 4 produces quantiles). **WRMSSE** — the M5 official metric — is not
+yet computed: it weights RMSSE across the aggregation hierarchy, and that hierarchy
+doesn't exist until Phase 6. Claiming it earlier would be claiming a number not actually
+produced.
+
+Reported as mean **and spread** across folds, never mean alone; a model scored on fewer
+series than another (naive-scale exclusions) is surfaced, not hidden.
 
 ---
 
@@ -287,6 +357,14 @@ _Accumulating as the build progresses. Honest log, including what did not work._
   The fixture was the bug. The gate now uses a late cutoff (large clean region to verify)
   and the sensitivity check an early one (so the longest lag can respond), with the reason
   written down so nobody "fixes" it back.
+- **`statsforecast` crashed with `BrokenProcessPool` on the full fit.** Its default
+  `n_jobs=-1` re-imports scipy and numba in every worker process; at 1.3M training rows
+  that exhausted the Windows paging file mid-fit. Forced `n_jobs=1` — the numba JIT keeps
+  it fast enough (346s for three models × 5 folds × 720 series), and the parallel
+  version's failure mode was worse than the speedup was worth.
+- **Croston and TSB losing to seasonal naive on part of the panel** was not a bug — see
+  the Phase 3 finding above. Reported rather than tuned away, per this project's own rule
+  that a baseline beating expectations is information, not failure.
 
 ---
 

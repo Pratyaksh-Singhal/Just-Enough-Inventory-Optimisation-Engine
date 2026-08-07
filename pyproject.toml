@@ -24,6 +24,7 @@ dev = ["pytest>=8.2", "ruff>=0.5", "shap>=0.45"]
 [project.scripts]
 build-warehouse = "inventory_engine.data.loader:main"
 build-features = "inventory_engine.features.build:main"
+run-baselines = "inventory_engine.models.run_baselines:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/inventory_engine"]

@@ -10,9 +10,9 @@ the phase before it.
 |---|---|---|---|
 | [E1](backlog/epic-01-data-foundation.md) | Data foundation | Scoped M5 panel in DuckDB | ✅ Done |
 | [E2](backlog/epic-02-features.md) | Features | Leakage-free feature panel | ✅ Done |
-| [E3](backlog/epic-03-baselines.md) | Baselines | The honest bar to beat | 🔜 Next |
-| [E4](backlog/epic-04-global-model.md) | Global model | LightGBM + MLflow | ⬜ |
-| [E5](backlog/epic-05-backtest.md) | Backtest harness | Rolling-origin, 5 folds | ⬜ |
+| [E3](backlog/epic-03-baselines.md) | Baselines | The honest bar to beat | ✅ Done |
+| [E4](backlog/epic-04-global-model.md) | Global model | LightGBM + MLflow | 🔜 Next |
+| [E5](backlog/epic-05-backtest.md) | Backtest harness | Rolling-origin, 5 folds | 🔨 S1–S5 pulled forward by E3 |
 | [E6](backlog/epic-06-reconciliation.md) | Reconciliation | MinT coherent hierarchy | ⬜ |
 | [E7](backlog/epic-07-optimization.md) | Optimization | Newsvendor money table | ⬜ |
 | [E8](backlog/epic-08-api.md) | API | FastAPI over precomputed results | ⬜ |
@@ -78,6 +78,17 @@ time invites off-by-one errors in exactly the place they are hardest to notice.
   docstrings on public functions + the epic's produced tables populated.
 - **A baseline beating the model is a result, not a failure.** Stories that compare
   models have an acceptance criterion requiring the honest number be reported either way.
+
+## Ordering note
+
+E3's definition of done is "a metrics table produced by the E5 harness", so E3 cannot
+finish before E5-S1 (fold definitions) and E5-S2 (metrics) exist — a baseline with no
+folds to run on and no metric to report is not a deliverable. Those two stories, plus the
+scorer in E5-S3/S4/S5, were therefore built during E3 rather than deferred.
+
+This is a real dependency the backlog understated, not a scope change: the epic numbering
+follows the brief's phase order, which puts the harness after the models it exists to
+score. Recorded here rather than silently reordered.
 
 ## Cross-cutting rules
 
