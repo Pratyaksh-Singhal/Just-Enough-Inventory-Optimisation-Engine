@@ -35,18 +35,22 @@ Baselines → global GBM → hierarchical reconciliation → newsvendor optimiza
 Each stage is measured against the one before it, and a baseline that wins is reported
 as a win rather than tuned away.
 
-| Phase | Status |
-|---|---|
-| 1. Data foundation (DuckDB warehouse) | ✅ Complete |
-| 2. Features + leakage test | ⬜ Next |
-| 3. Baselines (Seasonal Naive, Croston/TSB, ETS/AutoARIMA) | ⬜ |
-| 4. LightGBM global model + MLflow | ⬜ |
-| 5. Rolling-origin backtest harness | ⬜ |
-| 6. MinT hierarchical reconciliation | ⬜ |
-| 7. Newsvendor optimization layer | ⬜ |
-| 8. FastAPI service | ⬜ |
-| 9. React dashboard | ⬜ |
-| 10. Deploy | ⬜ |
+Work is tracked as ten epics in [`docs/BACKLOG.md`](docs/BACKLOG.md). Phases communicate
+through named DuckDB tables rather than through code, so each epic states what it consumes
+and produces and can be picked up without reading the one before it.
+
+| Phase | Epic | Status |
+|---|---|---|
+| 1. Data foundation (DuckDB warehouse) | [E1](docs/backlog/epic-01-data-foundation.md) | ✅ Complete |
+| 2. Features + leakage test | [E2](docs/backlog/epic-02-features.md) | 🔜 Next |
+| 3. Baselines (Seasonal Naive, Croston/TSB, ETS/AutoARIMA) | [E3](docs/backlog/epic-03-baselines.md) | ⬜ |
+| 4. LightGBM global model + MLflow | [E4](docs/backlog/epic-04-global-model.md) | ⬜ |
+| 5. Rolling-origin backtest harness | [E5](docs/backlog/epic-05-backtest.md) | ⬜ |
+| 6. MinT hierarchical reconciliation | [E6](docs/backlog/epic-06-reconciliation.md) | ⬜ |
+| 7. Newsvendor optimization layer | [E7](docs/backlog/epic-07-optimization.md) | ⬜ |
+| 8. FastAPI service | [E8](docs/backlog/epic-08-api.md) | ⬜ |
+| 9. React dashboard | [E9](docs/backlog/epic-09-dashboard.md) | ⬜ |
+| 10. Deploy | [E10](docs/backlog/epic-10-ship.md) | ⬜ |
 
 ---
 
