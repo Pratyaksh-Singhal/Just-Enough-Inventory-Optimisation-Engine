@@ -68,6 +68,10 @@ time invites off-by-one errors in exactly the place they are hardest to notice.
 
 ## Conventions
 
+- **Branches map to SDLC stages, not to epics** — `main` (stable, phase-tagged) and `dev`
+  (integration), with short-lived `feature/*` off `dev`. See
+  [`BRANCHING.md`](BRANCHING.md). The phase contract above is what coordinates epics; a
+  branch per epic would duplicate that and cost merge conflicts over the same schema.
 - **Story IDs** are `E<epic>-S<story>`, e.g. `E2-S4`. Commit messages reference them.
 - **Status**: ⬜ not started · 🔨 in progress · ✅ done · ⏸️ blocked · ❌ dropped (with reason).
 - **Definition of done** for every story: code + tests pass + `ruff check` clean +

@@ -38,7 +38,9 @@ as a win rather than tuned away.
 
 Work is tracked as ten epics in [`docs/BACKLOG.md`](docs/BACKLOG.md). Phases communicate
 through named DuckDB tables rather than through code, so each epic states what it consumes
-and produces and can be picked up without reading the one before it.
+and produces and can be picked up without reading the one before it. Branching follows
+[`docs/BRANCHING.md`](docs/BRANCHING.md): `dev` for integration, `main` for phase-complete
+work, one tag per phase.
 
 | Phase | Epic | Status |
 |---|---|---|
