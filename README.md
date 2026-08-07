@@ -7,7 +7,8 @@ SKU-level demand, reconciles those forecasts across a store hierarchy so they st
 coherent, converts the forecast *distribution* into optimal stocking quantities via
 newsvendor theory, and reports the cost delta against baseline stocking practice.
 
-> **Build status:** Phase 1 (data foundation) complete. Phases 2–10 in progress.
+> **Build status:** Phases 1–2 complete (data foundation, leakage-free features).
+> Phases 3–10 in progress.
 
 ---
 
@@ -42,8 +43,8 @@ and produces and can be picked up without reading the one before it.
 | Phase | Epic | Status |
 |---|---|---|
 | 1. Data foundation (DuckDB warehouse) | [E1](docs/backlog/epic-01-data-foundation.md) | ✅ Complete |
-| 2. Features + leakage test | [E2](docs/backlog/epic-02-features.md) | 🔜 Next |
-| 3. Baselines (Seasonal Naive, Croston/TSB, ETS/AutoARIMA) | [E3](docs/backlog/epic-03-baselines.md) | ⬜ |
+| 2. Features + leakage test | [E2](docs/backlog/epic-02-features.md) | ✅ Complete |
+| 3. Baselines (Seasonal Naive, Croston/TSB, ETS/AutoARIMA) | [E3](docs/backlog/epic-03-baselines.md) | 🔜 Next |
 | 4. LightGBM global model + MLflow | [E4](docs/backlog/epic-04-global-model.md) | ⬜ |
 | 5. Rolling-origin backtest harness | [E5](docs/backlog/epic-05-backtest.md) | ⬜ |
 | 6. MinT hierarchical reconciliation | [E6](docs/backlog/epic-06-reconciliation.md) | ⬜ |
@@ -154,6 +155,71 @@ it is an availability signal, not missing data, and Phase 2 treats it as such.
 
 ---
 
+## Phase 2 — features, and the leakage gate
+
+27 features over 1,080,714 rows, built in ~3.5s. Full dictionary in
+[`docs/features.md`](docs/features.md).
+
+### The rule, and how it is enforced
+
+**No feature on a row targeting date _t_ may use any observation from _t_ or later.**
+
+Because this project forecasts 28 days ahead, that rule is stronger than "not today". A
+forecast for _t_ is made at origin `t0 = t − 28`, so the newest actual anyone could have
+seen is the one at `t0`. Every units-derived feature is computed on the series shifted by
+the horizon.
+
+The shift is not applied per feature and remembered — that approach fails the first time
+someone adds a feature in a hurry. It is folded into the SQL window frame by exactly two
+functions, and **every** units-derived feature is emitted by one of them. There is no
+other code path in the module that reads `units`, so a new lag or rolling feature cannot
+be added without inheriting the shift.
+
+### The test is a perturbation probe, not a checklist
+
+`tests/test_no_leakage.py` does not assert anything about individual feature definitions.
+It corrupts the actuals at and after some date `C`, rebuilds the panel, and asserts every
+feature targeting `t < C + horizon` is bit-identical. That argument holds for **any**
+feature, including ones added later by someone who never read the test. A per-feature
+assertion would only ever cover the features somebody remembered to write an assertion for.
+
+Two supporting tests keep it honest:
+
+- **Sensitivity** — past the boundary, every units-derived feature *must* move. Without
+  this, a builder that emitted constants would pass the gate by doing nothing.
+- **Exact boundary** — corrupt a single cell at date `D`. A rolling feature targeting
+  `D + 28` reads exactly up to `D` and must change; the same feature targeting `D + 27`
+  must not. This pins the frame to `horizon PRECEDING` rather than merely "somewhere in
+  the past", which is where off-by-one errors live.
+
+### The one deliberate exception
+
+Calendar, event, SNAP and price features are **not** shifted. A retailer genuinely knows
+next month's calendar and its own future shelf prices at forecast time; refusing to use
+them would model a business that does not exist.
+
+But that exception is also exactly how leakage gets in by accident, so it is fenced rather
+than assumed: the allowlist is pinned by a test against a hard-coded set. Widening it is a
+deliberate, reviewable edit — adding a column forces someone to justify why the retailer
+really does know it in advance. The perturbation gate corrupts `units`, so it structurally
+cannot catch a leak introduced through a non-`units` column; the pinned allowlist is what
+covers that gap.
+
+### Panel decisions
+
+- **Pre-listing rows dropped** — 316,806 rows (22.7%) precede the date an item was first
+  priced at a store. Those are not zero demand, they are the absence of a product.
+  Training on them teaches the model to forecast shelf gaps. Post-introduction gaps are
+  kept, flagged `is_listed = false`.
+- **Rectangularity is checked, not assumed.** Row-based window frames only equal day-based
+  frames on a dense panel. One missing day would silently make every frame reach further
+  back in time than intended, and nothing downstream would notice.
+- **Partial windows aggregate what exists** rather than returning NULL until full. An
+  early `units_roll_mean_90` is a mean of fewer than 90 days — the column name is a
+  maximum, not a guarantee. Deliberate, and pinned by a test.
+
+---
+
 ## Setup
 
 ```bash
@@ -170,7 +236,8 @@ if you skip this.
 
 ```bash
 build-warehouse --overwrite      # ~30s
-pytest                           # 20 tests
+build-features                   # ~4s
+pytest                           # 60 tests
 ruff check . && ruff format --check .
 ```
 
@@ -180,6 +247,7 @@ Useful flags:
 build-warehouse --all-items                 # every item in scope, 5,748 series
 build-warehouse --items-per-dept 100        # bigger budget
 build-warehouse --dept FOODS_3 --seed 7     # single dept, different draw
+build-features --horizon 7                  # shorter horizon, features shift less
 ```
 
 ---
@@ -210,6 +278,13 @@ _Accumulating as the build progresses. Honest log, including what did not work._
   noise rather than on behaviour. Rewritten to assert how items are *classified* over the
   population, plus a non-overlap check between bands — a stronger property that does not
   depend on which two items were drawn.
+- **The leakage gate's sensitivity check failed on `units_lag_365`, and the code was
+  fine.** With the corruption cutoff at day 300 of a 520-day fixture, a 365-day lag on a
+  28-day horizon reads 393 days behind its target — it could never reach the corrupted
+  region, so it looked "immune" for reasons that had nothing to do with the shift logic.
+  The fixture was the bug. The gate now uses a late cutoff (large clean region to verify)
+  and the sensitivity check an early one (so the longest lag can respond), with the reason
+  written down so nobody "fixes" it back.
 
 ---
 

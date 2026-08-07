@@ -9,8 +9,8 @@ the phase before it.
 | # | Epic | Goal | Status |
 |---|---|---|---|
 | [E1](backlog/epic-01-data-foundation.md) | Data foundation | Scoped M5 panel in DuckDB | ✅ Done |
-| [E2](backlog/epic-02-features.md) | Features | Leakage-free feature panel | 🔜 Next |
-| [E3](backlog/epic-03-baselines.md) | Baselines | The honest bar to beat | ⬜ |
+| [E2](backlog/epic-02-features.md) | Features | Leakage-free feature panel | ✅ Done |
+| [E3](backlog/epic-03-baselines.md) | Baselines | The honest bar to beat | 🔜 Next |
 | [E4](backlog/epic-04-global-model.md) | Global model | LightGBM + MLflow | ⬜ |
 | [E5](backlog/epic-05-backtest.md) | Backtest harness | Rolling-origin, 5 folds | ⬜ |
 | [E6](backlog/epic-06-reconciliation.md) | Reconciliation | MinT coherent hierarchy | ⬜ |
