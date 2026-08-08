@@ -7,8 +7,8 @@ SKU-level demand, reconciles those forecasts across a store hierarchy so they st
 coherent, converts the forecast *distribution* into optimal stocking quantities via
 newsvendor theory, and reports the cost delta against baseline stocking practice.
 
-> **Build status:** Phases 1–5 complete (data foundation, leakage-free features,
-> baselines, global GBM, backtest harness). Phases 6–10 in progress.
+> **Build status:** Phases 1–6 complete (data foundation, leakage-free features,
+> baselines, global GBM, backtest harness, MinT reconciliation). Phases 7–10 in progress.
 
 ---
 
@@ -48,9 +48,9 @@ work, one tag per phase.
 | 2. Features + leakage test | [E2](docs/backlog/epic-02-features.md) | ✅ Complete |
 | 3. Baselines (Seasonal Naive, Croston/TSB, ETS/AutoARIMA) | [E3](docs/backlog/epic-03-baselines.md) | ✅ Complete |
 | 4. LightGBM global model + MLflow | [E4](docs/backlog/epic-04-global-model.md) | ✅ Complete |
-| 5. Rolling-origin backtest harness | [E5](docs/backlog/epic-05-backtest.md) | ✅ Complete (WRMSSE deferred to E6) |
-| 6. MinT hierarchical reconciliation | [E6](docs/backlog/epic-06-reconciliation.md) | 🔜 Next |
-| 7. Newsvendor optimization layer | [E7](docs/backlog/epic-07-optimization.md) | ⬜ |
+| 5. Rolling-origin backtest harness | [E5](docs/backlog/epic-05-backtest.md) | ✅ Complete |
+| 6. MinT hierarchical reconciliation | [E6](docs/backlog/epic-06-reconciliation.md) | ✅ Complete |
+| 7. Newsvendor optimization layer | [E7](docs/backlog/epic-07-optimization.md) | 🔜 Next |
 | 8. FastAPI service | [E8](docs/backlog/epic-08-api.md) | ⬜ |
 | 9. React dashboard | [E9](docs/backlog/epic-09-dashboard.md) | ⬜ |
 | 10. Deploy | [E10](docs/backlog/epic-10-ship.md) | ⬜ |
@@ -368,6 +368,68 @@ numbers attached is a result.
 
 ---
 
+## Phase 6 — MinT reconciliation
+
+Forecast each level of a retail hierarchy independently and the numbers don't add up. The
+720 SKU forecasts don't sum to the store forecasts; the store forecasts don't sum to the
+state forecast. That isn't a rounding nuisance — a replenishment planner and a regional
+manager read the same system and get contradictory answers, and only one can be acted on.
+
+Four-level tree over **737 series** (1 state + 4 stores + 12 store×dept + 720 item×store),
+reconciled with MinT via Nixtla `hierarchicalforecast`.
+
+### Coherence: proven, not asserted
+
+| Parent → child | Mean gap before | Max gap before | Max gap after |
+|---|---:|---:|---:|
+| state → store | 19.77 | 42.76 | 4.55e-13 |
+| store → store_dept | 4.57 | 23.01 | 2.84e-13 |
+| store_dept → item_store | 9.00 | 37.62 | 8.53e-14 |
+
+Reconciled forecasts sum exactly, to floating-point tolerance. Asserted in tests, not just
+printed.
+
+### WRMSSE — now computable
+
+**0.81173 → 0.78411** after reconciliation, a **3.4% improvement** on the M5 official
+metric. This is the number Phase 5 deliberately declined to report, because WRMSSE weights
+RMSSE across the aggregation hierarchy and that hierarchy didn't exist yet.
+
+### The trade-off, and its price
+
+| Level | RMSSE base | RMSSE MinT | MASE base | MASE MinT |
+|---|---:|---:|---:|---:|
+| state | 0.7144 | **0.6862** | 0.7696 | **0.7183** |
+| store | 0.8026 | **0.7807** | 0.8121 | **0.7931** |
+| store_dept | 0.9263 | **0.8635** | 0.9809 | **0.9086** |
+| item_store | **0.7576** | 0.7615 | **1.0192** | 1.0348 |
+
+**Every aggregate level improves; the bottom level gets ~1.5% worse on MASE.** That is the
+expected MinT trade-off and the price is stated rather than buried — coherence is purchased,
+not free.
+
+Whether the trade is worth taking is a **cost** question, not an accuracy one: the bottom
+level is what orders are placed against, so a 1.5% MASE degradation there has to be weighed
+against store- and state-level plans that finally agree with those orders. Phase 7 has the
+cost function to settle it.
+
+### Two deviations, both recorded
+
+**The Category level is dropped.** The brief specifies `State → Store → Category → Dept →
+Item`, but Phase 1's scope fixes `cat_id = FOODS`, making Category identical to Store.
+Including it would put duplicate rows in the summing matrix, leaving the covariance
+rank-deficient — a numerical problem created purely by encoding a level carrying no
+information. On a multi-category scope it restores unchanged.
+
+**`wls_struct` instead of `mint_shrink`.** The shrinkage estimator is the textbook default
+and was the original choice, but it estimates the residual covariance from *in-sample*
+one-step residuals — requiring fitted values for all 737 series in every fold. Phase 4
+persists forecasts, not models. `wls_struct` weights each node by the number of bottom
+series aggregated into it, using `S` alone, which is exactly the case Wickramasuriya et al.
+propose it for when residuals are unavailable.
+
+---
+
 ## Setup
 
 ```bash
@@ -389,7 +451,8 @@ pip install -e ".[models]"       # statsforecast, lightgbm, mlflow
 run-baselines                    # fit + score all four baselines on 5 folds
 run-gbm                          # train the global GBM + quantiles, score vs baselines
 run-backtest                     # canonical scoring report (E5)
-pytest                           # 140 tests
+run-mint                         # MinT reconciliation + WRMSSE (E6)
+pytest                           # 152 tests
 ruff check . && ruff format --check .
 ```
 
@@ -415,9 +478,9 @@ Metrics: **MASE** and **RMSSE** (scale-free, survive the 61.6% zero-demand days 
 MAPE undefined — MAPE is deliberately excluded), **Bias/ME** (signed — over-forecast is
 dead stock, under-forecast is a stockout, and Phase 7 acts on the sign), and **pinball
 loss** per quantile level, scored on the monotonized quantiles because that is how Phase 7
-reads them. **WRMSSE** — the M5 official metric — is not yet computed: it weights RMSSE
-across the aggregation hierarchy, and that hierarchy doesn't exist until Phase 6. Claiming
-it earlier would be claiming a number not actually produced.
+reads them. **WRMSSE** — the M5 official metric — was deliberately not
+reported until Phase 6 built the hierarchy it weights over; it now reads 0.81173 base and
+0.78411 reconciled.
 
 Breakdowns by intermittency stratum and by horizon are persisted alongside the headline
 numbers. Horizon decay turns out **not** to be monotonic — lgbm MASE by forecast week runs

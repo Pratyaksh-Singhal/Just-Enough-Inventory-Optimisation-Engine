@@ -12,9 +12,9 @@ the phase before it.
 | [E2](backlog/epic-02-features.md) | Features | Leakage-free feature panel | ✅ Done |
 | [E3](backlog/epic-03-baselines.md) | Baselines | The honest bar to beat | ✅ Done |
 | [E4](backlog/epic-04-global-model.md) | Global model | LightGBM + MLflow | ✅ Done |
-| [E5](backlog/epic-05-backtest.md) | Backtest harness | Rolling-origin, 5 folds | ✅ Done (WRMSSE deferred to E6) |
-| [E6](backlog/epic-06-reconciliation.md) | Reconciliation | MinT coherent hierarchy | 🔜 Next |
-| [E7](backlog/epic-07-optimization.md) | Optimization | Newsvendor money table | ⬜ |
+| [E5](backlog/epic-05-backtest.md) | Backtest harness | Rolling-origin, 5 folds | ✅ Done |
+| [E6](backlog/epic-06-reconciliation.md) | Reconciliation | MinT coherent hierarchy | ✅ Done |
+| [E7](backlog/epic-07-optimization.md) | Optimization | Newsvendor money table | 🔜 Next |
 | [E8](backlog/epic-08-api.md) | API | FastAPI over precomputed results | ⬜ |
 | [E9](backlog/epic-09-dashboard.md) | Dashboard | React analytics UI | ⬜ |
 | [E10](backlog/epic-10-ship.md) | Ship | Deploy + recruiter README | ⬜ |

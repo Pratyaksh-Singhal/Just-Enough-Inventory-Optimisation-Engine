@@ -28,6 +28,7 @@ run-baselines = "inventory_engine.models.run_baselines:main"
 run-gbm = "inventory_engine.models.run_gbm:main"
 run-hybrid = "inventory_engine.models.run_hybrid:main"
 run-backtest = "inventory_engine.backtest.run_backtest:main"
+run-mint = "inventory_engine.hierarchy.run_mint:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/inventory_engine"]
