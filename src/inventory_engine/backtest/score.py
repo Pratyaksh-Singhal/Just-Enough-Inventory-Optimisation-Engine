@@ -168,10 +168,23 @@ def score_forecasts(
     """
     con.execute(BACKTEST_METRICS_DDL)
     if replace:
-        # Only the point metrics this function owns. A blanket delete would silently drop
-        # the pinball rows written by score_quantile_forecasts, making the result depend
-        # on which scorer happened to run last.
-        con.execute(f"DELETE FROM {BACKTEST_METRICS} WHERE metric NOT LIKE 'pinball_q%'")
+        # Delete exactly what this function writes: point metrics, at the forecasting
+        # grain, for base (non-reconciled) models. Nothing else.
+        #
+        # This scope has been wrong twice. First it deleted the whole table, which wiped
+        # score_quantile_forecasts' pinball rows. Narrowing it to "everything except
+        # pinball" fixed that symptom but not the cause -- it still swept up E6's
+        # aggregate-level rows and the WRMSSE figure, so re-running the GBM silently
+        # destroyed the reconciliation metrics. An allowlist of what this function owns
+        # cannot have that failure mode; a denylist of what it recognises always can.
+        con.execute(
+            f"""
+            DELETE FROM {BACKTEST_METRICS}
+            WHERE level = ? AND metric IN ('mase', 'rmsse', 'bias')
+              AND NOT ends_with(model_name, '_mint')
+            """,
+            [LEVEL_ITEM_STORE],
+        )
 
     rows: list[tuple] = []
     for fold in folds:

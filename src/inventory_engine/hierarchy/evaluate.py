@@ -85,8 +85,18 @@ def score_levels(
 
     """
     con.execute(BACKTEST_METRICS_DDL)
+    # Delete exactly what this function writes: aggregate-level rows for the base model,
+    # every level for the reconciled model, and the hierarchy-wide WRMSSE. Stated as an
+    # allowlist rather than "everything that isn't item_store", so it cannot grow to
+    # cover rows another scorer owns. Note `_` is a LIKE wildcard, hence ends_with().
     con.execute(
-        f"DELETE FROM {BACKTEST_METRICS} WHERE level <> 'item_store' OR model_name LIKE '%_mint'"
+        f"""
+        DELETE FROM {BACKTEST_METRICS}
+        WHERE ends_with(model_name, '_mint')
+           OR (model_name = ? AND level <> ?)
+           OR (model_name = ? AND metric = 'wrmsse')
+        """,
+        [model_name, "item_store", model_name],
     )
 
     y_df = _actuals_by_level(con)

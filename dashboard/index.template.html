@@ -1,0 +1,824 @@
+<title>Inventory Optimization Engine</title>
+<style>
+:root{
+  --ground:#0C1211; --surface:#131A18; --surface-2:#182120; --line:#222E2A; --line-soft:#1B2523;
+  --ink:#E8EFEC; --ink-2:#A6B5AF; --ink-3:#7A8A84;
+  --jade:#2FA97C; --amber:#C4862B; --blue:#4F86D4;
+  --jade-dim:rgba(47,169,124,.14); --amber-dim:rgba(196,134,43,.16); --blue-dim:rgba(79,134,212,.16);
+  --mono:ui-monospace,"SF Mono","Cascadia Mono","Roboto Mono",Menlo,Consolas,monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+  --r:3px;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--ground); color:var(--ink);
+  font-family:var(--sans); font-size:15px; line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1140px;margin:0 auto;padding:0 28px}
+
+/* ---------- header ---------- */
+header{border-bottom:1px solid var(--line);background:var(--ground);position:sticky;top:0;z-index:20}
+.masthead{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;padding:22px 0 16px}
+.masthead h1{font-size:17px;font-weight:600;margin:0;letter-spacing:-.01em}
+.masthead .sub{font-family:var(--mono);font-size:11.5px;color:var(--ink-3);letter-spacing:.04em}
+.tabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{
+  appearance:none;background:none;border:0;border-bottom:2px solid transparent;
+  color:var(--ink-3);font-family:var(--mono);font-size:11.5px;letter-spacing:.06em;
+  text-transform:uppercase;padding:9px 13px;cursor:pointer;white-space:nowrap;
+}
+.tab:hover{color:var(--ink-2)}
+.tab[aria-selected="true"]{color:var(--jade);border-bottom-color:var(--jade)}
+.tab:focus-visible{outline:2px solid var(--jade);outline-offset:-2px}
+
+/* ---------- structure ---------- */
+main{padding:38px 0 90px}
+section[hidden]{display:none}
+.eyebrow{
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;
+  color:var(--ink-3);margin:0 0 10px
+}
+h2{font-size:23px;font-weight:600;letter-spacing:-.015em;margin:0 0 8px;text-wrap:balance}
+h3{font-size:14.5px;font-weight:600;margin:0 0 4px;letter-spacing:-.005em}
+.lede{color:var(--ink-2);max-width:64ch;margin:0 0 26px}
+.stack{display:flex;flex-direction:column;gap:34px}
+.rule{height:1px;background:var(--line-soft);border:0;margin:0}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:20px 22px}
+.grid{display:grid;gap:14px}
+.g4{grid-template-columns:repeat(4,1fr)}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g2{grid-template-columns:repeat(2,1fr)}
+@media(max-width:900px){.g4{grid-template-columns:repeat(2,1fr)}.g3,.g2{grid-template-columns:1fr}}
+@media(max-width:560px){.g4{grid-template-columns:1fr}}
+
+/* ---------- hero ---------- */
+.hero{display:flex;gap:44px;align-items:flex-end;flex-wrap:wrap;padding-bottom:6px}
+.hero .figure{font-family:var(--mono);font-size:clamp(52px,9vw,86px);line-height:.92;
+  font-weight:600;letter-spacing:-.045em;color:var(--jade);font-variant-numeric:tabular-nums}
+.hero .caption{max-width:44ch;color:var(--ink-2);font-size:14px}
+.hero .caption strong{color:var(--ink);font-weight:600}
+
+/* ---------- stat tiles ---------- */
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:15px 16px}
+.tile .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.tile .v{font-family:var(--mono);font-size:27px;font-weight:600;letter-spacing:-.03em;
+  margin-top:7px;font-variant-numeric:tabular-nums}
+.tile .d{font-family:var(--mono);font-size:11.5px;margin-top:5px;color:var(--ink-3)}
+.chip{display:inline-block;padding:1px 6px;border-radius:2px;font-family:var(--mono);font-size:11px}
+.chip.good{background:var(--jade-dim);color:var(--jade)}
+.chip.warn{background:var(--amber-dim);color:var(--amber)}
+.chip.cool{background:var(--blue-dim);color:var(--blue)}
+
+/* ---------- callout: the annotations that must be visible ---------- */
+.callout{
+  border:1px solid var(--line);border-left:3px solid var(--jade);border-radius:var(--r);
+  background:var(--surface-2);padding:17px 20px;font-family:var(--serif);font-size:15.5px;
+  line-height:1.62;color:var(--ink-2);
+}
+.callout.amber{border-left-color:var(--amber)}
+.callout.blue{border-left-color:var(--blue)}
+.callout .hd{
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;
+  color:var(--ink);margin-bottom:7px;display:block
+}
+.callout strong{color:var(--ink);font-weight:600}
+.callout em{font-style:italic;color:var(--ink)}
+
+/* ---------- tables ---------- */
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:520px}
+th,td{padding:9px 13px;text-align:right;border-bottom:1px solid var(--line-soft);white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+thead th{
+  font-family:var(--mono);font-size:10px;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--ink-3);font-weight:500;background:var(--surface-2)
+}
+tbody tr:last-child td{border-bottom:0}
+td.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+tr.hi td{background:rgba(47,169,124,.06)}
+tr.hi td:first-child{box-shadow:inset 2px 0 0 var(--jade)}
+.win{color:var(--jade)}
+.lose{color:var(--amber)}
+
+/* ---------- simulator ---------- */
+.sim{display:grid;grid-template-columns:300px 1fr;gap:26px;align-items:start}
+@media(max-width:880px){.sim{grid-template-columns:1fr}}
+.ctrl{margin-bottom:20px}
+.ctrl label{display:flex;justify-content:space-between;align-items:baseline;
+  font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+.ctrl output{font-size:16px;color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+input[type=range]{
+  -webkit-appearance:none;appearance:none;width:100%;height:3px;border-radius:2px;
+  background:var(--line);margin-top:11px;cursor:pointer
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:17px;height:17px;border-radius:50%;
+  background:var(--ink);border:3px solid var(--ground);cursor:grab
+}
+input[type=range]::-moz-range-thumb{
+  width:17px;height:17px;border-radius:50%;background:var(--ink);
+  border:3px solid var(--ground);cursor:grab
+}
+input[type=range]:focus-visible{outline:2px solid var(--jade);outline-offset:4px}
+#cu{background:linear-gradient(90deg,var(--blue) 0%,var(--blue) var(--p,50%),var(--line) var(--p,50%))}
+#co{background:linear-gradient(90deg,var(--amber) 0%,var(--amber) var(--p,50%),var(--line) var(--p,50%))}
+.readout{border-top:1px solid var(--line);padding-top:15px;margin-top:4px}
+.readout .row{display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;
+  font-family:var(--mono);font-size:12.5px}
+.readout .row span:first-child{color:var(--ink-3)}
+.readout .row b{font-weight:600;font-variant-numeric:tabular-nums}
+.big-cr{font-family:var(--mono);font-size:40px;font-weight:600;letter-spacing:-.035em;
+  color:var(--jade);font-variant-numeric:tabular-nums;line-height:1}
+
+/* ---------- charts ---------- */
+figure{margin:0}
+figcaption{font-size:12.5px;color:var(--ink-3);margin-top:9px;max-width:70ch;line-height:1.5}
+svg{display:block;width:100%;height:auto;overflow:visible}
+.gridline{stroke:var(--line-soft);stroke-width:1}
+.axis{fill:var(--ink-3);font-family:var(--mono);font-size:10px}
+.axis-title{fill:var(--ink-3);font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-family:var(--mono);font-size:11.5px;color:var(--ink-2);margin-bottom:12px}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px;vertical-align:baseline}
+
+/* ---------- prose ---------- */
+.prose{font-family:var(--serif);font-size:16px;line-height:1.68;color:var(--ink-2);max-width:68ch}
+.prose p{margin:0 0 15px}
+.prose strong{color:var(--ink);font-weight:600}
+.prose code{font-family:var(--mono);font-size:.86em;background:var(--surface-2);
+  padding:1px 5px;border-radius:2px;color:var(--ink)}
+.log{display:flex;flex-direction:column;gap:0}
+.log-item{display:grid;grid-template-columns:36px 1fr;gap:20px;padding:22px 0;border-top:1px solid var(--line-soft)}
+.log-item:first-child{border-top:0}
+.log-n{font-family:var(--mono);font-size:11px;color:var(--ink-3);padding-top:4px;letter-spacing:.05em}
+.log h3{margin-bottom:7px}
+@media(max-width:640px){.log-item{grid-template-columns:1fr;gap:6px}}
+.tag{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--ink-3);border:1px solid var(--line);border-radius:2px;padding:1px 6px;margin-left:8px;
+  vertical-align:middle;white-space:nowrap}
+footer{border-top:1px solid var(--line);padding:26px 0 40px;color:var(--ink-3);
+  font-family:var(--mono);font-size:11.5px;line-height:1.7}
+@media(prefers-reduced-motion:no-preference){
+  .fade{animation:f .35s ease both}
+  @keyframes f{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+}
+</style>
+
+<header>
+  <div class="wrap">
+    <div class="masthead">
+      <h1>Inventory Optimization Engine</h1>
+      <span class="sub">M5 · 720 SERIES · CA / FOODS · 5-FOLD ROLLING ORIGIN</span>
+    </div>
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" aria-selected="true" data-t="overview">Overview</button>
+      <button class="tab" role="tab" aria-selected="false" data-t="simulator">Cost simulator</button>
+      <button class="tab" role="tab" aria-selected="false" data-t="forecast">Forecast explorer</button>
+      <button class="tab" role="tab" aria-selected="false" data-t="performance">Model performance</button>
+      <button class="tab" role="tab" aria-selected="false" data-t="log">What broke</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+<!-- ============ OVERVIEW ============ -->
+<section id="overview" class="stack fade">
+  <div>
+    <p class="eyebrow">Result · 100,720 stocking decisions priced against realised demand</p>
+    <div class="hero">
+      <div class="figure" id="heroFig">−28.6%</div>
+      <p class="caption">
+        <strong>inventory cost versus current practice.</strong> And the policy most teams
+        reach for — a flat 95% service level — costs <strong>2.5× more</strong> than doing
+        nothing sophisticated at all.
+      </p>
+    </div>
+  </div>
+
+  <div class="grid g4" id="tiles"></div>
+
+  <div>
+    <h2>The money table</h2>
+    <p class="lede">
+      Three stocking policies, same 100,720 decisions, each priced against demand that
+      actually happened — never against the forecast that produced the order.
+    </p>
+    <div class="tw"><table id="moneyTable"></table></div>
+    <figure style="margin-top:18px">
+      <div class="legend">
+        <span><i style="background:var(--blue)"></i>Understock cost — lost margin</span>
+        <span><i style="background:var(--amber)"></i>Overstock cost — spoilage + holding</span>
+      </div>
+      <div id="costBars"></div>
+      <figcaption>
+        Each bar is one policy's total cost, split into the two things it can get wrong.
+        The 95% policy's bar is mostly amber: it buys a low stockout rate with spoilage.
+      </figcaption>
+    </figure>
+  </div>
+
+  <div class="callout blue">
+    <span class="hd">Reading the stockout column</span>
+    <p style="margin:0">
+      <strong>The winning policy has a 48.0% stockout rate. That is correct, not a defect.</strong>
+      At this item's cost ratio, spoilage is far more expensive than a missed sale, so the
+      optimal policy deliberately favours running out over overstocking perishables.
+      The naive policy's <em>lower</em> stockout rate (31.1%) is what's actually expensive —
+      it is bought with 78,106 wasted units instead of 20,714. Read the stockout column
+      against the total-cost column, never on its own.
+    </p>
+  </div>
+
+  <div class="callout amber">
+    <span class="hd">Every cost figure here is an assumption</span>
+    <p style="margin:0">
+      M5 ships shelf prices — not margins, shelf life or holding costs. The
+      <strong>30% gross margin</strong>, <strong>60% spoilage rate</strong> and
+      <strong>2%/day holding cost</strong> that produce a critical ratio of
+      <strong>0.409</strong> are inputs you are free to disagree with, not measured facts.
+      That matters because the whole "48% is correct" argument rests on them being
+      reasonable. The <a href="#" data-goto="simulator" style="color:var(--jade)">cost
+      simulator</a> exists so you can move them and watch the conclusion hold: the
+      newsvendor policy wins at <em>every</em> spoilage rate from 0 to 100%.
+    </p>
+  </div>
+</section>
+
+<!-- ============ SIMULATOR ============ -->
+<section id="simulator" class="stack fade" hidden>
+  <div>
+    <p class="eyebrow">Drag either slider — every number and the curve update live</p>
+    <h2>Cost simulator</h2>
+    <p class="lede">
+      Set the two costs the newsvendor problem turns on. The critical ratio
+      <code style="font-family:var(--mono);font-size:.9em">CR = Cu / (Cu + Co)</code> is the
+      demand quantile worth stocking to — and the curve below is exact, not smoothed.
+    </p>
+  </div>
+
+  <div class="sim">
+    <div class="card">
+      <div class="ctrl">
+        <label for="cu"><span>Cu · understock <span class="chip cool">lost margin</span></span>
+          <output id="cuOut">0.88</output></label>
+        <input type="range" id="cu" min="0.05" max="3" step="0.01" value="0.88">
+      </div>
+      <div class="ctrl">
+        <label for="co"><span>Co · overstock <span class="chip warn">spoilage</span></span>
+          <output id="coOut">1.27</output></label>
+        <input type="range" id="co" min="0.05" max="3" step="0.01" value="1.27">
+      </div>
+
+      <div class="readout">
+        <div class="row" style="align-items:flex-end;margin-bottom:6px">
+          <span>Critical ratio</span><span class="big-cr" id="crOut">0.409</span>
+        </div>
+        <div class="row"><span>Optimal service level</span><b id="slOut">41%</b></div>
+        <div class="row"><span>Order quantity vs 95% policy</span><b id="qtyOut">—</b></div>
+      </div>
+      <div class="readout">
+        <div class="row"><span>Newsvendor</span><b class="win" id="cNews">—</b></div>
+        <div class="row"><span>Naive (last week)</span><b id="cNaive">—</b></div>
+        <div class="row"><span>Fixed 95%</span><b id="cFixed">—</b></div>
+        <div class="row" style="border-top:1px solid var(--line);margin-top:7px;padding-top:10px">
+          <span>Saved vs naive</span><b class="win" id="cSaved">—</b></div>
+      </div>
+    </div>
+
+    <div>
+      <figure>
+        <div class="legend">
+          <span><i style="background:var(--jade)"></i>Newsvendor at each service level</span>
+          <span><i style="background:var(--ink-3)"></i>Naive</span>
+          <span><i style="background:var(--amber)"></i>Fixed 95%</span>
+        </div>
+        <div id="curve"></div>
+        <figcaption id="curveCap"></figcaption>
+      </figure>
+      <div class="callout" style="margin-top:20px" id="simNote"></div>
+    </div>
+  </div>
+
+  <div>
+    <h3>Why the answer is not 95%</h3>
+    <p class="prose" style="margin-top:8px">
+      Understocking costs the lost <em>margin</em> — the retailer keeps the unit it didn't
+      sell. Overstocking a perishable costs close to the whole <em>unit cost</em>, because
+      most of it is written off. When one side of the trade costs roughly a third of what
+      the other side costs, the arithmetic puts the optimum well below the middle, and far
+      below the 95% that gets picked by default. Drag <code>Co</code> down toward zero and
+      the optimum climbs back toward 95% — that is the only regime where a flat high
+      service level is defensible.
+    </p>
+  </div>
+</section>
+
+<!-- ============ FORECAST ============ -->
+<section id="forecast" class="stack fade" hidden>
+  <div>
+    <p class="eyebrow">Fold 4 · trained through 2016-04-24 · 28-day horizon</p>
+    <h2>Forecast explorer</h2>
+    <p class="lede">
+      One series from each intermittency band. The shaded band is the 10th–90th percentile
+      of the fitted demand distribution — the object the newsvendor layer actually orders
+      against, not the line through the middle.
+    </p>
+  </div>
+  <div class="legend">
+    <span><i style="background:var(--ink-2)"></i>Actual units sold</span>
+    <span><i style="background:var(--jade)"></i>Forecast (median)</span>
+    <span><i style="background:var(--jade-dim);border:1px solid var(--jade)"></i>q10–q90 interval</span>
+  </div>
+  <div id="series" class="stack"></div>
+  <div class="callout">
+    <span class="hd">Why the sample spans three bands</span>
+    <p style="margin:0">
+      Picking the 60 highest-volume items per department would have been easier and would
+      have quietly deleted the problem: dense SKUs are the easy ones. Items were instead
+      split into three equal bands by their share of zero-sales days and sampled evenly
+      from each, so the panel is <strong>61.6% zero-sales days</strong> and the sparse band
+      reaches 99–100% zeros. The intermittent-demand problem is genuinely present rather
+      than sampled away.
+    </p>
+  </div>
+  <div class="tw"><table id="strataTable"></table></div>
+</section>
+
+<!-- ============ PERFORMANCE ============ -->
+<section id="performance" class="stack fade" hidden>
+  <div>
+    <p class="eyebrow">Rolling origin · 5 folds · never a random split</p>
+    <h2>Model performance</h2>
+    <p class="lede">
+      Mean <em>and</em> spread, always. A model that wins on average while losing badly on
+      one fold is a different proposition from one that wins consistently, and only the
+      second is safe behind an ordering decision.
+    </p>
+  </div>
+
+  <figure>
+    <div id="modelBars"></div>
+    <figcaption>
+      MASE across 5 folds, lower is better. Whiskers are the fold range, so a short bar
+      with a long whisker is a model that got lucky somewhere.
+    </figcaption>
+  </figure>
+
+  <div class="tw"><table id="foldTable"></table></div>
+
+  <div class="callout amber">
+    <span class="hd">A baseline beat the model, and it is reported rather than tuned away</span>
+    <p style="margin:0">
+      LightGBM wins overall by <strong>0.005 MASE</strong> — comfortably inside a
+      fold-to-fold spread of 0.018–0.026. On the <strong>sparse band</strong> AutoETS wins
+      outright (0.9931 vs 1.0090), and on <strong>fold 0</strong> it beats the GBM head to
+      head. What the GBM actually buys is not a large accuracy jump: it is one model
+      instead of 720, a quantile distribution the classical methods don't provide, and
+      SHAP attributions the optimizer can be defended with.
+    </p>
+  </div>
+
+  <div class="grid g2">
+    <figure><div id="strataBars"></div>
+      <figcaption>MASE by intermittency band. The routing hybrid this suggested was built,
+        priced, and rejected — it cost 3.6% more.</figcaption></figure>
+    <figure><div id="shapBars"></div>
+      <figcaption>Mean |SHAP|, fold 4. No <code>units_lag_*</code> feature reaches the top
+        15 — the rolling statistics carry the autoregressive signal.</figcaption></figure>
+  </div>
+
+  <div>
+    <h3>MinT reconciliation — coherence, and what it costs</h3>
+    <p class="lede" style="margin-top:6px;margin-bottom:16px">
+      Forecast each level independently and the numbers don't add up: SKU forecasts don't
+      sum to store forecasts. MinT fixes that exactly — and the bottom level pays for it.
+    </p>
+    <div class="grid g2">
+      <div class="tw"><table id="coherenceTable"></table></div>
+      <div class="tw"><table id="levelTable"></table></div>
+    </div>
+    <div class="callout blue" style="margin-top:16px">
+      <span class="hd">Which forecast feeds which consumer</span>
+      <p style="margin:0">
+        Reconciliation improves every aggregate level and makes the bottom level ~1.5%
+        worse on MASE. Orders are placed at <strong>item × store</strong>, so the cost
+        function optimises against the <strong>unreconciled</strong> forecast — coherence
+        with a store total buys nothing when deciding how many units of one SKU go on one
+        shelf. The reconciled forecasts serve the aggregate planning views instead, where
+        coherence <em>is</em> the requirement. <code>USE_RECONCILED = False</code> is a
+        named constant pinned by a test, not a default.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ WHAT BROKE ============ -->
+<section id="log" class="stack fade" hidden>
+  <div>
+    <p class="eyebrow">Five real catches · the section that can't be faked</p>
+    <h2>What broke</h2>
+    <p class="lede">
+      Every one of these produced plausible-looking output. That is what makes them worth
+      writing down: none announced itself, and four of the five were caught by asking a
+      number to justify itself rather than by anything failing.
+    </p>
+  </div>
+
+  <div class="log">
+    <div class="log-item">
+      <div class="log-n">01</div>
+      <div>
+        <h3>784 rows where 7 belong <span class="tag">Phase 8 · /optimize</span></h3>
+        <p class="prose">
+          The optimize endpoint fetched every horizon for a SKU with no date filter,
+          pulling <strong>28 days × 7 quantile levels × 4 stores</strong> into a single
+          array and interpolating across it. The output looked entirely reasonable — order
+          quantities in a sane range — over a demand distribution that was structurally
+          meaningless: duplicated quantile keys from different days, sorted by value with
+          no coherent ordering. Nothing failed. It was caught by checking the row count,
+          seeing 784 where one coherent curve needs 7, and asking why. Fixed by pinning to
+          a single period, which is the classic newsvendor framing anyway.
+        </p>
+      </div>
+    </div>
+
+    <div class="log-item">
+      <div class="log-n">02</div>
+      <div>
+        <h3>A 500 where a 422 belonged <span class="tag">Phase 8 · /optimize</span></h3>
+        <p class="prose">
+          A caller-chosen <code>Cu</code>/<code>Co</code> can legitimately push the critical
+          ratio past the top fitted quantile — <code>Cu ≫ Co</code> drives it toward 1.0.
+          The interpolator correctly refuses to extrapolate a tail the model never
+          estimated, but the handler didn't catch that, so a valid request returned a bare
+          server error. The happy-path test at a moderate ratio could never have reached
+          it; the test that found it was written specifically to probe the edge.
+        </p>
+      </div>
+    </div>
+
+    <div class="log-item">
+      <div class="log-n">03</div>
+      <div>
+        <h3>Serving quantiles that cross <span class="tag">Phase 8 · /forecast</span></h3>
+        <p class="prose">
+          LightGBM fits each quantile level as an independent model, and nothing constrains
+          them to be ordered — roughly <strong>1.3%</strong> of rows come out with q0.90
+          above q0.95, squarely inside the band the newsvendor rule selects from. A crossing
+          there returns a <em>lower</em> stocking quantity for a <em>higher</em> service
+          level: silently wrong, in the direction that causes stockouts. The read-time fix
+          existed already; the endpoint simply forgot to apply it. The fixture now plants a
+          deliberately crossed grid so it can't regress quietly.
+        </p>
+      </div>
+    </div>
+
+    <div class="log-item">
+      <div class="log-n">04</div>
+      <div>
+        <h3>A DELETE that kept widening <span class="tag">Phases 5–9 · scorers</span></h3>
+        <p class="prose">
+          Three scorers write to the same metrics table, and each clears its previous output
+          first. The point scorer originally deleted <em>everything</em>, wiping the
+          quantile scorer's rows depending on call order. Narrowing it to "everything except
+          pinball" fixed that symptom but not the cause — it still swept up the
+          reconciliation metrics and the WRMSSE figure, so retraining the model for a wider
+          quantile grid <strong>silently destroyed Phase 6's results</strong>. This
+          dashboard's MinT panel would have been built on an empty table. Found while
+          extracting data for this page: two queries came back with 1 row and 0 rows where
+          8 and 2 were expected. The real fix, applied to all three: delete an
+          <strong>allowlist of what you write</strong>, never a denylist of what you
+          recognise — a denylist can always grow to cover someone else's rows.
+        </p>
+      </div>
+    </div>
+
+    <div class="log-item">
+      <div class="log-n">05</div>
+      <div>
+        <h3>A quantile grid that couldn't express its own premise <span class="tag">Phase 7</span></h3>
+        <p class="prose">
+          The brief specified quantiles at <code>{0.5, 0.9, 0.95, 0.99}</code>. But the
+          whole point of the project is that perishables have a <em>low</em> optimal service
+          level — and realistic fresh-food critical ratios land between
+          <strong>0.25 and 0.63</strong>, below the lowest fitted level. Every order would
+          have been clamped at the median, and the headline finding would have been
+          invisible: not wrong, just unreachable. Caught by computing realistic critical
+          ratios <em>before</em> wiring the optimizer rather than by noticing clamped output
+          afterwards. The grid was extended to seven levels and the model refit.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <span class="hd">What the pattern says</span>
+    <p style="margin:0">
+      Four of five were found by interrogating a number that looked fine — a row count, a
+      metric that came back thin, a ratio computed ahead of the code that would consume it.
+      None was found by a crash. That is the argument for building the checks that catch
+      structure rather than exceptions: a perturbation test that corrupts the future and
+      asserts the past didn't move, a scorer that reports how many series it excluded, a
+      coherence gap asserted to floating-point zero rather than printed and admired.
+    </p>
+  </div>
+</section>
+
+</main>
+
+<footer class="wrap">
+  <div>Built on M5 (Walmart) — CA / FOODS, 720 series, 1.4M rows. All costs USD; every cost
+    parameter is a stated assumption, not a measurement.</div>
+  <div style="margin-top:6px">DuckDB · LightGBM (Tweedie) · statsforecast · Nixtla hierarchicalforecast · FastAPI · 207 tests</div>
+</footer>
+
+<script>
+const DATA = __DATA__;
+const $ = s => document.querySelector(s);
+const fmt = (n,d=0) => n.toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
+const money = n => '$' + fmt(Math.round(n));
+const C = {jade:'#2FA97C', amber:'#C4862B', blue:'#4F86D4', ink3:'#7A8A84', line:'#222E2A', ink2:'#A6B5AF'};
+
+/* ---------------- tabs ---------------- */
+const tabs = [...document.querySelectorAll('.tab')];
+function show(name){
+  tabs.forEach(t=>t.setAttribute('aria-selected', String(t.dataset.t===name)));
+  ['overview','simulator','forecast','performance','log'].forEach(id=>{
+    const el = document.getElementById(id);
+    el.hidden = id!==name;
+    if(id===name){ el.classList.remove('fade'); void el.offsetWidth; el.classList.add('fade'); }
+  });
+  window.scrollTo({top:0,behavior:'instant'});
+}
+tabs.forEach(t=>t.addEventListener('click',()=>show(t.dataset.t)));
+document.addEventListener('click', e=>{
+  const g = e.target.closest('[data-goto]');
+  if(g){ e.preventDefault(); show(g.dataset.goto); }
+});
+
+/* ---------------- overview ---------------- */
+const M = DATA.money;
+const byPolicy = p => M.find(m=>m.policy.startsWith(p));
+const naiveM = byPolicy('Current'), fixedM = byPolicy('Fixed'), newsM = byPolicy('Newsvendor');
+const savedAbs = naiveM.total_cost - newsM.total_cost;
+
+$('#tiles').innerHTML = [
+  ['Cost saved vs naive', money(savedAbs), `<span class="chip good">−28.6% total cost</span>`],
+  ['Waste units', fmt(newsM.waste_units), `<span class="chip good">−73% vs naive</span>`],
+  ['Stockout rate', (newsM.stockout_rate*100).toFixed(1)+'%', `<span class="chip cool">higher on purpose</span>`],
+  ['WRMSSE (M5 official)', '0.784', `<span class="chip good">−3.4% after MinT</span>`]
+].map(([k,v,d])=>`<div class="tile"><div class="k">${k}</div><div class="v">${v}</div><div class="d">${d}</div></div>`).join('');
+
+$('#moneyTable').innerHTML = `
+<thead><tr><th>Policy</th><th>Stockout rate</th><th>Waste units</th><th>Understock cost</th>
+<th>Overstock cost</th><th>Total cost</th><th>vs naive</th></tr></thead><tbody>` +
+M.map(m=>{
+  const win = m.policy.startsWith('Newsvendor');
+  const delta = (m.total_cost-naiveM.total_cost)/naiveM.total_cost;
+  const dTxt = m===naiveM ? '—' : `<span class="${delta<0?'win':'lose'}">${delta>0?'+':''}${(delta*100).toFixed(1)}%</span>`;
+  return `<tr class="${win?'hi':''}"><td>${m.policy}</td>
+  <td class="num">${(m.stockout_rate*100).toFixed(1)}%</td>
+  <td class="num">${fmt(m.waste_units)}</td>
+  <td class="num">${money(m.understock_cost)}</td>
+  <td class="num">${money(m.overstock_cost+m.holding_cost)}</td>
+  <td class="num"><b>${money(m.total_cost)}</b></td><td class="num">${dTxt}</td></tr>`;
+}).join('') + '</tbody>';
+
+/* stacked cost bars */
+(function(){
+  const w=760,rowH=52,h=M.length*rowH+30, max=Math.max(...M.map(m=>m.total_cost)), lx=190, bw=w-lx-90;
+  let s=`<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Total cost by policy, split into understock and overstock">`;
+  M.forEach((m,i)=>{
+    const y=i*rowH+12, u=m.understock_cost/max*bw, o=(m.overstock_cost+m.holding_cost)/max*bw;
+    const short=m.policy.replace(" (naive: last week's sales)","").replace(' service level','');
+    s+=`<text x="0" y="${y+17}" class="axis" style="font-size:11.5px;fill:${C.ink2}">${short}</text>`;
+    s+=`<rect x="${lx}" y="${y}" width="${u}" height="24" fill="${C.blue}" rx="2"/>`;
+    s+=`<rect x="${lx+u+2}" y="${y}" width="${Math.max(o-2,0)}" height="24" fill="${C.amber}" rx="2"/>`;
+    s+=`<text x="${lx+u+o+10}" y="${y+17}" class="axis" style="font-size:11.5px;fill:#E8EFEC">${money(m.total_cost)}</text>`;
+  });
+  s+='</svg>'; $('#costBars').innerHTML=s;
+})();
+
+/* ---------------- simulator ---------------- */
+const SW = DATA.sweep, NAIVE = DATA.naive, F95 = DATA.fixed95;
+const cost = (p,cu,co) => p.short*cu + p.left*co;
+
+function renderCurve(cu,co,cr,best){
+  const w=760,h=310,ml=64,mr=18,mt=14,mb=42, iw=w-ml-mr, ih=h-mt-mb;
+  const costs = SW.map(p=>cost(p,cu,co));
+  const nC = cost(NAIVE,cu,co), fC = cost(F95,cu,co);
+  const lo=0, hi=Math.max(...costs, nC, fC)*1.06;
+  const X = c => ml + (c-0.10)/(0.99-0.10)*iw;
+  const Y = v => mt + ih - (v-lo)/(hi-lo)*ih;
+  let s=`<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Total cost against service level">`;
+  for(let i=0;i<=4;i++){ const v=lo+(hi-lo)*i/4, y=Y(v);
+    s+=`<line x1="${ml}" y1="${y}" x2="${w-mr}" y2="${y}" class="gridline"/>`;
+    s+=`<text x="${ml-9}" y="${y+3.5}" class="axis" text-anchor="end">${'$'+fmt(Math.round(v/1000))+'k'}</text>`; }
+  [0.1,0.25,0.5,0.75,0.95].forEach(t=>{
+    s+=`<text x="${X(t)}" y="${h-22}" class="axis" text-anchor="middle">${Math.round(t*100)}%</text>`; });
+  s+=`<text x="${ml}" y="${h-6}" class="axis-title">service level (CR)</text>`;
+  // reference lines
+  s+=`<line x1="${ml}" y1="${Y(nC)}" x2="${w-mr}" y2="${Y(nC)}" stroke="${C.ink3}" stroke-width="1.5" stroke-dasharray="4 4"/>`;
+  s+=`<text x="${w-mr}" y="${Y(nC)-7}" class="axis" text-anchor="end" style="fill:${C.ink3}">naive ${money(nC)}</text>`;
+  if(Y(fC)>mt+8){
+    s+=`<line x1="${ml}" y1="${Y(fC)}" x2="${w-mr}" y2="${Y(fC)}" stroke="${C.amber}" stroke-width="1.5" stroke-dasharray="4 4"/>`;
+    s+=`<text x="${w-mr}" y="${Y(fC)-7}" class="axis" text-anchor="end" style="fill:${C.amber}">fixed 95% ${money(fC)}</text>`;
+  } else {
+    s+=`<text x="${w-mr}" y="${mt+12}" class="axis" text-anchor="end" style="fill:${C.amber}">fixed 95% ${money(fC)} ↑ off-scale</text>`;
+  }
+  // curve
+  const pts = SW.map((p,i)=>`${X(p.cr).toFixed(1)},${Y(costs[i]).toFixed(1)}`).join(' ');
+  s+=`<polyline points="${pts}" fill="none" stroke="${C.jade}" stroke-width="2" stroke-linejoin="round"/>`;
+  // optimum
+  const bx=X(best.cr), by=Y(best.cost);
+  s+=`<line x1="${bx}" y1="${mt}" x2="${bx}" y2="${mt+ih}" stroke="${C.jade}" stroke-width="1" stroke-dasharray="3 3" opacity=".55"/>`;
+  s+=`<circle cx="${bx}" cy="${by}" r="5.5" fill="${C.jade}" stroke="#0C1211" stroke-width="2"/>`;
+  const lblX = bx > w-190 ? bx-12 : bx+12, anch = bx > w-190 ? 'end':'start';
+  s+=`<text x="${lblX}" y="${by-13}" class="axis" text-anchor="${anch}" style="fill:#E8EFEC;font-size:11.5px">optimum ${Math.round(best.cr*100)}% · ${money(best.cost)}</text>`;
+  s+='</svg>';
+  $('#curve').innerHTML=s;
+  return {nC,fC};
+}
+
+function update(){
+  const cu=+$('#cu').value, co=+$('#co').value, cr=cu/(cu+co);
+  $('#cuOut').textContent=cu.toFixed(2); $('#coOut').textContent=co.toFixed(2);
+  $('#cu').style.setProperty('--p', ((cu-0.05)/(3-0.05)*100)+'%');
+  $('#co').style.setProperty('--p', ((co-0.05)/(3-0.05)*100)+'%');
+  $('#crOut').textContent=cr.toFixed(3);
+  $('#slOut').textContent=Math.round(cr*100)+'%';
+
+  let best=null;
+  SW.forEach(p=>{ const c=cost(p,cu,co); if(!best||c<best.cost) best={cr:p.cr,cost:c,p}; });
+  const {nC,fC} = renderCurve(cu,co,cr,best);
+
+  // policy the CR actually selects (clamped to fitted grid)
+  const sel = SW.reduce((a,b)=>Math.abs(b.cr-cr)<Math.abs(a.cr-cr)?b:a);
+  const selCost = cost(sel,cu,co);
+  $('#cNews').textContent=money(selCost);
+  $('#cNaive').textContent=money(nC);
+  $('#cFixed').textContent=money(fC);
+  const saved=(nC-selCost)/nC;
+  $('#cSaved').textContent=(saved>=0?'−':'+')+Math.abs(saved*100).toFixed(1)+'% ('+money(Math.abs(nC-selCost))+')';
+  $('#cSaved').className = saved>=0?'win':'lose';
+  $('#qtyOut').textContent = (sel.stockout_rate*100).toFixed(1)+'% stockout vs '+(F95.stockout_rate*100).toFixed(1)+'%';
+
+  $('#curveCap').textContent =
+    `Exact, not smoothed: order quantity depends only on the critical ratio, so total shortfall and leftover units were precomputed once per service level across all 100,720 decisions. Cost at any Cu/Co is then shortfall×Cu + leftover×Co — an exact arithmetic evaluation of ${SW.length} points on every drag, with no model call.`;
+
+  const gap = best.cr - cr, lost = selCost - best.cost;
+  const gapTxt = Math.abs(gap)<=0.011
+    ? `The cost-minimising service level here is <strong>${Math.round(best.cr*100)}%</strong>, matching the theoretical critical ratio of <strong>${cr.toFixed(3)}</strong> — theory and data agree at this cost ratio.`
+    : `<strong>Theory and data disagree slightly, and the gap is informative.</strong>
+       The critical ratio says stock to <strong>${cr.toFixed(3)}</strong>, but the
+       cost-minimising level on this data is <strong>${Math.round(best.cr*100)}%</strong>
+       — following theory exactly leaves ${money(Math.abs(lost))} on the table
+       (${(Math.abs(lost)/selCost*100).toFixed(2)}%). The newsvendor rule assumes you are
+       ordering the CR-th quantile of <em>true</em> demand; you are actually ordering the
+       CR-th quantile of a <em>forecast</em>, and this model under-forecasts
+       (bias −0.098, the largest of any model tested). A downward-biased distribution has
+       to be read at a higher quantile to land in the same place.`;
+  $('#simNote').innerHTML =
+    `<span class="hd">Cu and Co are assumptions you control</span><p style="margin:0">${gapTxt}
+     Both sliders are per-unit costs in dollars — set them to whatever your margin and
+     spoilage actually are. The default (<code>Cu 0.88</code>, <code>Co 1.27</code>)
+     reproduces the money table's critical ratio of 0.409. These are flat per-unit costs
+     whereas the money table priced each row at its own shelf price, so totals here run
+     0.1–2% above it depending on policy.</p>`;
+}
+['input','change'].forEach(ev=>{ $('#cu').addEventListener(ev,update); $('#co').addEventListener(ev,update); });
+
+/* ---------------- forecast explorer ---------------- */
+$('#series').innerHTML = DATA.examples.map((ex,idx)=>{
+  const w=760,h=190,ml=40,mr=14,mt=12,mb=26,iw=w-ml-mr,ih=h-mt-mb;
+  const hist=ex.hist, fMap=new Map(ex.point.map(p=>[p.d,p.yhat]));
+  const loM=new Map(ex.lo.map(p=>[p.d,p.v])), hiM=new Map(ex.hi.map(p=>[p.d,p.v]));
+  const dates=hist.map(r=>r.d);
+  const maxV=Math.max(1,...hist.map(r=>r.units),...ex.hi.map(p=>p.v));
+  const X=i=>ml+(i/(dates.length-1))*iw, Y=v=>mt+ih-(v/maxV)*ih;
+  let s=`<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="${ex.item} at ${ex.store}">`;
+  for(let i=0;i<=2;i++){const v=maxV*i/2,y=Y(v);
+    s+=`<line x1="${ml}" y1="${y}" x2="${w-mr}" y2="${y}" class="gridline"/>`;
+    s+=`<text x="${ml-8}" y="${y+3.5}" class="axis" text-anchor="end">${Math.round(v)}</text>`;}
+  const fi=dates.findIndex(d=>fMap.has(d));
+  if(fi>0){ s+=`<line x1="${X(fi)}" y1="${mt}" x2="${X(fi)}" y2="${mt+ih}" stroke="${C.ink3}" stroke-width="1" stroke-dasharray="3 3"/>`;
+    s+=`<text x="${X(fi)+6}" y="${mt+11}" class="axis">forecast origin</text>`; }
+  const band=dates.map((d,i)=>hiM.has(d)?`${X(i).toFixed(1)},${Y(hiM.get(d)).toFixed(1)}`:null).filter(Boolean);
+  const bandLo=dates.map((d,i)=>loM.has(d)?`${X(i).toFixed(1)},${Y(loM.get(d)).toFixed(1)}`:null).filter(Boolean).reverse();
+  if(band.length) s+=`<polygon points="${band.concat(bandLo).join(' ')}" fill="${C.jade}" opacity=".16"/>`;
+  s+=`<polyline points="${hist.map((r,i)=>`${X(i).toFixed(1)},${Y(r.units).toFixed(1)}`).join(' ')}" fill="none" stroke="${C.ink2}" stroke-width="1.6"/>`;
+  const fp=dates.map((d,i)=>fMap.has(d)?`${X(i).toFixed(1)},${Y(fMap.get(d)).toFixed(1)}`:null).filter(Boolean);
+  if(fp.length) s+=`<polyline points="${fp.join(' ')}" fill="none" stroke="${C.jade}" stroke-width="2"/>`;
+  s+='</svg>';
+  return `<figure><h3 style="margin-bottom:2px">${ex.item} · ${ex.store}
+    <span class="tag">${ex.stratum} · ${Math.round(ex.zero_share*100)}% zero-days</span></h3>
+    ${s}</figure>`;
+}).join('');
+
+$('#strataTable').innerHTML = `<thead><tr><th>Department</th><th>Band</th><th>Items</th>
+<th>Zero-day share</th></tr></thead><tbody>` + DATA.strata_profile.map(r=>
+`<tr><td>${r.dept_id}</td><td>${r.stratum_name}</td><td class="num">${r.items}</td>
+<td class="num">${Math.round(r.lo*100)}–${Math.round(r.hi*100)}%</td></tr>`).join('')+'</tbody>';
+
+/* ---------------- performance ---------------- */
+const folds = DATA.folds.filter(f=>f.metric==='mase');
+const models=[...new Set(folds.map(f=>f.model_name))].map(m=>{
+  const v=folds.filter(f=>f.model_name===m).map(f=>f.value);
+  return {m, mean:v.reduce((a,b)=>a+b,0)/v.length, min:Math.min(...v), max:Math.max(...v)};
+}).sort((a,b)=>a.mean-b.mean);
+
+(function(){
+  const w=760,rowH=40,h=models.length*rowH+34,lx=130,bw=w-lx-70;
+  const hi=Math.max(...models.map(d=>d.max))*1.04, lo=0.95;
+  const X=v=>lx+(v-lo)/(hi-lo)*bw;
+  let s=`<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="MASE by model with fold range">`;
+  models.forEach((d,i)=>{
+    const y=i*rowH+14, best=i===0;
+    s+=`<text x="0" y="${y+15}" class="axis" style="font-size:11.5px;fill:${best?'#E8EFEC':C.ink2}">${d.m}</text>`;
+    s+=`<rect x="${lx}" y="${y+3}" width="${Math.max(X(d.mean)-lx,1)}" height="18" rx="2" fill="${best?C.jade:C.ink3}" opacity="${best?1:.55}"/>`;
+    s+=`<line x1="${X(d.min)}" y1="${y+12}" x2="${X(d.max)}" y2="${y+12}" stroke="#E8EFEC" stroke-width="1.5" opacity=".65"/>`;
+    s+=`<line x1="${X(d.min)}" y1="${y+7}" x2="${X(d.min)}" y2="${y+17}" stroke="#E8EFEC" stroke-width="1.5" opacity=".65"/>`;
+    s+=`<line x1="${X(d.max)}" y1="${y+7}" x2="${X(d.max)}" y2="${y+17}" stroke="#E8EFEC" stroke-width="1.5" opacity=".65"/>`;
+    s+=`<text x="${w-56}" y="${y+16}" class="axis" style="font-size:11.5px;fill:#E8EFEC">${d.mean.toFixed(4)}</text>`;
+  });
+  s+=`<text x="${lx}" y="${h-6}" class="axis-title">MASE — lower is better · 1.0 = as good as naive</text></svg>`;
+  $('#modelBars').innerHTML=s;
+})();
+
+(function(){
+  const metrics=['mase','rmsse','bias'];
+  const ms=[...new Set(DATA.folds.map(f=>f.model_name))];
+  let head='<thead><tr><th>Model</th>'+metrics.map(m=>`<th>${m.toUpperCase()} mean</th><th>spread</th>`).join('')+'</tr></thead>';
+  const rows=ms.map(m=>{
+    const cells=metrics.map(me=>{
+      const v=DATA.folds.filter(f=>f.model_name===m&&f.metric===me).map(f=>f.value);
+      const mu=v.reduce((a,b)=>a+b,0)/v.length;
+      const sd=Math.sqrt(v.reduce((a,b)=>a+(b-mu)**2,0)/(v.length-1));
+      return `<td class="num">${mu.toFixed(4)}</td><td class="num" style="color:var(--ink-3)">±${sd.toFixed(4)}</td>`;
+    }).join('');
+    const mu=DATA.folds.filter(f=>f.model_name===m&&f.metric==='mase').map(f=>f.value);
+    const best=Math.min(...ms.map(x=>{const q=DATA.folds.filter(f=>f.model_name===x&&f.metric==='mase').map(f=>f.value);return q.reduce((a,b)=>a+b,0)/q.length;}));
+    const isBest=Math.abs(mu.reduce((a,b)=>a+b,0)/mu.length-best)<1e-9;
+    return `<tr class="${isBest?'hi':''}"><td>${m}</td>${cells}</tr>`;
+  }).join('');
+  $('#foldTable').innerHTML=head+'<tbody>'+rows+'</tbody>';
+})();
+
+(function(){
+  const order=['dense','mid','sparse'], keep=['lgbm','ets','seasonal_naive'];
+  const w=380,gh=64,h=order.length*gh+30,lx=74,bw=w-lx-46;
+  const vals=DATA.strata.filter(r=>keep.includes(r.model_name));
+  const hi=Math.max(...vals.map(v=>v.mean))*1.03, lo=0.95;
+  let s=`<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="MASE by intermittency band">`;
+  order.forEach((st,i)=>{
+    const y0=i*gh+10;
+    s+=`<text x="0" y="${y0+22}" class="axis" style="font-size:11.5px;fill:${C.ink2}">${st}</text>`;
+    keep.forEach((m,j)=>{
+      const r=vals.find(v=>v.stratum===st&&v.model_name===m); if(!r) return;
+      const y=y0+j*15, wpx=Math.max((r.mean-lo)/(hi-lo)*bw,1);
+      const col=m==='lgbm'?C.jade:(m==='ets'?C.blue:C.ink3);
+      s+=`<rect x="${lx}" y="${y}" width="${wpx}" height="11" rx="2" fill="${col}" opacity=".9"/>`;
+      s+=`<text x="${lx+wpx+6}" y="${y+9.5}" class="axis" style="font-size:9.5px">${r.mean.toFixed(3)}</text>`;
+    });
+  });
+  s+='</svg>';
+  $('#strataBars').innerHTML=`<div class="legend" style="font-size:10.5px">
+    <span><i style="background:${C.jade}"></i>lgbm</span>
+    <span><i style="background:${C.blue}"></i>ets</span>
+    <span><i style="background:${C.ink3}"></i>seasonal naive</span></div>`+s;
+})();
+
+(function(){
+  const d=DATA.shap.slice(0,12), w=380,rh=22,h=d.length*rh+16,lx=150,bw=w-lx-42;
+  const max=Math.max(...d.map(x=>x.value));
+  let s=`<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="SHAP feature importance">`;
+  d.forEach((x,i)=>{const y=i*rh+6;
+    s+=`<text x="0" y="${y+11}" class="axis" style="font-size:10px">${x.feature}</text>`;
+    s+=`<rect x="${lx}" y="${y+2}" width="${Math.max(x.value/max*bw,1)}" height="11" rx="2" fill="${C.jade}" opacity=".8"/>`;
+    s+=`<text x="${lx+x.value/max*bw+6}" y="${y+11.5}" class="axis" style="font-size:9.5px">${x.value.toFixed(3)}</text>`;});
+  s+='</svg>'; $('#shapBars').innerHTML=s;
+})();
+
+$('#coherenceTable').innerHTML='<thead><tr><th>Parent → child</th><th>Max gap before</th><th>after</th></tr></thead><tbody>'+
+DATA.coherence.map(r=>`<tr><td>${r.parent_level} → ${r.child_level}</td>
+<td class="num">${fmt(r.max_before,2)}</td>
+<td class="num win">${Number(r.max_after).toExponential(1)}</td></tr>`).join('')+'</tbody>';
+
+(function(){
+  const order=['state','store','store_dept','item_store'];
+  const get=(lv,m,src)=>{const r=src.find(x=>x.level===lv&&x.model_name===m);return r?r.mean:null;};
+  $('#levelTable').innerHTML='<thead><tr><th>Level</th><th>RMSSE base</th><th>MinT</th><th>Δ</th></tr></thead><tbody>'+
+  order.map(lv=>{
+    const b=get(lv,'lgbm',DATA.levels), r=get(lv,'lgbm_mint',DATA.levels);
+    if(b==null||r==null) return '';
+    const d=r-b;
+    return `<tr><td>${lv}</td><td class="num">${b.toFixed(4)}</td><td class="num">${r.toFixed(4)}</td>
+    <td class="num ${d<0?'win':'lose'}">${d>0?'+':''}${d.toFixed(4)}</td></tr>`;
+  }).join('')+'</tbody>';
+})();
+
+update();
+</script>

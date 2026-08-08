@@ -16,8 +16,8 @@ the phase before it.
 | [E6](backlog/epic-06-reconciliation.md) | Reconciliation | MinT coherent hierarchy | ✅ Done |
 | [E7](backlog/epic-07-optimization.md) | Optimization | Newsvendor money table | ✅ Done |
 | [E8](backlog/epic-08-api.md) | API | FastAPI over precomputed results | ✅ Done |
-| [E9](backlog/epic-09-dashboard.md) | Dashboard | React analytics UI | 🔜 Next |
-| [E10](backlog/epic-10-ship.md) | Ship | Deploy + recruiter README | ⬜ |
+| [E9](backlog/epic-09-dashboard.md) | Dashboard | Self-contained analytics UI | ✅ Done |
+| [E10](backlog/epic-10-ship.md) | Ship | Deploy + recruiter README | 🔜 Next |
 
 ## The phase contract
 

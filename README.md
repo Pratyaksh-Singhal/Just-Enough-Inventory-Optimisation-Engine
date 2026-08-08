@@ -7,8 +7,10 @@ SKU-level demand, reconciles those forecasts across a store hierarchy so they st
 coherent, converts the forecast *distribution* into optimal stocking quantities via
 newsvendor theory, and reports the cost delta against baseline stocking practice.
 
-> **Build status:** Phases 1–8 complete — data foundation through a live FastAPI
-> service. Phases 9–10 (dashboard, deploy) in progress.
+> **Build status:** Phases 1–9 complete — data foundation through a live dashboard.
+> Phase 10 (deploy) in progress.
+>
+> **Live dashboard → https://claude.ai/code/artifact/ab291272-dc60-496b-88cd-fe3f5c57ce2f**
 
 ---
 
@@ -85,8 +87,8 @@ work, one tag per phase.
 | 6. MinT hierarchical reconciliation | [E6](docs/backlog/epic-06-reconciliation.md) | ✅ Complete |
 | 7. Newsvendor optimization layer | [E7](docs/backlog/epic-07-optimization.md) | ✅ Complete |
 | 8. FastAPI service | [E8](docs/backlog/epic-08-api.md) | ✅ Complete |
-| 9. React dashboard | [E9](docs/backlog/epic-09-dashboard.md) | 🔜 Next |
-| 10. Deploy | [E10](docs/backlog/epic-10-ship.md) | ⬜ |
+| 9. Dashboard | [E9](docs/backlog/epic-09-dashboard.md) | ✅ Complete |
+| 10. Deploy | [E10](docs/backlog/epic-10-ship.md) | 🔜 Next |
 
 ---
 
@@ -622,7 +624,8 @@ run-mint                         # MinT reconciliation + WRMSSE (E6)
 run-optimize                     # money table, sensitivity, attribution (E7)
 pip install -e ".[api]"          # fastapi, uvicorn, pydantic
 run-api                           # start the API on :8000
-pytest                           # 202 tests
+python scripts/build_dashboard.py  # regenerate dashboard/index.html
+pytest                           # 207 tests
 ruff check . && ruff format --check .
 ```
 
@@ -722,6 +725,18 @@ _Accumulating as the build progresses. Honest log, including what did not work._
   "optimal service level isn't 95%" finding would have been invisible. Caught by computing
   realistic critical ratios *before* wiring the optimizer rather than by noticing clamped
   output afterwards. Grid extended to seven levels and the model refit.
+- **A scorer's DELETE kept widening, and the third time it destroyed real results.** Three
+  scorers write to `backtest_fold_metrics` and each clears its previous output first. The
+  point scorer originally deleted the whole table, wiping the quantile scorer's rows.
+  Narrowing it to "everything except pinball" fixed that symptom but not the cause — it
+  still swept up Phase 6's aggregate-level metrics and the WRMSSE figure, so retraining
+  for Phase 7's wider quantile grid **silently destroyed the reconciliation results**. The
+  dashboard's MinT panel would have been built on an empty table. Found while extracting
+  data for Phase 9: two queries returned 1 row and 0 rows where 8 and 2 were expected. The
+  fix, applied to all three: delete an **allowlist of what you write**, never a denylist of
+  what you recognise — a denylist can always grow to cover someone else's rows.
+  `tests/test_metric_ownership.py` now pins that the three scopes partition cleanly and
+  are order-independent.
 - **`run-gbm --replace` was deleting Phase 6's reconciled forecasts.** `DELETE ... WHERE
   model_name = 'lgbm'` matched reconciled rows and aggregate-level base rows too, so
   refitting for the wider quantile grid would have silently invalidated the entire
