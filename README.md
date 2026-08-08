@@ -7,8 +7,8 @@ SKU-level demand, reconciles those forecasts across a store hierarchy so they st
 coherent, converts the forecast *distribution* into optimal stocking quantities via
 newsvendor theory, and reports the cost delta against baseline stocking practice.
 
-> **Build status:** Phases 1–7 complete — data foundation through the newsvendor
-> optimization layer. Phases 8–10 (API, dashboard, deploy) in progress.
+> **Build status:** Phases 1–8 complete — data foundation through a live FastAPI
+> service. Phases 9–10 (dashboard, deploy) in progress.
 
 ---
 
@@ -84,8 +84,8 @@ work, one tag per phase.
 | 5. Rolling-origin backtest harness | [E5](docs/backlog/epic-05-backtest.md) | ✅ Complete |
 | 6. MinT hierarchical reconciliation | [E6](docs/backlog/epic-06-reconciliation.md) | ✅ Complete |
 | 7. Newsvendor optimization layer | [E7](docs/backlog/epic-07-optimization.md) | ✅ Complete |
-| 8. FastAPI service | [E8](docs/backlog/epic-08-api.md) | 🔜 Next |
-| 9. React dashboard | [E9](docs/backlog/epic-09-dashboard.md) | ⬜ |
+| 8. FastAPI service | [E8](docs/backlog/epic-08-api.md) | ✅ Complete |
+| 9. React dashboard | [E9](docs/backlog/epic-09-dashboard.md) | 🔜 Next |
 | 10. Deploy | [E10](docs/backlog/epic-10-ship.md) | ⬜ |
 
 ---
@@ -540,6 +540,63 @@ optimises the smallest pool.
 
 ---
 
+## Phase 8 — the API
+
+Full detail in [`docs/backlog/epic-08-api.md`](docs/backlog/epic-08-api.md).
+
+Seven endpoints (`/health`, `/forecast`, `/optimize`, `/backtest`, `/hierarchy`,
+`/cost-comparison`, `/cost-sensitivity`), all reads. `test_no_handler_imports_a_trainer`
+checks "never train on request" statically — the app module can't import `lightgbm`,
+`statsforecast`, `hierarchicalforecast` or `mlflow`, so a handler that started calling
+training code would fail a test before it could ship.
+
+### DuckDB's single-writer model decided the connection design, not the other way round
+
+A writer needs the file to itself — no concurrent readers, no concurrent writers. The API
+never holds a long-lived connection; every request opens and closes a fresh
+`read_only=True` handle. That leaves a write window between requests, but "usually open" is
+not "safe" — especially on Windows, where a rename over an open file handle can fail
+outright. So the nightly refresh job (E8-S4) never writes to the live file at all: it copies
+the warehouse to a shadow path, runs the full pipeline against the copy, and atomically
+swaps it in with `os.replace`, retrying a few times against transient contention. Any step
+failing, or every swap attempt failing, discards the shadow and leaves the live file
+untouched — the job is idempotent and a failure can never corrupt what's already there.
+
+### Latency (in-process, 200 requests per endpoint)
+
+| Endpoint | p50 | p95 | p99 |
+|---|---:|---:|---:|
+| `GET /health` | 17.9ms | 20.0ms | 22.4ms |
+| `POST /forecast` | 26.3ms | 29.7ms | 31.1ms |
+| `POST /optimize` | 26.1ms | 28.0ms | 29.9ms |
+
+The floor is DuckDB connection overhead (~15–20ms, visible in `/health`) — the accepted
+cost of never holding a connection that could block the nightly writer.
+
+### Two real bugs, both caught by the fixture suite rather than the happy path
+
+**`/optimize` mixed 28 days of quantile curves into one array per store.** With no date
+filter, fetching every horizon for a SKU pulled 28 days × 7 quantile levels × 4 stores into
+one group, sorted by quantile value with duplicated keys — output that looked entirely
+plausible (sane-looking order quantities) over a demand distribution that was structurally
+meaningless. Found by checking a row count (784, expected) against what a single coherent
+distribution should have (7), not by the numbers looking wrong. Fixed by pinning the
+endpoint to a single period — `horizon = 1`, "tomorrow" relative to the latest completed
+fold, the classic newsvendor framing.
+
+**An extreme Cu/Co ratio 500'd instead of 422'ing.** `interpolate_quantile` correctly
+refuses to extrapolate past the fitted grid, but the handler didn't catch that error. A
+test written specifically to probe an edge the happy-path test never reaches caught it
+before deploy.
+
+**`/forecast` was serving raw, potentially crossed quantiles.** E4/E5 established that
+~1.3% of fitted quantile rows are crossed inside the newsvendor's CR band, and built
+`monotonize()` as the read-time fix every consumer must apply. The first version of this
+endpoint queried `forecast` directly and forgot it. A fixture test plants a deliberately
+crossed grid so this can't regress silently.
+
+---
+
 ## Setup
 
 ```bash
@@ -563,7 +620,9 @@ run-gbm                          # train the global GBM + quantiles, score vs ba
 run-backtest                     # canonical scoring report (E5)
 run-mint                         # MinT reconciliation + WRMSSE (E6)
 run-optimize                     # money table, sensitivity, attribution (E7)
-pytest                           # 174 tests
+pip install -e ".[api]"          # fastapi, uvicorn, pydantic
+run-api                           # start the API on :8000
+pytest                           # 202 tests
 ruff check . && ruff format --check .
 ```
 

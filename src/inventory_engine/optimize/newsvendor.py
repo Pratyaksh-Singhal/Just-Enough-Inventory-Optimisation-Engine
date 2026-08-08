@@ -161,6 +161,61 @@ def order_quantities(panel: pd.DataFrame, levels: np.ndarray, costs: CostModel) 
     return out
 
 
+def quantile_bin_probabilities(levels: np.ndarray) -> np.ndarray:
+    """Probability mass assigned to each fitted quantile under the midpoint rule.
+
+    Turns a set of quantile *levels* into a discrete probability *distribution*: level
+    ``q_i`` is treated as representative of the interval halfway to its neighbours, with
+    the outermost intervals closed off at 0 and 1. This is what lets E8's ``/optimize``
+    endpoint compute an expected cost from a fitted quantile curve alone, with no access to
+    realised demand -- which is the situation a live request for a future period is
+    actually in, unlike Phase 7's backtest scoring.
+
+    Args:
+        levels: Ascending fitted quantile levels.
+
+    Returns:
+        Probabilities, same shape as ``levels``, summing to 1.
+
+    """
+    levels = np.asarray(levels, dtype=float)
+    edges = np.concatenate([[0.0], (levels[:-1] + levels[1:]) / 2.0, [1.0]])
+    return np.diff(edges)
+
+
+def expected_cost_from_distribution(
+    levels: np.ndarray, values: np.ndarray, order_qty: float, costs: CostModel, price: float
+) -> float:
+    """Return the expected newsvendor cost of ``order_qty`` under the fitted quantile distribution.
+
+    This is an **estimate for a period with no realised demand yet** -- the situation a
+    live API request is actually in -- and is not comparable to Phase 7's money table,
+    which prices policies against demand that already happened. Both are legitimate; they
+    answer different questions ("what should I expect to pay" vs "what did this policy
+    actually cost").
+
+    Args:
+        levels: Ascending fitted quantile levels.
+        values: Forecast value at each level.
+        order_qty: The quantity being evaluated.
+        costs: Cost assumptions.
+        price: Shelf price, for converting the cost rates into money.
+
+    Returns:
+        Expected cost in the same currency as ``price``.
+
+    """
+    probs = quantile_bin_probabilities(levels)
+    values = np.asarray(values, dtype=float)
+    shortfall = np.maximum(values - order_qty, 0.0)
+    leftover = np.maximum(order_qty - values, 0.0)
+    unit_cost = costs.unit_cost(price)
+    per_scenario = shortfall * costs.understock_cost(price) + leftover * unit_cost * (
+        costs.spoilage_rate + costs.holding_rate
+    )
+    return float(np.sum(probs * per_scenario))
+
+
 def persist_policy(
     con: duckdb.DuckDBPyConnection, orders: pd.DataFrame, model_name: str, *, replace: bool = True
 ) -> int:
