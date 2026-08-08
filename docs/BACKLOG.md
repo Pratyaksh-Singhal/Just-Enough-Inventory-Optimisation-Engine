@@ -14,8 +14,8 @@ the phase before it.
 | [E4](backlog/epic-04-global-model.md) | Global model | LightGBM + MLflow | ✅ Done |
 | [E5](backlog/epic-05-backtest.md) | Backtest harness | Rolling-origin, 5 folds | ✅ Done |
 | [E6](backlog/epic-06-reconciliation.md) | Reconciliation | MinT coherent hierarchy | ✅ Done |
-| [E7](backlog/epic-07-optimization.md) | Optimization | Newsvendor money table | 🔜 Next |
-| [E8](backlog/epic-08-api.md) | API | FastAPI over precomputed results | ⬜ |
+| [E7](backlog/epic-07-optimization.md) | Optimization | Newsvendor money table | ✅ Done |
+| [E8](backlog/epic-08-api.md) | API | FastAPI over precomputed results | 🔜 Next |
 | [E9](backlog/epic-09-dashboard.md) | Dashboard | React analytics UI | ⬜ |
 | [E10](backlog/epic-10-ship.md) | Ship | Deploy + recruiter README | ⬜ |
 
@@ -39,6 +39,7 @@ produced a quantile, only that `forecast` contains one.
 | `order_policy` | E7 | E8, E9 |
 | `cost_comparison` | E7 | E8, E9, E10 |
 | `cost_sensitivity` | E7 | E8, E9 |
+| `feature_importance` | E4 | E9 |
 
 ### `forecast` — the shared spine
 

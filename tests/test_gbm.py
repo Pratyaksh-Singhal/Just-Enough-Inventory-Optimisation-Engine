@@ -111,9 +111,17 @@ def test_crossing_check_needs_at_least_two_levels():
     assert (crossings, checked) == (0, 0)
 
 
-def test_quantile_levels_match_the_newsvendor_layer():
-    """E7 selects the CR-th quantile by interpolating between these."""
-    assert QUANTILES == (0.5, 0.9, 0.95, 0.99)
+def test_quantile_grid_reaches_below_the_median():
+    """E7 selects the CR-th quantile by interpolating between these.
+
+    The brief's original grid started at 0.5, which could not express its own premise: for
+    fresh food with high spoilage the newsvendor critical ratio lands between 0.25 and 0.63,
+    so every order would have been clamped at the median and the "optimal service level is
+    not 95%" finding could not have been demonstrated at all.
+    """
+    assert QUANTILES == (0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99)
+    assert min(QUANTILES) <= 0.25, "must bracket realistic perishable critical ratios"
+    assert tuple(sorted(QUANTILES)) == QUANTILES, "grid must be ascending for interpolation"
 
 
 # ---------------------------------------------------------------------------

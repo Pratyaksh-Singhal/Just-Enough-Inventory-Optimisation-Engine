@@ -68,10 +68,20 @@ LEVEL_ITEM_STORE: Final = "item_store"
 #: Which model serves which intermittency band, decided by the E3/E4 backtests.
 ROUTING: Final[dict[str, str]] = {"dense": "lgbm", "mid": "lgbm", "sparse": "ets"}
 
-#: Quantile level -> AutoETS prediction-interval width. A symmetric interval at width
-#: ``w`` has its upper bound at quantile ``0.5 + w/200``, so q0.90 needs an 80% interval.
-#: q0.5 is the point forecast itself.
-_INTERVAL_FOR: Final[dict[float, int]] = {0.9: 80, 0.95: 90, 0.99: 98}
+#: Quantile level -> (AutoETS prediction-interval width, which bound to read).
+#:
+#: A symmetric interval of width ``w`` puts its upper bound at quantile ``0.5 + w/200`` and
+#: its lower bound at ``0.5 - w/200``. So q0.90 is the upper bound of an 80% interval and
+#: q0.10 is the lower bound of the same one. Sub-median levels are needed because the
+#: newsvendor critical ratio for perishables lands below 0.5.
+_INTERVAL_FOR: Final[dict[float, tuple[int, str]]] = {
+    0.1: (80, "lo"),
+    0.25: (50, "lo"),
+    0.75: (50, "hi"),
+    0.9: (80, "hi"),
+    0.95: (90, "hi"),
+    0.99: (98, "hi"),
+}
 
 
 @dataclass(frozen=True)
@@ -137,12 +147,17 @@ def _ets_quantiles(
         ).df()
 
         sf = StatsForecast(models=[AutoETS(season_length=SEASON_LENGTH)], freq="D", n_jobs=1)
-        wide = sf.forecast(df=train, h=fold.horizon, level=sorted(set(_INTERVAL_FOR.values())))
+        widths = sorted({width for width, _ in _INTERVAL_FOR.values()})
+        wide = sf.forecast(df=train, h=fold.horizon, level=widths)
         if wide.index.name == "unique_id":
             wide = wide.reset_index()
 
         for q in QUANTILES:
-            column = "AutoETS" if q == 0.5 else f"AutoETS-hi-{_INTERVAL_FOR[q]}"
+            if q == 0.5:
+                column = "AutoETS"
+            else:
+                width, bound = _INTERVAL_FOR[q]
+                column = f"AutoETS-{bound}-{width}"
             if column not in wide.columns:
                 continue
             part = wide[["unique_id", "ds", column]].rename(columns={column: "yhat"})

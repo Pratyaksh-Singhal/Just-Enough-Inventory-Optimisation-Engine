@@ -7,26 +7,44 @@ SKU-level demand, reconciles those forecasts across a store hierarchy so they st
 coherent, converts the forecast *distribution* into optimal stocking quantities via
 newsvendor theory, and reports the cost delta against baseline stocking practice.
 
-> **Build status:** Phases 1–6 complete (data foundation, leakage-free features,
-> baselines, global GBM, backtest harness, MinT reconciliation). Phases 7–10 in progress.
+> **Build status:** Phases 1–7 complete — data foundation through the newsvendor
+> optimization layer. Phases 8–10 (API, dashboard, deploy) in progress.
 
 ---
 
 ## Headline result
 
-_Pending Phase 7. This section will carry the money table and the total cost delta._
+**28.6% lower inventory cost than current practice** — and, more interestingly, **a flat
+95% service level costs 2.5× more than doing nothing sophisticated at all.**
+
+On 100,720 stocking decisions priced against realised demand, the cost-optimal service
+level for a thin-margin perishable is **41%**, not 95%. Most of that saving comes from the
+*policy*, not the forecast: switching policy at a fixed forecast cuts cost 71%, while
+switching forecast at a fixed policy cuts it 18%.
 
 ---
 
 ## The money table
 
-_Pending Phase 7._
+Assumptions: 30% gross margin, 60% spoilage, 2%/day holding → **critical ratio 0.409**.
+100,720 (series × day) decisions across 5 rolling-origin folds, priced against **realised**
+demand — never against the forecast that produced the order.
 
-| Policy | Stockout rate | Waste units | Holding cost | Total cost |
-|---|---|---|---|---|
-| Current (naive: last week's sales) | — | — | — | — |
-| Fixed 95% service level | — | — | — | — |
-| **Newsvendor + our forecast** | — | — | — | — |
+| Policy | Stockout rate | Waste units | Holding cost | Total cost | vs naive |
+|---|---:|---:|---:|---:|---:|
+| Current (naive: last week's sales) | 31.1% | 78,106 | $3,198 | $169,172 | — |
+| Fixed 95% service level | 6.1% | 326,957 | $13,118 | $415,644 | **+145.7%** |
+| **Newsvendor + our forecast** | 48.0% | **20,714** | **$801** | **$120,797** | **−28.6%** |
+
+The middle row is the point. It achieves the **best stockout rate in the table** and is by
+far the most expensive, because hitting 95% requires 327k units of stock that spoil. The
+newsvendor policy accepts a *higher* stockout rate than doing nothing (48% vs 31%) and
+still costs 28.6% less, because it cuts waste by 73%. On thin-margin perishables an empty
+shelf is cheaper than a full bin.
+
+All cost figures are USD and every cost parameter is an **assumption** — M5 ships prices
+but no margins, shelf life or holding costs. The conclusion depends on the *ratio* Cu/Co,
+which is swept below.
 
 ---
 
@@ -50,8 +68,8 @@ work, one tag per phase.
 | 4. LightGBM global model + MLflow | [E4](docs/backlog/epic-04-global-model.md) | ✅ Complete |
 | 5. Rolling-origin backtest harness | [E5](docs/backlog/epic-05-backtest.md) | ✅ Complete |
 | 6. MinT hierarchical reconciliation | [E6](docs/backlog/epic-06-reconciliation.md) | ✅ Complete |
-| 7. Newsvendor optimization layer | [E7](docs/backlog/epic-07-optimization.md) | 🔜 Next |
-| 8. FastAPI service | [E8](docs/backlog/epic-08-api.md) | ⬜ |
+| 7. Newsvendor optimization layer | [E7](docs/backlog/epic-07-optimization.md) | ✅ Complete |
+| 8. FastAPI service | [E8](docs/backlog/epic-08-api.md) | 🔜 Next |
 | 9. React dashboard | [E9](docs/backlog/epic-09-dashboard.md) | ⬜ |
 | 10. Deploy | [E10](docs/backlog/epic-10-ship.md) | ⬜ |
 
@@ -408,10 +426,21 @@ RMSSE across the aggregation hierarchy and that hierarchy didn't exist yet.
 expected MinT trade-off and the price is stated rather than buried — coherence is purchased,
 not free.
 
-Whether the trade is worth taking is a **cost** question, not an accuracy one: the bottom
-level is what orders are placed against, so a 1.5% MASE degradation there has to be weighed
-against store- and state-level plans that finally agree with those orders. Phase 7 has the
-cost function to settle it.
+### Which forecast feeds which consumer
+
+That trade-off makes "use the latest forecast" the wrong default, so the routing is decided
+explicitly:
+
+| Consumer | Forecast | Why |
+|---|---|---|
+| **Newsvendor / order quantities** (Phase 7) | **Base, unreconciled**, `item_store` | Orders are placed at `item_store`. Every unit of stockout and spoilage is realised at that grain, so the cost function must optimise against the most accurate forecast *there* — which is the unreconciled one. Coherence with the store total buys nothing when deciding how many units of one SKU go on one shelf. |
+| **Aggregate & planning views** (Phase 9) | **MinT-reconciled** | Here coherence *is* the requirement. A regional plan that disagrees with the sum of its stores is unusable regardless of how accurate either number is on its own. |
+
+Both live in the `forecast` table, discriminated by the `reconciled` column, so neither
+consumer has to know how the other's forecast was produced. `USE_RECONCILED = False` is a
+named constant in the optimizer rather than an implicit default, and
+`test_newsvendor_consumes_unreconciled_forecasts` pins it — so switching it becomes a
+deliberate, reviewable edit rather than a silent regression to whatever ran last.
 
 ### Two deviations, both recorded
 
@@ -427,6 +456,72 @@ one-step residuals — requiring fitted values for all 737 series in every fold.
 persists forecasts, not models. `wls_struct` weights each node by the number of bottom
 series aggregated into it, using `S` alone, which is exactly the case Wickramasuriya et al.
 propose it for when residuals are unavailable.
+
+---
+
+## Phase 7 — the optimization layer
+
+Full detail in [`docs/backlog/epic-07-optimization.md`](docs/backlog/epic-07-optimization.md).
+The money table is at the top of this README; three findings behind it are worth pulling out.
+
+### Optimal service level is 41%, not 95%
+
+`CR = Cu / (Cu + Co)`. Understocking costs the lost *margin* — the retailer keeps the unit
+it didn't sell. Overstocking a perishable costs close to the whole *unit cost*. With a 30%
+margin and 60% spoilage:
+
+```
+Cu = price x 0.30              = 0.30
+Co = price x 0.70 x 0.62       = 0.434
+CR = 0.30 / 0.734              = 0.409
+```
+
+Ordering to a 95th percentile on a thin-margin perishable is not caution; it is a
+systematic and expensive error, and the money table prices it at +145.7%.
+
+### Sensitivity: the result holds everywhere, and 95% almost never does
+
+| Spoilage | CR | naive | fixed 95% | newsvendor |
+|---:|---:|---:|---:|---:|
+| 0.0 | 0.955 | 73,225 | 22,094 | **21,756** |
+| 0.2 | 0.661 | 105,207 | 153,277 | **86,942** |
+| 0.4 | 0.505 | 137,190 | 284,461 | **108,668** |
+| 0.6 | 0.409 | 169,172 | 415,644 | **120,797** |
+| 0.8 | 0.343 | 201,155 | 546,827 | **128,709** |
+| 1.0 | 0.296 | 233,138 | 678,011 | **133,417** |
+
+Newsvendor wins at **every** spoilage rate, so the finding isn't an artifact of one
+assumption. **Fixed-95% beats naive only at spoilage ≈ 0** — for any real perishable it is
+worse than having no system at all, and at total spoilage it costs 2.9× as much.
+
+### The policy is worth more than the model
+
+| Combination | Total cost |
+|---|---:|
+| naive forecast + fixed 95% | 800,704 |
+| naive forecast + newsvendor CR | 147,688 |
+| our forecast + fixed 95% | 415,644 |
+| **our forecast + newsvendor CR** | **120,797** |
+
+Holding the forecast fixed and fixing the *policy* cuts cost **71%**. Holding the policy
+fixed and improving the *forecast* cuts it **18%**. Most of the value here comes from
+asking what service level is actually optimal — not from forecasting better. A team with a
+mediocre forecast and the right cost model beats a team with a good forecast and a 95%
+target.
+
+### Stratum-aware routing: rejected on cost
+
+The alternative deferred from Phase 4 was finally settled with money rather than a metric
+preference. Rebuilt with the full quantile grid and priced, routing costs **+3.58%** — and
+is **17.7% worse on the sparse band it was supposed to help.**
+
+Two reasons, both findings in their own right. **AutoETS wins the point forecast and loses
+the distribution**: its Gaussian prediction intervals are badly mis-specified for
+intermittent count demand, producing 4.5× the waste on sparse series. The newsvendor
+consumes the distribution, so a better MASE was simply the wrong qualification. And **the
+premise was wrong about where cost lives** — routing was motivated by "perishables skew
+sparse", but sparse carries only 20.2% of total cost while dense carries 49.9%. Routing
+optimises the smallest pool.
 
 ---
 
@@ -452,7 +547,8 @@ run-baselines                    # fit + score all four baselines on 5 folds
 run-gbm                          # train the global GBM + quantiles, score vs baselines
 run-backtest                     # canonical scoring report (E5)
 run-mint                         # MinT reconciliation + WRMSSE (E6)
-pytest                           # 152 tests
+run-optimize                     # money table, sensitivity, attribution (E7)
+pytest                           # 174 tests
 ruff check . && ruff format --check .
 ```
 
@@ -545,7 +641,18 @@ _Accumulating as the build progresses. Honest log, including what did not work._
 - **The stratum-routing hybrid looked like a win on the headline metric and wasn't.** MASE
   1.0139 vs 1.0192 is a real improvement on average, but it loses on the two most recent
   folds, on RMSSE, and on pinball at every quantile level. Investigated, documented, and
-  deliberately not adopted — see "Stratum-aware routing" above.
+  deliberately not adopted — then finally rejected on cost in Phase 7 (+3.58%).
+- **The brief's quantile grid could not express its own conclusion.** It specified
+  {0.5, 0.9, 0.95, 0.99}, but fresh-food critical ratios land at 0.25–0.63 — *below* the
+  lowest fitted level. Every order would have been silently clamped at the median and the
+  "optimal service level isn't 95%" finding would have been invisible. Caught by computing
+  realistic critical ratios *before* wiring the optimizer rather than by noticing clamped
+  output afterwards. Grid extended to seven levels and the model refit.
+- **`run-gbm --replace` was deleting Phase 6's reconciled forecasts.** `DELETE ... WHERE
+  model_name = 'lgbm'` matched reconciled rows and aggregate-level base rows too, so
+  refitting for the wider quantile grid would have silently invalidated the entire
+  reconciliation with no error raised. Now scoped to
+  `reconciled = FALSE AND level = 'item_store'`.
 
 ---
 
