@@ -137,6 +137,51 @@ def _examples(con: duckdb.DuckDBPyConnection) -> list[dict]:
     return out
 
 
+def _demo_csv(con: duckdb.DuckDBPyConnection, days: int = 120) -> str:
+    """Real M5 sales history as a ready-to-load CSV for the order calculator.
+
+    Chosen by volume, not at random. A first-time visitor pressing "Load example data" needs
+    numbers they can read: sampling evenly across the intermittency bands filled the table
+    with products selling under one unit a day, where the mathematically correct answer is
+    "order zero" and the tool looks broken rather than right.
+
+    So this leads with six legible movers and appends **one** genuine slow-seller, which is
+    what makes the "order on request" row in the results a demonstrated case rather than an
+    unexercised branch.
+    """
+    fast = con.execute(
+        """
+        SELECT item_id, store_id FROM fact_sales
+        WHERE date >= DATE '2016-01-24'
+        GROUP BY 1, 2 HAVING avg(units) BETWEEN 4 AND 19
+        ORDER BY avg(units) DESC LIMIT 6
+        """
+    ).fetchall()
+    slow = con.execute(
+        """
+        SELECT f.item_id, f.store_id FROM fact_sales f
+        JOIN dim_item_stratum s ON s.item_id = f.item_id
+        WHERE f.date >= DATE '2016-01-24' AND s.stratum_name = 'sparse'
+        GROUP BY 1, 2 HAVING avg(f.units) BETWEEN 0.3 AND 1.2
+        ORDER BY avg(f.units) DESC LIMIT 1
+        """
+    ).fetchall()
+
+    lines = ["sku,date,units_sold,unit_price"]
+    for item, store in fast + slow:
+        rows = con.execute(
+            """
+            SELECT CAST(date AS VARCHAR), units, price FROM fact_sales
+            WHERE item_id = ? AND store_id = ? AND price IS NOT NULL
+            ORDER BY date DESC LIMIT ?
+            """,
+            [item, store, days],
+        ).fetchall()
+        for d, units, price in reversed(rows):
+            lines.append(f"{item}-{store},{d},{int(units)},{price:.2f}")
+    return "\n".join(lines)
+
+
 def build() -> dict:
     """Query the warehouse and assemble every figure the dashboard renders."""
     con = duckdb.connect(str(WAREHOUSE_PATH), read_only=True)
@@ -188,6 +233,7 @@ def build() -> dict:
             FROM dim_item_stratum GROUP BY 1, 2 ORDER BY 1, min(zero_share)
         """).df().to_dict("records")
         data["examples"] = _examples(con)
+        data["demoCsv"] = _demo_csv(con)
         return data
     finally:
         con.close()
