@@ -199,6 +199,15 @@ input[type=number]:focus,select:focus,textarea:focus{outline:2px solid var(--jad
   background:var(--surface-2);padding:11px 14px;font-size:13.5px;color:var(--ink-2);margin-bottom:14px}
 .msg.ok{border-left-color:var(--jade)}
 .note-cell{font-size:12px;color:var(--ink-3);font-family:var(--sans);white-space:normal;max-width:26ch}
+.ccy-tag{font-family:var(--mono);font-size:10px;color:var(--jade);background:var(--jade-dim);
+  border-radius:2px;padding:1px 5px;margin-left:6px;letter-spacing:.04em}
+.saving-hero{background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--jade);
+  border-radius:var(--r);padding:17px 20px;margin-bottom:18px}
+.saving-hero .v{font-family:var(--mono);font-size:32px;font-weight:600;letter-spacing:-.03em;
+  color:var(--jade);font-variant-numeric:tabular-nums;line-height:1.05}
+.saving-hero .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--ink-3);margin-bottom:7px}
+.saving-hero .d{font-size:13px;color:var(--ink-2);margin-top:8px;max-width:62ch}
 footer{border-top:1px solid var(--line);padding:26px 0 40px;color:var(--ink-3);
   font-family:var(--mono);font-size:11.5px;line-height:1.7}
 @media(prefers-reduced-motion:no-preference){
@@ -214,10 +223,10 @@ footer{border-top:1px solid var(--line);padding:26px 0 40px;color:var(--ink-3);
       <span class="sub">M5 · 720 SERIES · CA / FOODS · 5-FOLD ROLLING ORIGIN</span>
       <span class="spacer"></span>
       <div class="fx">
-        <span class="fx-rate" id="fxRate">1 USD = ₹83 <span style="color:var(--ink-3)">(fixed rate, display only)</span></span>
+        <span class="fx-rate" id="fxRate"></span>
         <div class="fx-switch" role="group" aria-label="Currency">
           <button type="button" id="curUSD" aria-pressed="true">USD $</button>
-          <button type="button" id="curINR" aria-pressed="false">INR ₹</button>
+          <button type="button" id="curINR" aria-pressed="false"></button>
         </div>
       </div>
     </div>
@@ -273,17 +282,20 @@ footer{border-top:1px solid var(--line);padding:26px 0 40px;color:var(--ink-3);
         </select>
       </div>
       <div class="field">
-        <label for="pMiss">You lose this much when you run out</label>
+        <label for="pMiss">You lose this much when you run out
+          <span class="ccy-tag" data-ccy></span></label>
         <span class="hint">Your profit on one unit you could have sold.</span>
-        <input type="number" id="pMiss" value="1.50" min="0.01" step="0.05">
+        <input type="number" id="pMiss" min="0.01" step="0.05">
       </div>
       <div class="field" style="margin-bottom:6px">
-        <label for="pWaste">You lose this much on one wasted unit</label>
+        <label for="pWaste">You lose this much on one wasted unit
+          <span class="ccy-tag" data-ccy></span></label>
         <span class="hint">What you paid for it, minus anything you get back.</span>
-        <input type="number" id="pWaste" value="1.00" min="0.01" step="0.05">
+        <input type="number" id="pWaste" min="0.01" step="0.05">
       </div>
       <p class="hint" style="font-size:12px;color:var(--ink-3);margin:0">
-        Use whatever currency you think in — both boxes just need to match.
+        Both boxes are per unit, in the currency selected at the top of the page — switch it
+        and these convert with everything else.
         <strong style="color:var(--ink-2)">For fresh food that spoils, set the waste box
         higher than the first one</strong> — you'll see the recommendation drop below your
         average demand, which is the cheaper choice when waste hurts more than a lost sale.
@@ -292,11 +304,22 @@ footer{border-top:1px solid var(--line);padding:26px 0 40px;color:var(--ink-3);
 
     <div>
       <div id="calcMsg"></div>
+      <div id="calcSaving"></div>
       <div class="grid g3" id="calcTiles" style="margin-bottom:18px"></div>
       <div class="tw"><table id="calcTable"></table></div>
       <figcaption id="calcCap" style="margin-top:10px"></figcaption>
       <div class="btnrow" style="margin-top:14px">
         <button class="btn" type="button" id="dlCsv">Download this order list</button>
+      </div>
+      <div id="dlFallback" hidden style="margin-top:14px">
+        <p class="hint" style="font-size:12.5px;color:var(--ink-3);margin:0 0 8px">
+          If the download didn't start — some browsers block it when this page is embedded —
+          copy the list from here instead.
+        </p>
+        <textarea readonly spellcheck="false" style="min-height:120px"></textarea>
+        <div class="btnrow" style="margin-top:8px">
+          <button class="btn ghost" type="button" id="copyCsv">Copy to clipboard</button>
+        </div>
       </div>
     </div>
   </div>
@@ -747,22 +770,52 @@ const $ = s => document.querySelector(s);
 const fmt = (n,d=0) => n.toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
 const C = {jade:'#2FA97C', amber:'#C4862B', blue:'#4F86D4', ink3:'#7A8A84', line:'#222E2A', ink2:'#A6B5AF'};
 
-/* ---------------- currency ----------------
-   All figures are computed and stored in USD (M5 is US data). ₹ is a display-only
-   conversion at a fixed, labelled-as-an-assumption rate -- never baked into a stored
-   number, so switching currency is pure re-formatting, not re-computation. */
-const FX_RATE = 83; // 1 USD = ₹83, fixed for this build -- see fx-rate label
+/* ---------------- currency: ONE source of truth ----------------
+   Every amount in this app is stored in USD and converted only for display. `FX` below is
+   the single definition of the alternate currency -- its rate, symbol, code and locale.
+   The header label, the toggle button text, the money formatter and the calculator's cost
+   inputs all read from it, so changing `FX.rate` here updates every number on the page and
+   nothing else needs touching.
+
+   A live rate is not possible here: the page is a self-contained artifact under a strict
+   CSP that blocks all outbound requests, so there is nothing to fetch from. The rate is
+   therefore a fixed constant and is labelled as one in the header rather than presented as
+   a market quote. */
+const FX = {
+  code: 'INR',
+  symbol: '₹',
+  rate: 83,          // 1 USD = FX.rate units of FX.code
+  locale: 'en-IN',
+  note: 'fixed rate, display only',
+};
+
 let CURRENCY = 'USD';
+
+/** USD amount -> display string in the currently selected currency. */
 const money = n => CURRENCY === 'USD'
   ? '$' + Math.round(n).toLocaleString('en-US')
-  : '₹' + Math.round(n * FX_RATE).toLocaleString('en-IN');
+  : FX.symbol + Math.round(n * FX.rate).toLocaleString(FX.locale);
+
+/** Convert a USD amount into whatever currency is on screen (unrounded). */
+const toDisplayCcy = usd => CURRENCY === 'USD' ? usd : usd * FX.rate;
+/** Convert a number the user typed in the on-screen currency back to USD. */
+const toUsd = shown => CURRENCY === 'USD' ? shown : shown / FX.rate;
+/** Symbol only, for inline labels. */
+const ccySymbol = () => CURRENCY === 'USD' ? '$' : FX.symbol;
+
+// Header label and toggle text are generated, never hardcoded in the markup.
+$('#fxRate').innerHTML =
+  `1 USD = ${FX.symbol}${FX.rate} <span style="color:var(--ink-3)">(${FX.note})</span>`;
+$('#curINR').textContent = `${FX.code} ${FX.symbol}`;
 
 function setCurrency(code){
   CURRENCY = code;
   $('#curUSD').setAttribute('aria-pressed', String(code==='USD'));
   $('#curINR').setAttribute('aria-pressed', String(code==='INR'));
+  renderCostInputs();   // rewrite the calculator's two cost boxes in the new currency
   renderOverviewMoney();
-  update(); // simulator re-reads money() for every readout + the curve labels
+  update();             // simulator readouts + curve labels re-read money()
+  runCalculator();      // calculator table + tiles re-read money()
 }
 $('#curUSD').addEventListener('click', ()=>setCurrency('USD'));
 $('#curINR').addEventListener('click', ()=>setCurrency('INR'));
@@ -1076,6 +1129,26 @@ DATA.coherence.map(r=>`<tr><td>${r.parent_level} → ${r.child_level}</td>
 
 const CAL = {skus:new Map()};
 
+/* Costs are held in USD and only ever *displayed* in the selected currency. Keeping the
+   canonical value out of the input box is what makes USD->INR->USD lossless: switching
+   currency rewrites the box from the stored USD figure and never reads it back, so the
+   2-decimal display rounding can't accumulate into the underlying number. */
+const COST_USD = {miss: 1.50, waste: 1.00};
+
+function renderCostInputs(){
+  $('#pMiss').value  = toDisplayCcy(COST_USD.miss).toFixed(2);
+  $('#pWaste').value = toDisplayCcy(COST_USD.waste).toFixed(2);
+  document.querySelectorAll('[data-ccy]').forEach(el=>{
+    el.textContent = CURRENCY === 'USD' ? 'USD $' : `${FX.code} ${FX.symbol}`;
+  });
+}
+/** Read the boxes back into canonical USD. Only ever called from a real user edit. */
+function syncCostsFromInputs(){
+  const m = parseFloat($('#pMiss').value), w = parseFloat($('#pWaste').value);
+  if(Number.isFinite(m) && m > 0) COST_USD.miss  = toUsd(m);
+  if(Number.isFinite(w) && w > 0) COST_USD.waste = toUsd(w);
+}
+
 function parseCsv(text){
   const lines = text.trim().split(/\r?\n/).filter(l=>l.trim());
   if(lines.length < 2) return {error:'Not enough rows — paste a header row and some sales.'};
@@ -1127,7 +1200,10 @@ function windowTotals(units, h){
 function runCalculator(){
   const raw = $('#csv').value;
   const msg=$('#calcMsg'), tiles=$('#calcTiles'), table=$('#calcTable'), cap=$('#calcCap');
-  const clear = html => { msg.innerHTML=html; tiles.innerHTML=''; table.innerHTML=''; cap.textContent=''; CAL.skus=new Map(); };
+  const clear = html => {
+    msg.innerHTML=html; tiles.innerHTML=''; table.innerHTML=''; cap.textContent='';
+    $('#calcSaving').innerHTML=''; CAL.skus=new Map();
+  };
 
   if(!raw.trim()) return clear(`<div class="msg">Paste your sales history on the left, or press
     <strong>Load example data</strong> to see it working on real supermarket sales.</div>`);
@@ -1135,8 +1211,8 @@ function runCalculator(){
   if(parsed.error) return clear(`<div class="msg">${parsed.error}</div>`);
 
   const h = +$('#cover').value;
-  const cu = Math.max(+$('#pMiss').value || 0, 0.0001);
-  const co = Math.max(+$('#pWaste').value || 0, 0.0001);
+  const cu = Math.max(COST_USD.miss, 0.0001);   // USD, canonical
+  const co = Math.max(COST_USD.waste, 0.0001);  // USD, canonical
   const cr = cu/(cu+co);
 
   const bySku = new Map();
@@ -1152,11 +1228,22 @@ function runCalculator(){
     const order = quantile(sorted, cr);
     const expected = totals.reduce((a,b)=>a+b,0)/totals.length;
     const ordered = Math.ceil(order);
+
+    // Expected cost of any order quantity, averaged over every window actually observed.
+    const costOf = q => totals.reduce(
+      (a,t)=>a + Math.max(t-q,0)*cu + Math.max(q-t,0)*co, 0) / totals.length;
+
+    // Baseline: order the average demand and stop thinking about it. This is the honest
+    // comparison for "what does optimising actually buy me" -- it uses the same demand
+    // history and the same cost formula, so the only difference is the order quantity.
+    const naiveOrder = Math.round(expected);
+    const recCost = costOf(ordered), naiveCost = costOf(naiveOrder);
+
     results.push({
       sku, days:units.length, order:ordered, expected,
       surplus: ordered-expected,
       runOut: totals.filter(t=>t>ordered).length/totals.length,
-      expCost: totals.reduce((a,t)=>a+Math.max(t-ordered,0)*cu+Math.max(ordered-t,0)*co,0)/totals.length,
+      expCost: recCost, naiveOrder, naiveCost, saved: naiveCost - recCost,
       zeroShare: units.filter(u=>u===0).length/units.length,
     });
   });
@@ -1175,10 +1262,24 @@ function runCalculator(){
   msg.innerHTML = notes.length ? `<div class="msg">${notes.join('<br>')}</div>`
     : `<div class="msg ok">Ready — ${results.length} products, ${shortest}+ days of history each.</div>`;
 
-  const totUnits = results.reduce((a,r)=>a+r.order,0);
+  const totUnits  = results.reduce((a,r)=>a+r.order,0);
   const netBuffer = results.reduce((a,r)=>a+r.surplus,0);
-  const totCost  = results.reduce((a,r)=>a+r.expCost,0);
-  const num = n => (Math.round(n*100)/100).toLocaleString('en-US',{maximumFractionDigits:2});
+  const totCost   = results.reduce((a,r)=>a+r.expCost,0);
+  const totNaive  = results.reduce((a,r)=>a+r.naiveCost,0);
+  const totSaved  = totNaive - totCost;
+  const savedPct  = totNaive > 0 ? totSaved/totNaive : 0;
+
+  $('#calcSaving').innerHTML = `
+    <div class="saving-hero">
+      <div class="k">Expected saving vs ordering the average</div>
+      <div class="v">${money(totSaved)}${savedPct>0.0005?` <span style="font-size:17px;color:var(--ink-3)">(${(savedPct*100).toFixed(1)}%)</span>`:''}</div>
+      <div class="d">
+        per ${h}-day cycle, across ${results.length} product${results.length>1?'s':''}. This is an
+        <strong>expected value, not a guarantee</strong> — it's what the maths works out to on
+        average across your own past demand, and any single cycle can land either side of it.
+        The comparison orders your average demand instead, then prices both the same way.
+      </div>
+    </div>`;
 
   // The buffer is signed on purpose. When wasting stock costs more than a missed sale the
   // cheapest order sits *below* average demand, and a tile that only ever showed a
@@ -1190,11 +1291,12 @@ function runCalculator(){
   tiles.innerHTML = [
     ['Total units to order', fmt(totUnits), `to cover the next ${h} day${h>1?'s':''}`],
     [bufferLabel, (netBuffer>=0?'+':'−')+fmt(Math.abs(Math.round(netBuffer))), bufferNote],
-    ['Expected cost of being wrong', num(totCost), 'missed sales + waste, per cycle'],
+    ['Expected cost of being wrong', money(totCost), `vs ${money(totNaive)} ordering the average`],
   ].map(([k,v,d])=>`<div class="tile"><div class="k">${k}</div><div class="v">${v}</div><div class="d">${d}</div></div>`).join('');
 
   table.innerHTML = `<thead><tr><th>Product</th><th>Order this many</th><th>Typical demand</th>
-    <th>vs typical</th><th>Chance you run out</th><th>What to know</th></tr></thead><tbody>` +
+    <th>vs typical</th><th>Chance you run out</th><th>Expected saving</th><th>What to know</th>
+    </tr></thead><tbody>` +
   results.map(r=>{
     let note='';
     if(r.order===0) note='Sells too rarely to stock every cycle — order on request.';
@@ -1205,11 +1307,17 @@ function runCalculator(){
     const vs = r.surplus >= 0
       ? `<span class="win">+${r.surplus.toFixed(1)}</span>`
       : `<span class="lose">${r.surplus.toFixed(1)}</span>`;
+    // A near-zero saving is honest output, not a rounding artefact: when the optimal order
+    // lands on the average anyway, optimising genuinely buys nothing for that product.
+    const sv = r.saved > 0.005
+      ? `<span class="win">${money(r.saved)}</span>`
+      : `<span style="color:var(--ink-3)">—</span>`;
     return `<tr><td>${r.sku}</td>
       <td class="num"><span class="order-qty">${fmt(r.order)}</span></td>
       <td class="num">${r.expected.toFixed(1)}</td>
       <td class="num">${vs}</td>
       <td class="num">${(r.runOut*100).toFixed(0)}%</td>
+      <td class="num">${sv}</td>
       <td class="note-cell">${note}</td></tr>`;
   }).join('') + '</tbody>';
 
@@ -1228,20 +1336,57 @@ $('#csvFile').addEventListener('change', e=>{
   fr.onload = () => { $('#csv').value = String(fr.result); runCalculator(); };
   fr.readAsText(f);
 });
-['input','change'].forEach(ev=>['#csv','#cover','#pMiss','#pWaste']
-  .forEach(sel=>$(sel).addEventListener(ev, runCalculator)));
-$('#dlCsv').addEventListener('click', ()=>{
-  if(!CAL.skus.size) return;
-  const h=+$('#cover').value;
-  const lines=['product,order_quantity,typical_demand,vs_typical,chance_of_running_out'];
-  CAL.skus.forEach(r=>lines.push(
-    `${JSON.stringify(r.sku)},${r.order},${r.expected.toFixed(2)},${r.surplus.toFixed(2)},${(r.runOut*100).toFixed(0)}%`));
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(new Blob([lines.join('\n')],{type:'text/csv'}));
-  a.download=`order-list-next-${h}-days.csv`;
-  a.click(); URL.revokeObjectURL(a.href);
+['input','change'].forEach(ev=>{
+  ['#csv','#cover'].forEach(sel=>$(sel).addEventListener(ev, runCalculator));
+  // Cost boxes must write back to canonical USD before recalculating, or the stored value
+  // and the displayed value drift apart the moment someone types.
+  ['#pMiss','#pWaste'].forEach(sel=>$(sel).addEventListener(ev, ()=>{
+    syncCostsFromInputs(); runCalculator();
+  }));
 });
 
+/** The order list as CSV text. Pure, so it can be tested without a DOM. */
+function orderListCsv(){
+  const cur = CURRENCY === 'USD' ? 'usd' : FX.code.toLowerCase();
+  const lines = [`product,order_quantity,typical_demand,vs_typical,chance_of_running_out,expected_saving_${cur}`];
+  CAL.skus.forEach(r=>lines.push([
+    JSON.stringify(r.sku), r.order, r.expected.toFixed(2), r.surplus.toFixed(2),
+    (r.runOut*100).toFixed(0) + '%', toDisplayCcy(r.saved).toFixed(2),
+  ].join(',')));
+  return lines.join('\r\n');   // CRLF so Excel opens it cleanly
+}
+
+$('#dlCsv').addEventListener('click', ()=>{
+  if(!CAL.skus.size) return;
+  const name = `order-list-next-${+$('#cover').value}-days.csv`;
+  // BOM so Excel reads UTF-8 (product names and the currency symbol survive).
+  const blob = new Blob(['﻿' + orderListCsv()], {type:'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = name; a.rel = 'noopener';
+  // Must be in the document: a detached anchor's click() is ignored by some browsers.
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  // Deferred: revoking synchronously after click() kills the blob before the browser has
+  // read it, which is exactly why the first version of this button appeared to do nothing.
+  setTimeout(()=>URL.revokeObjectURL(url), 10000);
+
+  // This page can be embedded in a sandboxed frame where downloads are blocked outright,
+  // and no amount of correct code changes that -- so always leave a copyable copy behind.
+  const box = $('#dlFallback');
+  box.hidden = false;
+  box.querySelector('textarea').value = orderListCsv();
+});
+$('#copyCsv').addEventListener('click', async ()=>{
+  const ta = $('#dlFallback textarea');
+  ta.select();
+  try { await navigator.clipboard.writeText(ta.value); $('#copyCsv').textContent='Copied'; }
+  catch { document.execCommand('copy'); $('#copyCsv').textContent='Copied'; }
+  setTimeout(()=>$('#copyCsv').textContent='Copy to clipboard', 1800);
+});
+
+renderCostInputs();
 runCalculator();
 update();
 </script>
