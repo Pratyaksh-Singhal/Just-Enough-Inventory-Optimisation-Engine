@@ -7,8 +7,8 @@ SKU-level demand, reconciles those forecasts across a store hierarchy so they st
 coherent, converts the forecast *distribution* into optimal stocking quantities via
 newsvendor theory, and reports the cost delta against baseline stocking practice.
 
-> **Build status:** Phases 1–3 complete (data foundation, leakage-free features,
-> baselines). Phases 4–10 in progress.
+> **Build status:** Phases 1–5 complete (data foundation, leakage-free features,
+> baselines, global GBM, backtest harness). Phases 6–10 in progress.
 
 ---
 
@@ -47,9 +47,9 @@ work, one tag per phase.
 | 1. Data foundation (DuckDB warehouse) | [E1](docs/backlog/epic-01-data-foundation.md) | ✅ Complete |
 | 2. Features + leakage test | [E2](docs/backlog/epic-02-features.md) | ✅ Complete |
 | 3. Baselines (Seasonal Naive, Croston/TSB, ETS/AutoARIMA) | [E3](docs/backlog/epic-03-baselines.md) | ✅ Complete |
-| 4. LightGBM global model + MLflow | [E4](docs/backlog/epic-04-global-model.md) | 🔜 Next |
-| 5. Rolling-origin backtest harness | [E5](docs/backlog/epic-05-backtest.md) | 🔨 S1–S5 done (WRMSSE blocked on E6) |
-| 6. MinT hierarchical reconciliation | [E6](docs/backlog/epic-06-reconciliation.md) | ⬜ |
+| 4. LightGBM global model + MLflow | [E4](docs/backlog/epic-04-global-model.md) | ✅ Complete |
+| 5. Rolling-origin backtest harness | [E5](docs/backlog/epic-05-backtest.md) | ✅ Complete (WRMSSE deferred to E6) |
+| 6. MinT hierarchical reconciliation | [E6](docs/backlog/epic-06-reconciliation.md) | 🔜 Next |
 | 7. Newsvendor optimization layer | [E7](docs/backlog/epic-07-optimization.md) | ⬜ |
 | 8. FastAPI service | [E8](docs/backlog/epic-08-api.md) | ⬜ |
 | 9. React dashboard | [E9](docs/backlog/epic-09-dashboard.md) | ⬜ |
@@ -279,6 +279,95 @@ has no optimised TSB variant) and the excluded-series accounting, in
 
 ---
 
+## Phases 4–5 — global model and backtest harness
+
+One LightGBM model across all 720 series, series identity as a feature. 5 folds ×
+28-day horizon.
+
+| Model | MASE | RMSSE | Bias |
+|---|---:|---:|---:|
+| **lgbm** | **1.0192** ± 0.0182 | **0.7576** ± 0.0212 | −0.0982 ± 0.0348 |
+| ets | 1.0242 ± 0.0255 | 0.7626 ± 0.0227 | −0.0422 ± 0.0650 |
+| tsb | 1.0446 ± 0.0260 | 0.7776 ± 0.0237 | +0.0166 ± 0.0776 |
+| croston | 1.1122 ± 0.0123 | 0.7976 ± 0.0085 | +0.1106 ± 0.0571 |
+| seasonal_naive | 1.2042 ± 0.0341 | 0.9890 ± 0.0294 | −0.0633 ± 0.0856 |
+
+**The honest reading: LightGBM matches a well-tuned classical method rather than beating
+it.** The 0.005 MASE margin over AutoETS sits well inside a fold-to-fold std of 0.018–0.026,
+and AutoETS wins outright on fold 0. What the GBM buys is not a large accuracy jump — it is
+one model instead of 720 fits, quantile forecasts the classical models don't provide
+directly, and SHAP attributions E7 can use to defend an ordering decision.
+
+**Why not deep learning:** at 720 series of daily data a global GBM matches classical
+methods, trains in ~13 minutes on CPU, and is directly inspectable. An LSTM or N-BEATS here
+would be a larger, slower, less explainable model fitted to less data than it wants.
+
+**LightGBM is the most under-forecasting model in the panel** (bias −0.098, worse than
+seasonal naive). Tweedie's point estimate leans toward the mode on data that is 61.6%
+zeros. The consequence for Phase 7 is concrete: use the quantiles, not the point forecast.
+
+### Quantile crossings, and where they matter
+
+LightGBM fits each quantile level independently, so nothing forces them to be ordered.
+1.74% of rows came out crossed overall — and **1.29% inside the CR 0.5–0.95 band the
+newsvendor rule actually selects from**, where a crossing returns a *lower* stocking
+quantity for a *higher* service level. Silently wrong, in the direction that causes
+stockouts.
+
+Fixed by rearrangement at **read** time, so stored forecasts keep the raw values and the
+crossing rate stays auditable. Crossing rate in the CR band: **1.2887% → 0.0000%**.
+
+Sorting rather than PAVA isotonic regression is deliberate: Chernozhukov et al. (2010)
+prove rearrangement weakly reduces pinball loss, whereas PAVA minimises squared deviation
+from the raw predictions with no guarantee for the loss these are judged by. Verified —
+pinball improves at q0.5/q0.9/q0.99 and is worse by 5e-6 at q0.95, reported rather than
+rounded into a clean win.
+
+### Stratum-aware routing — investigated, not adopted
+
+The per-stratum breakdown surfaced a genuine finding: **AutoETS beats LightGBM on the
+sparse stratum** (MASE 0.9931 vs 1.0090), and beat Croston and TSB there too — their own
+supposed specialty.
+
+| Stratum | lgbm | ets | tsb | croston | seasonal_naive |
+|---|---:|---:|---:|---:|---:|
+| dense | **1.0155** | 1.0421 | 1.0679 | 1.0757 | 1.2843 |
+| mid | **1.0328** | 1.0371 | 1.0564 | 1.1340 | 1.2209 |
+| sparse | 1.0090 | **0.9931** | 1.0091 | 1.1270 | 1.1068 |
+
+The mechanism is legible: a global GBM learns one function across all series, and the dense
+two-thirds dominate the gradient, so its fitted response is tuned to series with regular
+structure. On a series selling fewer than one day in five, the lag and rolling features it
+leans on are mostly zeros; AutoETS's per-series fit adapts to that specific history.
+
+So a routing hybrid — AutoETS on sparse, LightGBM on dense/mid — was **built and measured**
+(`models/hybrid.py`, retained and tested). It improves headline MASE to 1.0139. **It was
+not adopted**, for four reasons:
+
+1. It **loses to plain LightGBM on folds 3 and 4** — the two most recent windows, and the
+   closest analogue to production. It wins 3 folds, loses 2, with higher variance
+   (std 0.0244 vs 0.0182).
+2. It is **worse on RMSSE** (0.7585 vs 0.7576).
+3. It is **worse on pinball loss at every quantile level** — the distributional metric
+   Phase 7 actually consumes.
+4. MASE and RMSSE **disagree** on the sparse band: AutoETS is better on typical error,
+   LightGBM better on large errors.
+
+That last disagreement can't be settled by preferring one abstract metric. It turns on
+whether occasional large misses cost more than routine small ones — which is precisely what
+Phase 7's newsvendor cost function decides. Adopting routing now would bake a structural
+choice on a metric guess three phases before the evidence exists.
+
+**Deferred to Phase 7 (E7-S6):** once the cost function exists, rerun the dense/mid/sparse
+comparison on actual cost delta instead of error-metric proxies, and adopt routing only if
+the money justifies the complexity. Perishables skew sparse, so that is where it would pay
+if it pays at all. If it doesn't, that gets recorded too — a rejected optimisation with
+numbers attached is a result.
+
+**Carried into Phase 6: plain LightGBM with isotonic-sorted quantiles.**
+
+---
+
 ## Setup
 
 ```bash
@@ -296,9 +385,11 @@ if you skip this.
 ```bash
 build-warehouse --overwrite      # ~30s
 build-features                   # ~4s
-pip install -e ".[models]"       # statsforecast, for the baselines
+pip install -e ".[models]"       # statsforecast, lightgbm, mlflow
 run-baselines                    # fit + score all four baselines on 5 folds
-pytest                           # 108 tests
+run-gbm                          # train the global GBM + quantiles, score vs baselines
+run-backtest                     # canonical scoring report (E5)
+pytest                           # 140 tests
 ruff check . && ruff format --check .
 ```
 
@@ -322,11 +413,15 @@ model B" cannot silently become "model A was evaluated on easier weeks".
 
 Metrics: **MASE** and **RMSSE** (scale-free, survive the 61.6% zero-demand days that make
 MAPE undefined — MAPE is deliberately excluded), **Bias/ME** (signed — over-forecast is
-dead stock, under-forecast is a stockout, and Phase 7 acts on the sign), **pinball loss**
-(wired up once Phase 4 produces quantiles). **WRMSSE** — the M5 official metric — is not
-yet computed: it weights RMSSE across the aggregation hierarchy, and that hierarchy
-doesn't exist until Phase 6. Claiming it earlier would be claiming a number not actually
-produced.
+dead stock, under-forecast is a stockout, and Phase 7 acts on the sign), and **pinball
+loss** per quantile level, scored on the monotonized quantiles because that is how Phase 7
+reads them. **WRMSSE** — the M5 official metric — is not yet computed: it weights RMSSE
+across the aggregation hierarchy, and that hierarchy doesn't exist until Phase 6. Claiming
+it earlier would be claiming a number not actually produced.
+
+Breakdowns by intermittency stratum and by horizon are persisted alongside the headline
+numbers. Horizon decay turns out **not** to be monotonic — lgbm MASE by forecast week runs
+1.0104, 1.0334, 1.0152, 1.0177, so week 2 is the worst, not week 4.
 
 Reported as mean **and spread** across folds, never mean alone; a model scored on fewer
 series than another (naive-scale exclusions) is surfaced, not hidden.
@@ -365,6 +460,29 @@ _Accumulating as the build progresses. Honest log, including what did not work._
 - **Croston and TSB losing to seasonal naive on part of the panel** was not a bug — see
   the Phase 3 finding above. Reported rather than tuned away, per this project's own rule
   that a baseline beating expectations is information, not failure.
+- **LightGBM produced 718 series in fold 0 where the baselines produced 720**, and my first
+  hypothesis (dead series that never sells) was wrong. The actual cause is a **data-source
+  asymmetry**: the GBM reads `feature_panel`, which drops pre-listing rows, while the
+  baselines read raw `fact_sales`, which keeps them as genuine zeros. `FOODS_3_595` at two
+  stores was first listed 2016-02-13, after fold 0 closes. Impact is provably zero — those
+  are exactly the two series already excluded from every model for having no defined naive
+  scale, and re-scoring with them explicitly dropped moves every model's MASE by `0.000000`.
+  **Left open deliberately**: it is structurally wrong but numerically inert here, and the
+  right fix is to intersect series across models per fold rather than rely on that
+  coincidence.
+- **1.29% of quantile forecasts were crossed inside the exact band Phase 7 selects from.**
+  Independently fitted quantile models aren't constrained to be ordered, so q0.90 could
+  land above q0.95 — returning a *lower* stocking quantity for a *higher* service level.
+  Caught by measuring the crossing rate rather than assuming monotonicity, and fixed by
+  rearrangement at read time (1.2887% → 0.0000%).
+- **A blanket `DELETE` in the scorer made results depend on call order.** The point and
+  quantile scorers both wrote to `backtest_fold_metrics`, and whichever ran second wiped
+  the other's rows — producing a plausible-looking table with half the metrics silently
+  missing. Each scorer now deletes only the metrics it owns.
+- **The stratum-routing hybrid looked like a win on the headline metric and wasn't.** MASE
+  1.0139 vs 1.0192 is a real improvement on average, but it loses on the two most recent
+  folds, on RMSSE, and on pinball at every quantile level. Investigated, documented, and
+  deliberately not adopted — see "Stratum-aware routing" above.
 
 ---
 

@@ -40,6 +40,7 @@ DIM_CALENDAR: Final = "dim_calendar"
 DIM_ITEM_STRATUM: Final = "dim_item_stratum"
 FORECAST: Final = "forecast"
 BACKTEST_METRICS: Final = "backtest_fold_metrics"
+FEATURE_IMPORTANCE: Final = "feature_importance"
 
 #: Column order of ``fact_sales``, exactly as specified in the project brief.
 FACT_SALES_COLUMNS: Final[tuple[str, ...]] = (
@@ -111,6 +112,19 @@ CREATE TABLE IF NOT EXISTS {FORECAST} (
     quantile     DOUBLE,            -- NULL for a point forecast
     yhat         DOUBLE  NOT NULL,
     reconciled   BOOLEAN NOT NULL DEFAULT FALSE
+);
+"""
+
+#: SHAP and gain importance, precomputed. SHAP over 1M rows is far too slow to run per
+#: API request, so E9's "why this forecast?" panel reads this table instead.
+FEATURE_IMPORTANCE_DDL: Final = f"""
+CREATE TABLE IF NOT EXISTS {FEATURE_IMPORTANCE} (
+    run_id      VARCHAR NOT NULL,
+    model_name  VARCHAR NOT NULL,
+    fold        INTEGER,
+    feature     VARCHAR NOT NULL,
+    method      VARCHAR NOT NULL,  -- 'shap_mean_abs' | 'gain' | 'split'
+    value       DOUBLE  NOT NULL
 );
 """
 

@@ -57,6 +57,32 @@ assumptions, **so that** I can tell a real result from one tuned to a chosen rat
 - [ ] Identify the region where newsvendor stops winning, if one exists — **report it**
 - [ ] Persisted to `cost_sensitivity`, feeding the E9 simulator
 
+### E7-S6 — Revisit stratum-aware routing with real cost ⬜
+
+**Deferred here from E4 deliberately.** E3 and E4 established that AutoETS beats LightGBM
+on the sparse stratum's MASE (0.9931 vs 1.0090), and a routing hybrid was built and
+measured. It was **not adopted**, because the evidence for it does not survive scrutiny:
+
+- it loses to plain LightGBM on **folds 3 and 4** — the two most recent, closest to production
+- it is worse on **RMSSE** (0.7585 vs 0.7576)
+- it is worse on **pinball loss at every quantile level** — the distributional metric this
+  epic actually consumes
+- MASE and RMSSE **disagree** on the sparse band: AutoETS is better on typical error,
+  LightGBM on large errors
+
+That disagreement cannot be settled by preferring one abstract metric over another. It
+turns on whether occasional large misses cost more than routine small ones — which is
+exactly what this epic's cost function decides. Deciding it in E4 would have baked a
+routing choice on a metric guess three phases before the evidence existed.
+
+- [ ] Once `cost_comparison` exists, rerun dense/mid/sparse using **actual cost delta**
+      rather than MASE/RMSSE proxies
+- [ ] Perishables skew sparse and overstock cost approaches 100% of unit cost there, so
+      this is where routing would pay if it pays at all
+- [ ] Adopt routing only if the cost delta justifies the added complexity; if it does not,
+      record that plainly — a rejected optimisation with numbers attached is a result
+- [ ] `models/hybrid.py` is retained and tested, so this is a rerun rather than a rebuild
+
 ### E7-S5 — Savings attribution ⬜
 
 **As** the README, **I want** to know how much of the saving comes from the better

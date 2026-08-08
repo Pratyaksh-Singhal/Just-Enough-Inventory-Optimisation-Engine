@@ -11,9 +11,9 @@ the phase before it.
 | [E1](backlog/epic-01-data-foundation.md) | Data foundation | Scoped M5 panel in DuckDB | ✅ Done |
 | [E2](backlog/epic-02-features.md) | Features | Leakage-free feature panel | ✅ Done |
 | [E3](backlog/epic-03-baselines.md) | Baselines | The honest bar to beat | ✅ Done |
-| [E4](backlog/epic-04-global-model.md) | Global model | LightGBM + MLflow | 🔜 Next |
-| [E5](backlog/epic-05-backtest.md) | Backtest harness | Rolling-origin, 5 folds | 🔨 S1–S5 pulled forward by E3 |
-| [E6](backlog/epic-06-reconciliation.md) | Reconciliation | MinT coherent hierarchy | ⬜ |
+| [E4](backlog/epic-04-global-model.md) | Global model | LightGBM + MLflow | ✅ Done |
+| [E5](backlog/epic-05-backtest.md) | Backtest harness | Rolling-origin, 5 folds | ✅ Done (WRMSSE deferred to E6) |
+| [E6](backlog/epic-06-reconciliation.md) | Reconciliation | MinT coherent hierarchy | 🔜 Next |
 | [E7](backlog/epic-07-optimization.md) | Optimization | Newsvendor money table | ⬜ |
 | [E8](backlog/epic-08-api.md) | API | FastAPI over precomputed results | ⬜ |
 | [E9](backlog/epic-09-dashboard.md) | Dashboard | React analytics UI | ⬜ |
@@ -31,6 +31,8 @@ produced a quantile, only that `forecast` contains one.
 | `fact_sales` | E1 | E2, E3, E5, E7 |
 | `dim_calendar` | E1 | E2 |
 | `feature_panel` | E2 | E3, E4 |
+| `dim_item_stratum` | E1 | E5, E7 |
+| `feature_importance` | E4 | E9 |
 | `forecast` | E3, E4, E6 | E5, E6, E7, E8 |
 | `backtest_fold_metrics` | E5 | E8, E9 |
 | `coherence_check` | E6 | E8, E9 |

@@ -1,4 +1,4 @@
-# E5 — Backtest harness 🔨
+# E5 — Backtest harness ✅ (WRMSSE deferred to E6)
 
 **Goal:** rolling-origin evaluation that every model in the project is scored by,
 identically.
@@ -7,9 +7,14 @@ identically.
 
 **Produces:** `backtest_fold_metrics`.
 
-**Status:** S1–S5 were built during E3, because E3's definition of done is "a metrics table
-produced by the E5 harness" — a baseline with no folds to run on and no metric to report is
-not a deliverable. WRMSSE (S2) remains open until E6 supplies the hierarchy it weights over.
+**Entrypoint:** `run-backtest`.
+
+**Status:** S1–S5 complete. The fold and metric stories were built during E3 (a baseline
+with no folds to run on and no metric to report is not a deliverable); pinball scoring and
+the canonical report were completed here once E4 produced quantiles. **WRMSSE is the one
+open item** — it weights RMSSE across the M5 aggregation hierarchy, which does not exist
+until E6 builds it. Reporting it earlier would mean reporting a number not actually
+computed.
 
 ---
 
@@ -31,16 +36,18 @@ achievable in production.
       window, and that `BACKTEST_DAYS == N_FOLDS × HORIZON`
 - [x] Exact fold dates pinned by test, since the README quotes them
 
-### E5-S2 — Metrics 🔨
+### E5-S2 — Metrics ✅ (WRMSSE deferred)
 
-- [ ] **WRMSSE** — blocked on E6. WRMSSE is RMSSE weighted across the 12 M5 aggregation
+- [ ] **WRMSSE** — deferred to E6. WRMSSE is RMSSE weighted across the 12 M5 aggregation
       levels; the per-series RMSSE component exists, but the weighting needs the hierarchy.
       Claiming WRMSSE before then would be claiming a metric not actually computed.
 - [x] **MASE** — scale-free, survives zeros
 - [x] **RMSSE** — the per-series component of WRMSSE
 - [x] **Bias / ME** — signed, because over-forecast (dead stock) and under-forecast
       (stockout) cost different amounts and E7 acts on the sign
-- [x] **Pinball loss** — implemented and tested; wired up in E4 when quantiles exist
+- [x] **Pinball loss** — per quantile level, scored on **monotonized** quantiles, because
+      that is how E7 reads them; scoring the raw crossed values would report a loss for a
+      forecast nothing downstream uses
 - [x] **MAPE deliberately excluded**, with the reason recorded: undefined on the 61.6% of
       this panel that is zero-demand, and explosive on the near-zero rows that remain
 - [x] Scale denominator measured from each series' first non-zero sale (M5 convention),
@@ -67,3 +74,27 @@ achievable in production.
       value, n_series, n_excluded)`
 - [x] Long format, so a new metric never needs a migration
 - [x] E8 and E9 read this table directly — no recomputation at request time
+- [x] The point and quantile scorers delete only the metrics they own. A blanket delete
+      made the stored result depend on which scorer ran last, which is the kind of bug that
+      produces a plausible-looking table with half the rows silently missing.
+
+---
+
+## Pinball loss on monotonized quantiles
+
+| Level | lgbm | hybrid |
+|---|---:|---:|
+| q0.50 | **0.62031** | 0.63383 |
+| q0.90 | **0.39631** | 0.39791 |
+| q0.95 | **0.25814** | 0.26252 |
+| q0.99 | **0.08276** | 0.09283 |
+
+LightGBM wins at every level. This is the distributional metric E7 consumes, and it is
+independent corroboration for carrying plain LightGBM forward rather than the routing
+hybrid — see E7-S6.
+
+## Horizon decay is not monotonic
+
+lgbm MASE by forecast week: 1.0104, **1.0334**, 1.0152, 1.0177. Week 2 is the worst, not
+week 4. Accuracy does not simply degrade with distance here, which is worth knowing before
+anyone assumes a shorter horizon would be easier.

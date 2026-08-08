@@ -18,7 +18,7 @@ import numpy as np
 import pandas as pd
 
 from inventory_engine.backtest.folds import Fold
-from inventory_engine.backtest.metrics import naive_scale, naive_scale_squared
+from inventory_engine.backtest.metrics import naive_scale, naive_scale_squared, pinball
 from inventory_engine.data.schema import (
     BACKTEST_METRICS,
     BACKTEST_METRICS_DDL,
@@ -26,9 +26,24 @@ from inventory_engine.data.schema import (
     FACT_SALES,
     FORECAST,
 )
+from inventory_engine.models.quantiles import monotonize
 
 LEVEL_ITEM_STORE = "item_store"
 METRICS = ("mase", "rmsse", "bias")
+
+#: Column order of ``backtest_fold_metrics``, shared by the point and quantile scorers.
+_METRIC_COLUMNS = (
+    "run_id",
+    "model_name",
+    "fold",
+    "level",
+    "stratum",
+    "horizon",
+    "metric",
+    "value",
+    "n_series",
+    "n_excluded",
+)
 
 
 @dataclass(frozen=True)
@@ -118,7 +133,9 @@ def _emit(rows: list[tuple], model: str, fold: int, stratum, horizon, series: pd
         finite = np.isfinite(values)
         rows.append(
             (
-                f"baseline:{model}" if not model.startswith("lgbm") else model,
+                # These rows record a scoring pass, not a training run; the true producing
+                # run_id lives on the forecast rows themselves.
+                f"scored:{model}",
                 model,
                 fold,
                 LEVEL_ITEM_STORE,
@@ -151,7 +168,10 @@ def score_forecasts(
     """
     con.execute(BACKTEST_METRICS_DDL)
     if replace:
-        con.execute(f"DELETE FROM {BACKTEST_METRICS}")
+        # Only the point metrics this function owns. A blanket delete would silently drop
+        # the pinball rows written by score_quantile_forecasts, making the result depend
+        # on which scorer happened to run last.
+        con.execute(f"DELETE FROM {BACKTEST_METRICS} WHERE metric NOT LIKE 'pinball_q%'")
 
     rows: list[tuple] = []
     for fold in folds:
@@ -177,26 +197,109 @@ def score_forecasts(
         for (model, horizon), sub in frame.groupby(["model_name", "horizon"], sort=True):
             _emit(rows, model, fold.index, None, int(horizon), sub)
 
-    written = pd.DataFrame(
-        rows,
-        columns=[
-            "run_id",
-            "model_name",
-            "fold",
-            "level",
-            "stratum",
-            "horizon",
-            "metric",
-            "value",
-            "n_series",
-            "n_excluded",
-        ],
-    )
+    written = pd.DataFrame(rows, columns=_METRIC_COLUMNS)
     if not written.empty:
         con.register("metrics_df", written)
         con.execute(f"INSERT INTO {BACKTEST_METRICS} SELECT * FROM metrics_df")
         con.unregister("metrics_df")
     return written
+
+
+def score_quantile_forecasts(
+    con: duckdb.DuckDBPyConnection,
+    folds: tuple[Fold, ...],
+    *,
+    monotone: bool = True,
+) -> pd.DataFrame:
+    """Score stored quantile forecasts with pinball loss, per level and fold.
+
+    Quantiles are monotonized before scoring by default, because that is how E7 reads them:
+    scoring the raw crossed values would report a loss for a forecast nothing downstream
+    actually uses.
+
+    Args:
+        con: Open warehouse connection.
+        folds: The folds the forecasts were produced on.
+        monotone: Apply rearrangement before scoring. ``False`` scores raw fitted values,
+            which is what the before/after audit uses.
+
+    Returns:
+        The metric rows written.
+
+    """
+    con.execute(BACKTEST_METRICS_DDL)
+    rows: list[tuple] = []
+
+    for fold in folds:
+        quantiles = con.execute(
+            f"""
+            SELECT model_name, fold, item_id, store_id, target_date, quantile, yhat
+            FROM {FORECAST}
+            WHERE fold = ? AND level = ? AND quantile IS NOT NULL AND reconciled = FALSE
+            """,
+            [fold.index, LEVEL_ITEM_STORE],
+        ).df()
+        if quantiles.empty:
+            continue
+
+        actuals = con.execute(
+            f"""
+            SELECT item_id, store_id, date AS target_date, CAST(units AS DOUBLE) AS units
+            FROM {FACT_SALES} WHERE date BETWEEN ? AND ?
+            """,
+            [fold.test_start, fold.test_end],
+        ).df()
+
+        for model, block in quantiles.groupby("model_name", sort=True):
+            ordered = monotonize(block.drop(columns="model_name")) if monotone else block
+            merged = ordered.merge(actuals, on=["item_id", "store_id", "target_date"])
+            for q, level_rows in merged.groupby("quantile", sort=True):
+                rows.append(
+                    (
+                        f"scored:{model}",
+                        model,
+                        fold.index,
+                        LEVEL_ITEM_STORE,
+                        None,
+                        None,
+                        f"pinball_q{q:g}",
+                        pinball(
+                            level_rows["units"].to_numpy(),
+                            level_rows["yhat"].to_numpy(),
+                            float(q),
+                        ),
+                        int(len(level_rows)),
+                        0,
+                    )
+                )
+
+    written = pd.DataFrame(rows, columns=_METRIC_COLUMNS)
+    if not written.empty:
+        con.execute(f"DELETE FROM {BACKTEST_METRICS} WHERE metric LIKE 'pinball_q%'")
+        con.register("qmetrics_df", written)
+        con.execute(f"INSERT INTO {BACKTEST_METRICS} SELECT * FROM qmetrics_df")
+        con.unregister("qmetrics_df")
+    return written
+
+
+def summarise_by_horizon(
+    con: duckdb.DuckDBPyConnection, metric: str = "mase", models: tuple[str, ...] = ()
+) -> pd.DataFrame:
+    """Cross-fold mean per forecast horizon, so accuracy decay is visible."""
+    clause = ""
+    params: list[object] = [metric]
+    if models:
+        clause = f" AND model_name IN ({', '.join('?' for _ in models)})"
+        params.extend(models)
+    return con.execute(
+        f"""
+        SELECT horizon, model_name, round(avg(value), 4) AS mean
+        FROM {BACKTEST_METRICS}
+        WHERE metric = ? AND horizon IS NOT NULL AND stratum IS NULL{clause}
+        GROUP BY 1, 2 ORDER BY 1, 2
+        """,
+        params,
+    ).df()
 
 
 def summarise(con: duckdb.DuckDBPyConnection, metric: str = "mase") -> pd.DataFrame:
