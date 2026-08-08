@@ -49,7 +49,22 @@ watching cost move is worth more than any accuracy chart.
       rather than round-tripping the API on every pixel
 - [ ] Animated transitions on the number and the curve
 - [ ] Show the counterintuitive region explicitly: where high spoilage pulls the optimal
-      service level *down* toward 0.6
+      service level down — measured at 41% for the default assumptions (E7), not the
+      textbook 95%
+- [ ] **Annotate the stockout-rate figure, not just the cost figure.** The winning policy
+      in the money table has a 48.0% stockout rate, and shown without context that reads
+      as a bug. Pin the same explanation used in the README next to whatever widget shows
+      stockout rate: *"Higher stockout rate is correct here, not a flaw — at this item's
+      cost ratio, spoilage is far more expensive than a missed sale, so the optimal policy
+      deliberately favors running out over overstocking perishables. The naive policy's
+      lower stockout rate is what's actually expensive."* This has to travel with the
+      number itself, not live only in the README — a recruiter looking at the live
+      dashboard will not have read the docs first.
+- [ ] **Label Cu/Co as assumptions in the UI, not just in `docs/`.** The 48%-stockout
+      argument only holds if the cost ratio is reasonable, so the slider labels or a
+      caption must say plainly that `Cu`/`Co` are inputs the viewer can change, not
+      measured facts — consistent with how `docs/backlog/epic-07-optimization.md` and the
+      README already label them next to the sensitivity sweep.
 
 ### E9-S5 — Model Performance ⬜
 

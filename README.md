@@ -42,9 +42,24 @@ newsvendor policy accepts a *higher* stockout rate than doing nothing (48% vs 31
 still costs 28.6% less, because it cuts waste by 73%. On thin-margin perishables an empty
 shelf is cheaper than a full bin.
 
-All cost figures are USD and every cost parameter is an **assumption** — M5 ships prices
-but no margins, shelf life or holding costs. The conclusion depends on the *ratio* Cu/Co,
-which is swept below.
+> **The winning policy has a 48.0% stockout rate. That is correct, not a defect.** At this
+> item's cost ratio, spoilage is far more expensive than a missed sale, so the optimal
+> policy deliberately favors running out over overstocking a perishable. The naive
+> policy's *lower* stockout rate (31.1%) is what's actually expensive — it is bought with
+> 78k wasted units instead of 21k. Read the stockout-rate column against the total-cost
+> column, not on its own.
+
+This argument only holds if the cost ratio behind it is reasonable, so it is worth
+repeating here rather than only in the sensitivity section below: **every cost figure in
+this table is a stated assumption, not a measured fact.** M5 ships shelf prices, not
+margins, spoilage rates or holding costs — the 30% margin, 60% spoilage and 2%/day holding
+that produce `CR = 0.409` (see Phase 7 below) are inputs a reader should be free to
+disagree with. The sensitivity sweep exists precisely so the 48%-is-correct conclusion can
+be checked rather than taken on trust: newsvendor beats the alternatives at every spoilage
+rate from 0.0 to 1.0, so the argument does not depend on having picked the assumptions
+that flatter it.
+
+All cost figures are USD.
 
 ---
 
