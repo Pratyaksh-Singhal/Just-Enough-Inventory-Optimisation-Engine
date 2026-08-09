@@ -164,9 +164,8 @@ def test_the_migration_and_the_models_agree(monkeypatch):
     finally:
         _drop(MIGRATION_CHECK_DB)
 
-    assert diff == [], (
-        "the migration and the ORM models have drifted:\n  "
-        + "\n  ".join(str(d) for d in diff)
+    assert diff == [], "the migration and the ORM models have drifted:\n  " + "\n  ".join(
+        str(d) for d in diff
     )
 
 
@@ -218,8 +217,14 @@ def test_deleting_a_dataset_cascades_to_its_skus(session):
     session.add(dataset)
     session.add(
         DatasetSku(
-            dataset=dataset, sku="A", admitted=True, n_days=120, n_obs=120, n_nonnull=120,
-            max_gap_days=0, reasons=[],
+            dataset=dataset,
+            sku="A",
+            admitted=True,
+            n_days=120,
+            n_obs=120,
+            n_nonnull=120,
+            max_gap_days=0,
+            reasons=[],
         )
     )
     session.commit()
@@ -238,8 +243,14 @@ def test_the_same_sku_cannot_be_recorded_twice_for_one_dataset(session):
     for _ in range(2):
         session.add(
             DatasetSku(
-                dataset=dataset, sku="A", admitted=True, n_days=120, n_obs=120,
-                n_nonnull=120, max_gap_days=0, reasons=[],
+                dataset=dataset,
+                sku="A",
+                admitted=True,
+                n_days=120,
+                n_obs=120,
+                n_nonnull=120,
+                max_gap_days=0,
+                reasons=[],
             )
         )
     with pytest.raises(IntegrityError):

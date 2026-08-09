@@ -136,18 +136,14 @@ def score(name, pinball, mase=None, folds=3):
 
 
 def test_the_baseline_is_served_when_it_wins_and_the_response_says_so():
-    method, reason = choose_method(
-        score(MODEL_NAME, 90.0), score(BASELINE_NAME, 50.0), n_folds=3
-    )
+    method, reason = choose_method(score(MODEL_NAME, 90.0), score(BASELINE_NAME, 50.0), n_folds=3)
     assert method == BASELINE_NAME
     assert "baseline beat the model" in reason
     assert "50.000" in reason and "90.000" in reason
 
 
 def test_the_model_is_served_when_it_wins():
-    method, reason = choose_method(
-        score(MODEL_NAME, 40.0), score(BASELINE_NAME, 70.0), n_folds=5
-    )
+    method, reason = choose_method(score(MODEL_NAME, 40.0), score(BASELINE_NAME, 70.0), n_folds=5)
     assert method == MODEL_NAME
     assert "model beat the simple baseline" in reason
 
@@ -241,7 +237,9 @@ def test_a_high_critical_ratio_orders_above_the_median():
     cr = CostModel(margin_rate=0.8, spoilage_rate=0.05).critical_ratio()
     levels = levels_for(cr)
     totals = np.asarray([np.linspace(50, 200, len(levels))])
-    qty, _ = order_from_distribution(levels, totals, CostModel(margin_rate=0.8, spoilage_rate=0.05), 3.0)
+    qty, _ = order_from_distribution(
+        levels, totals, CostModel(margin_rate=0.8, spoilage_rate=0.05), 3.0
+    )
     assert qty > np.interp(0.5, levels, totals[0])
 
 
@@ -289,9 +287,7 @@ def test_zero_prices_are_ignored_as_unusable():
 @pytest.mark.slow
 def test_forecast_sku_returns_a_complete_chartable_result():
     series = daily(days=400)
-    frame = pd.DataFrame(
-        {"date": series.index, "units_sold": series.to_numpy(), "unit_price": 2.5}
-    )
+    frame = pd.DataFrame({"date": series.index, "units_sold": series.to_numpy(), "unit_price": 2.5})
     result = forecast_sku("WIDGET", frame, horizon=28, costs=CostModel())
 
     assert result.method_used in (MODEL_NAME, BASELINE_NAME)

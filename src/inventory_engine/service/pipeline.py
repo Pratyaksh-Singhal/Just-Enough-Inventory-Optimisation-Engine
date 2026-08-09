@@ -345,9 +345,9 @@ def backtest_sku(
 
     for fold in folds:
         train = series.loc[: pd.Timestamp(fold.origin_date)]
-        actual = series.loc[
-            pd.Timestamp(fold.test_start) : pd.Timestamp(fold.test_end)
-        ].to_numpy(dtype=float)
+        actual = series.loc[pd.Timestamp(fold.test_start) : pd.Timestamp(fold.test_end)].to_numpy(
+            dtype=float
+        )
         if np.isnan(actual).all() or train.dropna().size <= SEASON_LENGTH:
             continue
 
@@ -633,9 +633,7 @@ def _chart_series(
     lo, mid, hi = _at(levels, BAND_LOW), _at(levels, 0.5), _at(levels, BAND_HIGH)
 
     return {
-        "history": [
-            {"d": d.strftime("%Y-%m-%d"), "v": float(v)} for d, v in tail.items()
-        ],
+        "history": [{"d": d.strftime("%Y-%m-%d"), "v": float(v)} for d, v in tail.items()],
         "forecast": [
             {
                 "d": d.strftime("%Y-%m-%d"),

@@ -167,7 +167,8 @@ def sweep_orphans(session: Session, storage: BlobStorage) -> int:
         return 0
 
     referenced = {
-        uri for (uri,) in session.execute(select(Dataset.storage_uri)).all()  # noqa: C416
+        uri
+        for (uri,) in session.execute(select(Dataset.storage_uri)).all()  # noqa: C416
     }
     removed = 0
     for path in root.glob("*.csv"):

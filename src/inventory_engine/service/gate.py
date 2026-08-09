@@ -210,9 +210,7 @@ def resolve_columns(columns: list[str]) -> tuple[dict[str, str], str | None]:
     return mapping, None
 
 
-def _reasons_for(
-    n_days: int, n_obs: int, n_nonnull: int, max_gap_days: int
-) -> tuple[str, ...]:
+def _reasons_for(n_days: int, n_obs: int, n_nonnull: int, max_gap_days: int) -> tuple[str, ...]:
     """Every threshold this SKU fails, each naming the required and the actual value."""
     reasons = []
     if n_days < MIN_HISTORY_DAYS:

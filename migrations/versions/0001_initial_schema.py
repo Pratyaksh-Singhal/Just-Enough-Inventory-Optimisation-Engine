@@ -33,7 +33,9 @@ def upgrade() -> None:
     op.create_table(
         "datasets",
         sa.Column("id", sa.Uuid(), primary_key=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
         sa.Column("original_filename", sa.String(512)),
         sa.Column("storage_uri", sa.String(1024), nullable=False),
         sa.Column("sha256", sa.String(64), nullable=False),
@@ -51,7 +53,12 @@ def upgrade() -> None:
     op.create_table(
         "dataset_skus",
         sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
-        sa.Column("dataset_id", sa.Uuid(), sa.ForeignKey("datasets.id", ondelete="CASCADE"), nullable=False),
+        sa.Column(
+            "dataset_id",
+            sa.Uuid(),
+            sa.ForeignKey("datasets.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
         sa.Column("sku", sa.String(256), nullable=False),
         sa.Column("admitted", sa.Boolean(), nullable=False),
         sa.Column("n_days", sa.Integer(), nullable=False),
@@ -65,19 +72,28 @@ def upgrade() -> None:
     op.create_index("ix_dataset_skus_dataset_id", "dataset_skus", ["dataset_id"])
     # One row per (dataset, sku). The gate groups by SKU, so a duplicate here would mean a
     # bug upstream rather than legitimate data -- catch it at write time.
-    op.create_unique_constraint("uq_dataset_skus_dataset_sku", "dataset_skus", ["dataset_id", "sku"])
+    op.create_unique_constraint(
+        "uq_dataset_skus_dataset_sku", "dataset_skus", ["dataset_id", "sku"]
+    )
 
     op.create_table(
         "forecast_jobs",
         sa.Column("id", sa.Uuid(), primary_key=True),
-        sa.Column("dataset_id", sa.Uuid(), sa.ForeignKey("datasets.id", ondelete="CASCADE"), nullable=False),
+        sa.Column(
+            "dataset_id",
+            sa.Uuid(),
+            sa.ForeignKey("datasets.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
         sa.Column("status", JOB_STATUS, nullable=False, server_default="queued"),
         sa.Column("horizon", sa.Integer(), nullable=False),
         sa.Column("margin_rate", sa.Float(), nullable=False),
         sa.Column("spoilage_rate", sa.Float(), nullable=False),
         sa.Column("holding_rate", sa.Float(), nullable=False),
         sa.Column("request_id", sa.String(64), nullable=False),
-        sa.Column("enqueued_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "enqueued_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
         sa.Column("started_at", sa.DateTime(timezone=True)),
         sa.Column("finished_at", sa.DateTime(timezone=True)),
         sa.Column("error", sa.Text()),
@@ -89,7 +105,12 @@ def upgrade() -> None:
     op.create_table(
         "forecast_results",
         sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
-        sa.Column("job_id", sa.Uuid(), sa.ForeignKey("forecast_jobs.id", ondelete="CASCADE"), nullable=False),
+        sa.Column(
+            "job_id",
+            sa.Uuid(),
+            sa.ForeignKey("forecast_jobs.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
         sa.Column("sku", sa.String(256), nullable=False),
         sa.Column("method_used", sa.String(64), nullable=False),
         sa.Column("method_reason", sa.Text(), nullable=False),
@@ -108,7 +129,9 @@ def upgrade() -> None:
         sa.Column("series", postgresql.JSONB(), nullable=False, server_default="{}"),
     )
     op.create_index("ix_forecast_results_job_id", "forecast_results", ["job_id"])
-    op.create_unique_constraint("uq_forecast_results_job_sku", "forecast_results", ["job_id", "sku"])
+    op.create_unique_constraint(
+        "uq_forecast_results_job_sku", "forecast_results", ["job_id", "sku"]
+    )
 
 
 def downgrade() -> None:

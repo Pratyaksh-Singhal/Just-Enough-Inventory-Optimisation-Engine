@@ -77,21 +77,38 @@ def make_dataset(factory, storage, *, age_days=0, with_job=None, content=b"sku,d
         session.add(dataset)
         session.add(
             DatasetSku(
-                dataset=dataset, sku="A", admitted=True, n_days=120, n_obs=120,
-                n_nonnull=120, max_gap_days=0, reasons=[],
+                dataset=dataset,
+                sku="A",
+                admitted=True,
+                n_days=120,
+                n_obs=120,
+                n_nonnull=120,
+                max_gap_days=0,
+                reasons=[],
             )
         )
         job = None
         if with_job is not None:
             job = ForecastJob(
-                id=uuid.uuid4(), dataset=dataset, status=with_job, horizon=28,
-                margin_rate=0.3, spoilage_rate=0.6, holding_rate=0.02, request_id="r",
+                id=uuid.uuid4(),
+                dataset=dataset,
+                status=with_job,
+                horizon=28,
+                margin_rate=0.3,
+                spoilage_rate=0.6,
+                holding_rate=0.02,
+                request_id="r",
             )
             session.add(job)
             session.add(
                 ForecastResult(
-                    job=job, sku="A", method_used="quantile_gbm", method_reason="x",
-                    n_folds=3, critical_ratio=0.4, order_qty=10.0,
+                    job=job,
+                    sku="A",
+                    method_used="quantile_gbm",
+                    method_reason="x",
+                    n_folds=3,
+                    critical_ratio=0.4,
+                    order_qty=10.0,
                     # The user's own daily sales values, copied into the result.
                     series={"history": [{"d": "2025-01-01", "v": 7.0}]},
                 )

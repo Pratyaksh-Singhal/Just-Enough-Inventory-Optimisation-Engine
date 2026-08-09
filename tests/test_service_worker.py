@@ -196,8 +196,14 @@ def test_an_unknown_dataset_is_a_404(client):
 
 def test_a_horizon_outside_the_supported_range_is_rejected(client):
     dataset_id = upload(client)
-    assert client.post("/forecast/run", json={"dataset_id": dataset_id, "horizon": 0}).status_code == 422
-    assert client.post("/forecast/run", json={"dataset_id": dataset_id, "horizon": 99}).status_code == 422
+    assert (
+        client.post("/forecast/run", json={"dataset_id": dataset_id, "horizon": 0}).status_code
+        == 422
+    )
+    assert (
+        client.post("/forecast/run", json={"dataset_id": dataset_id, "horizon": 99}).status_code
+        == 422
+    )
     assert client.enqueued == []
 
 
@@ -209,6 +215,7 @@ def test_an_impossible_margin_rate_is_rejected_before_it_reaches_the_cost_model(
 
 def test_a_queue_outage_is_a_503_and_leaves_no_orphan_job(client, monkeypatch):
     """A row in QUEUED with nothing to pick it up is worse than an honest failure."""
+
     def boom(*_args, **_kwargs):
         raise ConnectionError("redis is down")
 

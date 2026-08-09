@@ -101,9 +101,7 @@ class ForecastRunRequest(BaseModel):
     """
 
     dataset_id: uuid.UUID
-    horizon: int = Field(
-        default=28, ge=1, le=28, description="Days the order must cover, 1-28"
-    )
+    horizon: int = Field(default=28, ge=1, le=28, description="Days the order must cover, 1-28")
     margin_rate: float = Field(
         default=0.30, gt=0.0, lt=1.0, description="Gross margin as a fraction of shelf price"
     )

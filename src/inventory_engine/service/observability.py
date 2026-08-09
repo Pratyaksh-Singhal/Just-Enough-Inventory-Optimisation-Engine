@@ -75,10 +75,29 @@ def bind_request_id(request_id: str | None) -> str:
 #: caller as ``extra`` and belongs in the JSON payload.
 _STANDARD_ATTRS: Final = frozenset(
     {
-        "name", "msg", "args", "levelname", "levelno", "pathname", "filename", "module",
-        "exc_info", "exc_text", "stack_info", "lineno", "funcName", "created", "msecs",
-        "relativeCreated", "thread", "threadName", "processName", "process", "taskName",
-        "message", "asctime",
+        "name",
+        "msg",
+        "args",
+        "levelname",
+        "levelno",
+        "pathname",
+        "filename",
+        "module",
+        "exc_info",
+        "exc_text",
+        "stack_info",
+        "lineno",
+        "funcName",
+        "created",
+        "msecs",
+        "relativeCreated",
+        "thread",
+        "threadName",
+        "processName",
+        "process",
+        "taskName",
+        "message",
+        "asctime",
     }
 )
 
@@ -100,9 +119,7 @@ class JsonFormatter(logging.Formatter):
             "request_id": request_id_var.get(),
             "message": record.getMessage(),
         }
-        payload.update(
-            {k: v for k, v in record.__dict__.items() if k not in _STANDARD_ATTRS}
-        )
+        payload.update({k: v for k, v in record.__dict__.items() if k not in _STANDARD_ATTRS})
         if record.exc_info:
             payload["exception"] = self.formatException(record.exc_info)
         return json.dumps(payload, default=str)

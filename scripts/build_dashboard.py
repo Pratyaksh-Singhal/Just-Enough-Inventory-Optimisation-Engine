@@ -34,9 +34,13 @@ def _sweep(con: duckdb.DuckDBPyConnection) -> dict:
         WHERE model_name = 'lgbm' AND level = 'item_store' AND reconciled = FALSE
           AND quantile IS NOT NULL
     """).df()
-    wide = monotonize(raw).pivot_table(
-        index=["fold", "item_id", "store_id", "target_date"], columns="quantile", values="yhat"
-    ).reset_index()
+    wide = (
+        monotonize(raw)
+        .pivot_table(
+            index=["fold", "item_id", "store_id", "target_date"], columns="quantile", values="yhat"
+        )
+        .reset_index()
+    )
     actuals = con.execute("""
         SELECT item_id, store_id, date AS target_date, CAST(units AS DOUBLE) AS demand
         FROM fact_sales
@@ -94,14 +98,18 @@ def _examples(con: duckdb.DuckDBPyConnection) -> list[dict]:
             """,
             [stratum],
         ).fetchone()
-        bands = con.execute(
-            """
+        bands = (
+            con.execute(
+                """
             SELECT CAST(target_date AS VARCHAR) AS d, quantile, yhat FROM forecast
             WHERE item_id = ? AND store_id = ? AND model_name = 'lgbm' AND fold = 4
               AND level = 'item_store' AND reconciled = FALSE AND quantile IS NOT NULL
             """,
-            [item, store],
-        ).df().pivot_table(index="d", columns="quantile", values="yhat")
+                [item, store],
+            )
+            .df()
+            .pivot_table(index="d", columns="quantile", values="yhat")
+        )
         out.append(
             {
                 "stratum": stratum,
@@ -120,7 +128,9 @@ def _examples(con: duckdb.DuckDBPyConnection) -> list[dict]:
                     ORDER BY date
                     """,
                     [item, store],
-                ).df().to_dict("records"),
+                )
+                .df()
+                .to_dict("records"),
                 "point": con.execute(
                     """
                     SELECT CAST(target_date AS VARCHAR) AS d, yhat FROM forecast
@@ -129,7 +139,9 @@ def _examples(con: duckdb.DuckDBPyConnection) -> list[dict]:
                     ORDER BY target_date
                     """,
                     [item, store],
-                ).df().to_dict("records"),
+                )
+                .df()
+                .to_dict("records"),
                 "lo": [{"d": i, "v": float(r[0.1])} for i, r in bands.iterrows()],
                 "hi": [{"d": i, "v": float(r[0.9])} for i, r in bands.iterrows()],
             }
@@ -188,50 +200,78 @@ def build() -> dict:
     try:
         data: dict = {"money": con.execute("SELECT * FROM cost_comparison").df().to_dict("records")}
         data.update(_sweep(con))
-        data["folds"] = con.execute(
-            """
+        data["folds"] = (
+            con.execute(
+                """
             SELECT model_name, fold, metric, round(value, 4) AS value FROM backtest_fold_metrics
             WHERE stratum IS NULL AND horizon IS NULL AND level = 'item_store'
               AND metric IN ('mase', 'rmsse', 'bias') AND NOT ends_with(model_name, ?)
             ORDER BY metric, model_name, fold
             """,
-            [MINT_SUFFIX],
-        ).df().to_dict("records")
-        data["strata"] = con.execute("""
+                [MINT_SUFFIX],
+            )
+            .df()
+            .to_dict("records")
+        )
+        data["strata"] = (
+            con.execute("""
             SELECT stratum, model_name, round(avg(value), 4) AS mean FROM backtest_fold_metrics
             WHERE metric = 'mase' AND stratum IS NOT NULL AND horizon IS NULL GROUP BY 1, 2
-        """).df().to_dict("records")
+        """)
+            .df()
+            .to_dict("records")
+        )
         for key, metric in (("levels", "rmsse"), ("levels_mase", "mase")):
-            data[key] = con.execute(
-                """
+            data[key] = (
+                con.execute(
+                    """
                 SELECT level, model_name, round(avg(value), 4) AS mean FROM backtest_fold_metrics
                 WHERE metric = ? AND stratum IS NULL AND horizon IS NULL
                   AND model_name IN ('lgbm', 'lgbm_mint')
                   AND level IN ('state', 'store', 'store_dept', 'item_store')
                 GROUP BY 1, 2
                 """,
-                [metric],
-            ).df().to_dict("records")
-        data["wrmsse"] = con.execute("""
+                    [metric],
+                )
+                .df()
+                .to_dict("records")
+            )
+        data["wrmsse"] = (
+            con.execute("""
             SELECT model_name, round(avg(value), 5) AS mean FROM backtest_fold_metrics
             WHERE metric = 'wrmsse' GROUP BY 1
-        """).df().to_dict("records")
-        data["coherence"] = con.execute("""
+        """)
+            .df()
+            .to_dict("records")
+        )
+        data["coherence"] = (
+            con.execute("""
             SELECT parent_level, child_level,
                    round(max(CASE WHEN NOT reconciled THEN max_abs_gap END), 3) AS max_before,
                    max(CASE WHEN reconciled THEN max_abs_gap END) AS max_after
             FROM coherence_check GROUP BY 1, 2
-        """).df().to_dict("records")
-        data["shap"] = con.execute("""
+        """)
+            .df()
+            .to_dict("records")
+        )
+        data["shap"] = (
+            con.execute("""
             SELECT feature, round(value, 4) AS value FROM feature_importance
             WHERE method = 'shap_mean_abs' AND fold = (SELECT max(fold) FROM feature_importance)
             ORDER BY value DESC LIMIT 15
-        """).df().to_dict("records")
-        data["strata_profile"] = con.execute("""
+        """)
+            .df()
+            .to_dict("records")
+        )
+        data["strata_profile"] = (
+            con.execute("""
             SELECT dept_id, stratum_name, count(*) AS items,
                    round(min(zero_share), 2) AS lo, round(max(zero_share), 2) AS hi
             FROM dim_item_stratum GROUP BY 1, 2 ORDER BY 1, min(zero_share)
-        """).df().to_dict("records")
+        """)
+            .df()
+            .to_dict("records")
+        )
         data["examples"] = _examples(con)
         data["demoCsv"] = _demo_csv(con)
         return data
