@@ -1,219 +1,916 @@
+<meta charset="utf-8">
 <title>Inventory Optimization Engine</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-:root{
-  --ground:#0C1211; --surface:#131A18; --surface-2:#182120; --line:#222E2A; --line-soft:#1B2523;
-  --ink:#E8EFEC; --ink-2:#A6B5AF; --ink-3:#7A8A84;
-  --jade:#2FA97C; --amber:#C4862B; --blue:#4F86D4;
-  --jade-dim:rgba(47,169,124,.14); --amber-dim:rgba(196,134,43,.16); --blue-dim:rgba(79,134,212,.16);
-  --mono:ui-monospace,"SF Mono","Cascadia Mono","Roboto Mono",Menlo,Consolas,monospace;
-  --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-  --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
-  --r:3px;
-}
-*{box-sizing:border-box}
-body{
-  margin:0; background:var(--ground); color:var(--ink);
-  font-family:var(--sans); font-size:15px; line-height:1.55;
-  -webkit-font-smoothing:antialiased;
-}
-.wrap{max-width:1140px;margin:0 auto;padding:0 28px}
+  :root {
+    --ground: #0C1211;
+    --surface: #131A18;
+    --surface-2: #182120;
+    --line: #222E2A;
+    --line-soft: #1B2523;
+    --ink: #E8EFEC;
+    --ink-2: #A6B5AF;
+    --ink-3: #7A8A84;
+    --jade: #2FA97C;
+    --amber: #C4862B;
+    --blue: #4F86D4;
+    --jade-dim: rgba(47, 169, 124, .14);
+    --amber-dim: rgba(196, 134, 43, .16);
+    --blue-dim: rgba(79, 134, 212, .16);
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    --r: 3px;
+  }
 
-/* ---------- header ---------- */
-header{border-bottom:1px solid var(--line);background:var(--ground);position:sticky;top:0;z-index:20}
-.masthead{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;padding:22px 0 16px}
-.masthead h1{font-size:17px;font-weight:600;margin:0;letter-spacing:-.01em}
-.masthead .sub{font-family:var(--mono);font-size:11.5px;color:var(--ink-3);letter-spacing:.04em}
-.masthead .spacer{flex:1 1 auto}
-.fx{display:flex;align-items:center;gap:9px;font-family:var(--mono);font-size:11px;color:var(--ink-3)}
-.fx-switch{display:flex;border:1px solid var(--line);border-radius:20px;padding:2px;background:var(--surface)}
-.fx-switch button{
-  appearance:none;border:0;background:none;color:var(--ink-3);font-family:var(--mono);
-  font-size:11px;letter-spacing:.03em;padding:4px 11px;border-radius:16px;cursor:pointer;
-}
-.fx-switch button[aria-pressed="true"]{background:var(--jade-dim);color:var(--jade)}
-.fx-switch button:focus-visible{outline:2px solid var(--jade);outline-offset:1px}
-.fx-rate{white-space:nowrap}
-.tabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
-.tabs::-webkit-scrollbar{display:none}
-.tab{
-  appearance:none;background:none;border:0;border-bottom:2px solid transparent;
-  color:var(--ink-3);font-family:var(--mono);font-size:11.5px;letter-spacing:.06em;
-  text-transform:uppercase;padding:9px 13px;cursor:pointer;white-space:nowrap;
-}
-.tab:hover{color:var(--ink-2)}
-.tab[aria-selected="true"]{color:var(--jade);border-bottom-color:var(--jade)}
-.tab-tech{margin-left:10px;padding-left:15px;border-left:1px solid var(--line)}
-.tab:focus-visible{outline:2px solid var(--jade);outline-offset:-2px}
+  * {
+    box-sizing: border-box
+  }
 
-/* ---------- structure ---------- */
-main{padding:38px 0 90px}
-section[hidden]{display:none}
-.eyebrow{
-  font-family:var(--mono);font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;
-  color:var(--ink-3);margin:0 0 10px
-}
-h2{font-size:23px;font-weight:600;letter-spacing:-.015em;margin:0 0 8px;text-wrap:balance}
-h3{font-size:14.5px;font-weight:600;margin:0 0 4px;letter-spacing:-.005em}
-.lede{color:var(--ink-2);max-width:64ch;margin:0 0 26px}
-.stack{display:flex;flex-direction:column;gap:34px}
-.rule{height:1px;background:var(--line-soft);border:0;margin:0}
-.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:20px 22px}
-.grid{display:grid;gap:14px}
-.g4{grid-template-columns:repeat(4,1fr)}
-.g3{grid-template-columns:repeat(3,1fr)}
-.g2{grid-template-columns:repeat(2,1fr)}
-@media(max-width:900px){.g4{grid-template-columns:repeat(2,1fr)}.g3,.g2{grid-template-columns:1fr}}
-@media(max-width:560px){.g4{grid-template-columns:1fr}}
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
 
-/* ---------- hero ---------- */
-.hero{display:flex;gap:44px;align-items:flex-end;flex-wrap:wrap;padding-bottom:6px}
-.hero .figure{font-family:var(--mono);font-size:clamp(52px,9vw,86px);line-height:.92;
-  font-weight:600;letter-spacing:-.045em;color:var(--jade);font-variant-numeric:tabular-nums}
-.hero .caption{max-width:44ch;color:var(--ink-2);font-size:14px}
-.hero .caption strong{color:var(--ink);font-weight:600}
+  .wrap {
+    max-width: 1140px;
+    margin: 0 auto;
+    padding: 0 28px
+  }
 
-/* ---------- stat tiles ---------- */
-.tile{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:15px 16px}
-.tile .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
-.tile .v{font-family:var(--mono);font-size:27px;font-weight:600;letter-spacing:-.03em;
-  margin-top:7px;font-variant-numeric:tabular-nums}
-.tile .d{font-family:var(--mono);font-size:11.5px;margin-top:5px;color:var(--ink-3)}
-.chip{display:inline-block;padding:1px 6px;border-radius:2px;font-family:var(--mono);font-size:11px}
-.chip.good{background:var(--jade-dim);color:var(--jade)}
-.chip.warn{background:var(--amber-dim);color:var(--amber)}
-.chip.cool{background:var(--blue-dim);color:var(--blue)}
+  /* ---------- header ---------- */
+  header {
+    border-bottom: 1px solid var(--line);
+    background: var(--ground);
+    position: sticky;
+    top: 0;
+    z-index: 20
+  }
 
-/* ---------- callout: the annotations that must be visible ---------- */
-.callout{
-  border:1px solid var(--line);border-left:3px solid var(--jade);border-radius:var(--r);
-  background:var(--surface-2);padding:17px 20px;font-family:var(--serif);font-size:15.5px;
-  line-height:1.62;color:var(--ink-2);
-}
-.callout.amber{border-left-color:var(--amber)}
-.callout.blue{border-left-color:var(--blue)}
-.callout .hd{
-  font-family:var(--mono);font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;
-  color:var(--ink);margin-bottom:7px;display:block
-}
-.callout strong{color:var(--ink);font-weight:600}
-.callout em{font-style:italic;color:var(--ink)}
+  .masthead {
+    display: flex;
+    align-items: center;
+    gap: 10px 16px;
+    flex-wrap: wrap;
+    padding: 22px 0 16px
+  }
 
-/* ---------- tables ---------- */
-.tw{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
-table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:520px}
-th,td{padding:9px 13px;text-align:right;border-bottom:1px solid var(--line-soft);white-space:nowrap}
-th:first-child,td:first-child{text-align:left}
-thead th{
-  font-family:var(--mono);font-size:10px;letter-spacing:.09em;text-transform:uppercase;
-  color:var(--ink-3);font-weight:500;background:var(--surface-2)
-}
-tbody tr:last-child td{border-bottom:0}
-td.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
-tr.hi td{background:rgba(47,169,124,.06)}
-tr.hi td:first-child{box-shadow:inset 2px 0 0 var(--jade)}
-.win{color:var(--jade)}
-.lose{color:var(--amber)}
+  .masthead h1 {
+    font-size: 17px;
+    font-weight: 600;
+    margin: 0;
+    letter-spacing: -.01em
+  }
 
-/* ---------- simulator ---------- */
-.sim{display:grid;grid-template-columns:300px 1fr;gap:26px;align-items:start}
-@media(max-width:880px){.sim{grid-template-columns:1fr}}
-.ctrl{margin-bottom:20px}
-.ctrl label{display:flex;justify-content:space-between;align-items:baseline;
-  font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
-.ctrl output{font-size:16px;color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
-input[type=range]{
-  -webkit-appearance:none;appearance:none;width:100%;height:3px;border-radius:2px;
-  background:var(--line);margin-top:11px;cursor:pointer
-}
-input[type=range]::-webkit-slider-thumb{
-  -webkit-appearance:none;width:17px;height:17px;border-radius:50%;
-  background:var(--ink);border:3px solid var(--ground);cursor:grab
-}
-input[type=range]::-moz-range-thumb{
-  width:17px;height:17px;border-radius:50%;background:var(--ink);
-  border:3px solid var(--ground);cursor:grab
-}
-input[type=range]:focus-visible{outline:2px solid var(--jade);outline-offset:4px}
-#cu{background:linear-gradient(90deg,var(--blue) 0%,var(--blue) var(--p,50%),var(--line) var(--p,50%))}
-#co{background:linear-gradient(90deg,var(--amber) 0%,var(--amber) var(--p,50%),var(--line) var(--p,50%))}
-.readout{border-top:1px solid var(--line);padding-top:15px;margin-top:4px}
-.readout .row{display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;
-  font-family:var(--mono);font-size:12.5px}
-.readout .row span:first-child{color:var(--ink-3)}
-.readout .row b{font-weight:600;font-variant-numeric:tabular-nums}
-.big-cr{font-family:var(--mono);font-size:40px;font-weight:600;letter-spacing:-.035em;
-  color:var(--jade);font-variant-numeric:tabular-nums;line-height:1}
+  .masthead .sub {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--ink-3);
+    letter-spacing: .04em
+  }
 
-/* ---------- charts ---------- */
-figure{margin:0}
-figcaption{font-size:12.5px;color:var(--ink-3);margin-top:9px;max-width:70ch;line-height:1.5}
-svg{display:block;width:100%;height:auto;overflow:visible}
-.gridline{stroke:var(--line-soft);stroke-width:1}
-.axis{fill:var(--ink-3);font-family:var(--mono);font-size:10px}
-.axis-title{fill:var(--ink-3);font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase}
-.legend{display:flex;gap:16px;flex-wrap:wrap;font-family:var(--mono);font-size:11.5px;color:var(--ink-2);margin-bottom:12px}
-.legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px;vertical-align:baseline}
+  /* `margin-left:auto` rather than a flex spacer element. A spacer only right-aligns the
+     switch while everything fits on one line -- once the subtitle wraps, the spacer stays
+     behind on line 1 and the switch lands hard against the left margin on line 2. */
+  .fx {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin-left: auto;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-3);
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
 
-/* ---------- prose ---------- */
-.prose{font-family:var(--serif);font-size:16px;line-height:1.68;color:var(--ink-2);max-width:68ch}
-.prose p{margin:0 0 15px}
-.prose strong{color:var(--ink);font-weight:600}
-.prose code{font-family:var(--mono);font-size:.86em;background:var(--surface-2);
-  padding:1px 5px;border-radius:2px;color:var(--ink)}
-.log{display:flex;flex-direction:column;gap:0}
-.log-item{display:grid;grid-template-columns:36px 1fr;gap:20px;padding:22px 0;border-top:1px solid var(--line-soft)}
-.log-item:first-child{border-top:0}
-.log-n{font-family:var(--mono);font-size:11px;color:var(--ink-3);padding-top:4px;letter-spacing:.05em}
-.log h3{margin-bottom:7px}
-@media(max-width:640px){.log-item{grid-template-columns:1fr;gap:6px}}
-.tag{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;
-  color:var(--ink-3);border:1px solid var(--line);border-radius:2px;padding:1px 6px;margin-left:8px;
-  vertical-align:middle;white-space:nowrap}
-/* ---------- forms / calculator ---------- */
-.field{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
-.field > label{font-family:var(--mono);font-size:11px;letter-spacing:.06em;
-  text-transform:uppercase;color:var(--ink-3)}
-.field .hint{font-size:12.5px;color:var(--ink-3);font-family:var(--sans);
-  text-transform:none;letter-spacing:0}
-input[type=number],select,textarea{
-  background:var(--ground);color:var(--ink);border:1px solid var(--line);
-  border-radius:var(--r);padding:9px 11px;font-family:var(--mono);font-size:14px;width:100%;
-}
-textarea{font-size:12px;line-height:1.5;min-height:150px;resize:vertical;white-space:pre}
-input[type=number]:focus,select:focus,textarea:focus{outline:2px solid var(--jade);outline-offset:-1px;border-color:var(--jade)}
-.btn{
-  appearance:none;background:var(--jade);color:#06120D;border:0;border-radius:var(--r);
-  font-family:var(--sans);font-size:13.5px;font-weight:600;padding:9px 15px;cursor:pointer;
-}
-.btn:hover{filter:brightness(1.08)}
-.btn.ghost{background:none;color:var(--ink-2);border:1px solid var(--line);font-weight:500}
-.btn.ghost:hover{color:var(--ink);border-color:var(--ink-3)}
-.btn:focus-visible{outline:2px solid var(--jade);outline-offset:2px}
-.btnrow{display:flex;gap:9px;flex-wrap:wrap;align-items:center}
-.calc{display:grid;grid-template-columns:340px 1fr;gap:26px;align-items:start}
-@media(max-width:900px){.calc{grid-template-columns:1fr}}
-.order-qty{font-family:var(--mono);font-size:17px;font-weight:600;color:var(--jade);
-  font-variant-numeric:tabular-nums}
-.msg{border:1px solid var(--line);border-left:3px solid var(--amber);border-radius:var(--r);
-  background:var(--surface-2);padding:11px 14px;font-size:13.5px;color:var(--ink-2);margin-bottom:14px}
-.msg.ok{border-left-color:var(--jade)}
-.note-cell{font-size:12px;color:var(--ink-3);font-family:var(--sans);white-space:normal;max-width:26ch}
-.ccy-tag{font-family:var(--mono);font-size:10px;color:var(--jade);background:var(--jade-dim);
-  border-radius:2px;padding:1px 5px;margin-left:6px;letter-spacing:.04em}
-.saving-hero{background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--jade);
-  border-radius:var(--r);padding:17px 20px;margin-bottom:18px}
-.saving-hero .v{font-family:var(--mono);font-size:32px;font-weight:600;letter-spacing:-.03em;
-  color:var(--jade);font-variant-numeric:tabular-nums;line-height:1.05}
-.saving-hero .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.09em;
-  text-transform:uppercase;color:var(--ink-3);margin-bottom:7px}
-.saving-hero .d{font-size:13px;color:var(--ink-2);margin-top:8px;max-width:62ch}
-footer{border-top:1px solid var(--line);padding:26px 0 40px;color:var(--ink-3);
-  font-family:var(--mono);font-size:11.5px;line-height:1.7}
-@media(prefers-reduced-motion:no-preference){
-  .fade{animation:f .35s ease both}
-  @keyframes f{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
-}
+  .fx-switch {
+    display: flex;
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    padding: 2px;
+    background: var(--surface)
+  }
+
+  .fx-switch button {
+    appearance: none;
+    border: 0;
+    background: none;
+    color: var(--ink-3);
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .03em;
+    padding: 4px 11px;
+    border-radius: 16px;
+    cursor: pointer;
+  }
+
+  .fx-switch button[aria-pressed="true"] {
+    background: var(--jade-dim);
+    color: var(--jade)
+  }
+
+  .fx-switch button:focus-visible {
+    outline: 2px solid var(--jade);
+    outline-offset: 1px
+  }
+
+  .fx-rate {
+    white-space: nowrap
+  }
+
+  .tabs {
+    display: flex;
+    gap: 2px;
+    overflow-x: auto;
+    scrollbar-width: none
+  }
+
+  .tabs::-webkit-scrollbar {
+    display: none
+  }
+
+  .tab {
+    appearance: none;
+    background: none;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    color: var(--ink-3);
+    font-family: var(--mono);
+    font-size: 11.5px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    padding: 9px 13px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .tab:hover {
+    color: var(--ink-2)
+  }
+
+  .tab[aria-selected="true"] {
+    color: var(--jade);
+    border-bottom-color: var(--jade)
+  }
+
+  .tab-tech {
+    margin-left: 10px;
+    padding-left: 15px;
+    border-left: 1px solid var(--line)
+  }
+
+  .tab:focus-visible {
+    outline: 2px solid var(--jade);
+    outline-offset: -2px
+  }
+
+  /* ---------- structure ---------- */
+  main {
+    padding: 38px 0 90px
+  }
+
+  section[hidden] {
+    display: none
+  }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin: 0 0 10px
+  }
+
+  h2 {
+    font-size: 23px;
+    font-weight: 600;
+    letter-spacing: -.015em;
+    margin: 0 0 8px;
+    text-wrap: balance
+  }
+
+  h3 {
+    font-size: 14.5px;
+    font-weight: 600;
+    margin: 0 0 4px;
+    letter-spacing: -.005em
+  }
+
+  .lede {
+    color: var(--ink-2);
+    max-width: 64ch;
+    margin: 0 0 26px
+  }
+
+  .stack {
+    display: flex;
+    flex-direction: column;
+    gap: 34px
+  }
+
+  .rule {
+    height: 1px;
+    background: var(--line-soft);
+    border: 0;
+    margin: 0
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r);
+    padding: 20px 22px
+  }
+
+  .grid {
+    display: grid;
+    gap: 14px
+  }
+
+  .g4 {
+    grid-template-columns: repeat(4, 1fr)
+  }
+
+  .g3 {
+    grid-template-columns: repeat(3, 1fr)
+  }
+
+  .g2 {
+    grid-template-columns: repeat(2, 1fr)
+  }
+
+  @media(max-width:900px) {
+    .g4 {
+      grid-template-columns: repeat(2, 1fr)
+    }
+
+    .g3,
+    .g2 {
+      grid-template-columns: 1fr
+    }
+  }
+
+  @media(max-width:560px) {
+    .g4 {
+      grid-template-columns: 1fr
+    }
+  }
+
+  /* ---------- hero ---------- */
+  .hero {
+    display: flex;
+    gap: 44px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    padding-bottom: 6px
+  }
+
+  .hero .figure {
+    font-family: var(--mono);
+    font-size: clamp(52px, 9vw, 86px);
+    line-height: .92;
+    font-weight: 600;
+    letter-spacing: -.045em;
+    color: var(--jade);
+    font-variant-numeric: tabular-nums
+  }
+
+  .hero .caption {
+    max-width: 44ch;
+    color: var(--ink-2);
+    font-size: 14px
+  }
+
+  .hero .caption strong {
+    color: var(--ink);
+    font-weight: 600
+  }
+
+  /* ---------- stat tiles ---------- */
+  .tile {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r);
+    padding: 15px 16px
+  }
+
+  .tile .k {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--ink-3)
+  }
+
+  .tile .v {
+    font-family: var(--mono);
+    font-size: 27px;
+    font-weight: 600;
+    letter-spacing: -.03em;
+    margin-top: 7px;
+    font-variant-numeric: tabular-nums
+  }
+
+  .tile .d {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    margin-top: 5px;
+    color: var(--ink-3)
+  }
+
+  .chip {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 2px;
+    font-family: var(--mono);
+    font-size: 11px
+  }
+
+  .chip.good {
+    background: var(--jade-dim);
+    color: var(--jade)
+  }
+
+  .chip.warn {
+    background: var(--amber-dim);
+    color: var(--amber)
+  }
+
+  .chip.cool {
+    background: var(--blue-dim);
+    color: var(--blue)
+  }
+
+  /* ---------- callout: the annotations that must be visible ---------- */
+  .callout {
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--jade);
+    border-radius: var(--r);
+    background: var(--surface-2);
+    padding: 17px 20px;
+    font-family: var(--serif);
+    font-size: 15.5px;
+    line-height: 1.62;
+    color: var(--ink-2);
+  }
+
+  .callout.amber {
+    border-left-color: var(--amber)
+  }
+
+  .callout.blue {
+    border-left-color: var(--blue)
+  }
+
+  .callout .hd {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: .11em;
+    text-transform: uppercase;
+    color: var(--ink);
+    margin-bottom: 7px;
+    display: block
+  }
+
+  .callout strong {
+    color: var(--ink);
+    font-weight: 600
+  }
+
+  .callout em {
+    font-style: italic;
+    color: var(--ink)
+  }
+
+  /* ---------- tables ---------- */
+  .tw {
+    overflow-x: auto;
+    border: 1px solid var(--line);
+    border-radius: var(--r);
+    background: var(--surface)
+  }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 13.5px;
+    min-width: 520px
+  }
+
+  th,
+  td {
+    padding: 9px 13px;
+    text-align: right;
+    border-bottom: 1px solid var(--line-soft);
+    white-space: nowrap
+  }
+
+  th:first-child,
+  td:first-child {
+    text-align: left
+  }
+
+  thead th {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    font-weight: 500;
+    background: var(--surface-2)
+  }
+
+  tbody tr:last-child td {
+    border-bottom: 0
+  }
+
+  td.num {
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums
+  }
+
+  tr.hi td {
+    background: rgba(47, 169, 124, .06)
+  }
+
+  tr.hi td:first-child {
+    box-shadow: inset 2px 0 0 var(--jade)
+  }
+
+  .win {
+    color: var(--jade)
+  }
+
+  .lose {
+    color: var(--amber)
+  }
+
+  /* ---------- simulator ---------- */
+  .sim {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 26px;
+    align-items: start
+  }
+
+  @media(max-width:880px) {
+    .sim {
+      grid-template-columns: 1fr
+    }
+  }
+
+  .ctrl {
+    margin-bottom: 20px
+  }
+
+  .ctrl label {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--ink-3)
+  }
+
+  .ctrl output {
+    font-size: 16px;
+    color: var(--ink);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums
+  }
+
+  input[type=range] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 3px;
+    border-radius: 2px;
+    background: var(--line);
+    margin-top: 11px;
+    cursor: pointer
+  }
+
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 17px;
+    height: 17px;
+    border-radius: 50%;
+    background: var(--ink);
+    border: 3px solid var(--ground);
+    cursor: grab
+  }
+
+  input[type=range]::-moz-range-thumb {
+    width: 17px;
+    height: 17px;
+    border-radius: 50%;
+    background: var(--ink);
+    border: 3px solid var(--ground);
+    cursor: grab
+  }
+
+  input[type=range]:focus-visible {
+    outline: 2px solid var(--jade);
+    outline-offset: 4px
+  }
+
+  #cu {
+    background: linear-gradient(90deg, var(--blue) 0%, var(--blue) var(--p, 50%), var(--line) var(--p, 50%))
+  }
+
+  #co {
+    background: linear-gradient(90deg, var(--amber) 0%, var(--amber) var(--p, 50%), var(--line) var(--p, 50%))
+  }
+
+  .readout {
+    border-top: 1px solid var(--line);
+    padding-top: 15px;
+    margin-top: 4px
+  }
+
+  .readout .row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 5px 0;
+    font-family: var(--mono);
+    font-size: 12.5px
+  }
+
+  .readout .row span:first-child {
+    color: var(--ink-3)
+  }
+
+  .readout .row b {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums
+  }
+
+  .big-cr {
+    font-family: var(--mono);
+    font-size: 40px;
+    font-weight: 600;
+    letter-spacing: -.035em;
+    color: var(--jade);
+    font-variant-numeric: tabular-nums;
+    line-height: 1
+  }
+
+  /* ---------- charts ---------- */
+  figure {
+    margin: 0
+  }
+
+  figcaption {
+    font-size: 12.5px;
+    color: var(--ink-3);
+    margin-top: 9px;
+    max-width: 70ch;
+    line-height: 1.5
+  }
+
+  svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    overflow: visible
+  }
+
+  .gridline {
+    stroke: var(--line-soft);
+    stroke-width: 1
+  }
+
+  .axis {
+    fill: var(--ink-3);
+    font-family: var(--mono);
+    font-size: 10px
+  }
+
+  .axis-title {
+    fill: var(--ink-3);
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .08em;
+    text-transform: uppercase
+  }
+
+  .legend {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--ink-2);
+    margin-bottom: 12px
+  }
+
+  .legend i {
+    display: inline-block;
+    width: 9px;
+    height: 9px;
+    border-radius: 2px;
+    margin-right: 6px;
+    vertical-align: baseline
+  }
+
+  /* ---------- prose ---------- */
+  .prose {
+    font-family: var(--serif);
+    font-size: 16px;
+    line-height: 1.68;
+    color: var(--ink-2);
+    max-width: 68ch
+  }
+
+  .prose p {
+    margin: 0 0 15px
+  }
+
+  .prose strong {
+    color: var(--ink);
+    font-weight: 600
+  }
+
+  .prose code {
+    font-family: var(--mono);
+    font-size: .86em;
+    background: var(--surface-2);
+    padding: 1px 5px;
+    border-radius: 2px;
+    color: var(--ink)
+  }
+
+  .log {
+    display: flex;
+    flex-direction: column;
+    gap: 0
+  }
+
+  .log-item {
+    display: grid;
+    grid-template-columns: 36px 1fr;
+    gap: 20px;
+    padding: 22px 0;
+    border-top: 1px solid var(--line-soft)
+  }
+
+  .log-item:first-child {
+    border-top: 0
+  }
+
+  .log-n {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-3);
+    padding-top: 4px;
+    letter-spacing: .05em
+  }
+
+  .log h3 {
+    margin-bottom: 7px
+  }
+
+  @media(max-width:640px) {
+    .log-item {
+      grid-template-columns: 1fr;
+      gap: 6px
+    }
+  }
+
+  .tag {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    padding: 1px 6px;
+    margin-left: 8px;
+    vertical-align: middle;
+    white-space: nowrap
+  }
+
+  /* ---------- forms / calculator ---------- */
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 16px
+  }
+
+  .field>label {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--ink-3)
+  }
+
+  .field .hint {
+    font-size: 12.5px;
+    color: var(--ink-3);
+    font-family: var(--sans);
+    text-transform: none;
+    letter-spacing: 0
+  }
+
+  input[type=number],
+  select,
+  textarea {
+    background: var(--ground);
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: var(--r);
+    padding: 9px 11px;
+    font-family: var(--mono);
+    font-size: 14px;
+    width: 100%;
+  }
+
+  textarea {
+    font-size: 12px;
+    line-height: 1.5;
+    min-height: 150px;
+    resize: vertical;
+    white-space: pre
+  }
+
+  input[type=number]:focus,
+  select:focus,
+  textarea:focus {
+    outline: 2px solid var(--jade);
+    outline-offset: -1px;
+    border-color: var(--jade)
+  }
+
+  .btn {
+    appearance: none;
+    background: var(--jade);
+    color: #06120D;
+    border: 0;
+    border-radius: var(--r);
+    font-family: var(--sans);
+    font-size: 13.5px;
+    font-weight: 600;
+    padding: 9px 15px;
+    cursor: pointer;
+  }
+
+  .btn:hover {
+    filter: brightness(1.08)
+  }
+
+  .btn.ghost {
+    background: none;
+    color: var(--ink-2);
+    border: 1px solid var(--line);
+    font-weight: 500
+  }
+
+  .btn.ghost:hover {
+    color: var(--ink);
+    border-color: var(--ink-3)
+  }
+
+  .btn:focus-visible {
+    outline: 2px solid var(--jade);
+    outline-offset: 2px
+  }
+
+  .btnrow {
+    display: flex;
+    gap: 9px;
+    flex-wrap: wrap;
+    align-items: center
+  }
+
+  .calc {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 26px;
+    align-items: start
+  }
+
+  @media(max-width:900px) {
+    .calc {
+      grid-template-columns: 1fr
+    }
+  }
+
+  .order-qty {
+    font-family: var(--mono);
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--jade);
+    font-variant-numeric: tabular-nums
+  }
+
+  .msg {
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--amber);
+    border-radius: var(--r);
+    background: var(--surface-2);
+    padding: 11px 14px;
+    font-size: 13.5px;
+    color: var(--ink-2);
+    margin-bottom: 14px
+  }
+
+  .msg.ok {
+    border-left-color: var(--jade)
+  }
+
+  .note-cell {
+    font-size: 12px;
+    color: var(--ink-3);
+    font-family: var(--sans);
+    white-space: normal;
+    max-width: 26ch
+  }
+
+  .ccy-tag {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--jade);
+    background: var(--jade-dim);
+    border-radius: 2px;
+    padding: 1px 5px;
+    margin-left: 6px;
+    letter-spacing: .04em
+  }
+
+  .saving-hero {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--jade);
+    border-radius: var(--r);
+    padding: 17px 20px;
+    margin-bottom: 18px
+  }
+
+  .saving-hero .v {
+    font-family: var(--mono);
+    font-size: 32px;
+    font-weight: 600;
+    letter-spacing: -.03em;
+    color: var(--jade);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.05
+  }
+
+  .saving-hero .k {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin-bottom: 7px
+  }
+
+  .saving-hero .d {
+    font-size: 13px;
+    color: var(--ink-2);
+    margin-top: 8px;
+    max-width: 62ch
+  }
+
+  footer {
+    border-top: 1px solid var(--line);
+    padding: 26px 0 40px;
+    color: var(--ink-3);
+    font-family: var(--mono);
+    font-size: 11.5px;
+    line-height: 1.7
+  }
+
+  @media(prefers-reduced-motion:no-preference) {
+    .fade {
+      animation: f .35s ease both
+    }
+
+    @keyframes f {
+      from {
+        opacity: 0;
+        transform: translateY(5px)
+      }
+
+      to {
+        opacity: 1;
+        transform: none
+      }
+    }
+  }
 </style>
 
 <header>
@@ -221,7 +918,6 @@ footer{border-top:1px solid var(--line);padding:26px 0 40px;color:var(--ink-3);
     <div class="masthead">
       <h1>Inventory Optimization Engine</h1>
       <span class="sub">M5 · 720 SERIES · CA / FOODS · 5-FOLD ROLLING ORIGIN</span>
-      <span class="spacer"></span>
       <div class="fx">
         <span class="fx-rate" id="fxRate"></span>
         <div class="fx-switch" role="group" aria-label="Currency">
@@ -241,1152 +937,1187 @@ footer{border-top:1px solid var(--line);padding:26px 0 40px;color:var(--ink-3);
 
 <main class="wrap">
 
-<!-- ============ ORDER CALCULATOR ============ -->
-<section id="calculator" class="stack fade">
-  <div>
-    <p class="eyebrow">Paste your own sales history — nothing leaves your browser</p>
-    <h2>How much should I order?</h2>
-    <p class="lede">
-      Give it your recent sales per product and what a missed sale and a wasted item cost
-      you. It works out how many units to order for each one — including how much spare to
-      carry above your average demand, so you're covered on a busy day without throwing
-      stock away.
-    </p>
-  </div>
+  <!-- ============ ORDER CALCULATOR ============ -->
+  <section id="calculator" class="stack fade">
+    <div>
+      <p class="eyebrow">Paste your own sales history — nothing leaves your browser</p>
+      <h2>How much should I order?</h2>
+      <p class="lede">
+        Give it your recent sales per product and what a missed sale and a wasted item cost
+        you. It works out how many units to order for each one — including how much spare to
+        carry above your average demand, so you're covered on a busy day without throwing
+        stock away.
+      </p>
+    </div>
 
-  <div class="calc">
-    <div class="card">
-      <div class="field">
-        <label for="csv">Your sales history</label>
-        <span class="hint">One row per product per day. Needs columns for product,
-          date and units sold — extra columns are ignored.</span>
-        <textarea id="csv" spellcheck="false"
-          placeholder="sku,date,units_sold&#10;Bananas,2024-05-01,14&#10;Bananas,2024-05-02,9&#10;Milk 1L,2024-05-01,31"></textarea>
-        <div class="btnrow">
-          <button class="btn ghost" type="button" id="loadDemo">Load example data</button>
-          <label class="btn ghost" style="cursor:pointer;margin:0">
-            Upload CSV<input type="file" id="csvFile" accept=".csv,text/csv" style="display:none">
-          </label>
+    <div class="calc">
+      <div class="card">
+        <div class="field">
+          <label for="csv">Your sales history</label>
+          <span class="hint">One row per product per day. Needs columns for product,
+            date and units sold — extra columns are ignored.</span>
+          <textarea id="csv" spellcheck="false"
+            placeholder="sku,date,units_sold&#10;Bananas,2024-05-01,14&#10;Bananas,2024-05-02,9&#10;Milk 1L,2024-05-01,31"></textarea>
+          <div class="btnrow">
+            <button class="btn ghost" type="button" id="loadDemo">Load example data</button>
+            <label class="btn ghost" style="cursor:pointer;margin:0">
+              Upload CSV<input type="file" id="csvFile" accept=".csv,text/csv" style="display:none">
+            </label>
+          </div>
+        </div>
+
+        <hr class="rule" style="margin:18px 0">
+
+        <div class="field">
+          <label for="cover">Order enough to cover</label>
+          <select id="cover">
+            <option value="1">the next 1 day</option>
+            <option value="3">the next 3 days</option>
+            <option value="7" selected>the next 7 days</option>
+            <option value="14">the next 14 days</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="pMiss">You lose this much when you run out
+            <span class="ccy-tag" data-ccy></span></label>
+          <span class="hint">Your profit on one unit you could have sold.</span>
+          <input type="number" id="pMiss" min="0.01" step="0.05">
+        </div>
+        <div class="field" style="margin-bottom:6px">
+          <label for="pWaste">You lose this much on one wasted unit
+            <span class="ccy-tag" data-ccy></span></label>
+          <span class="hint">What you paid for it, minus anything you get back.</span>
+          <input type="number" id="pWaste" min="0.01" step="0.05">
+        </div>
+        <p class="hint" style="font-size:12px;color:var(--ink-3);margin:0">
+          Both boxes are per unit, in the currency selected at the top of the page — switch it
+          and these convert with everything else.
+          <strong style="color:var(--ink-2)">For fresh food that spoils, set the waste box
+            higher than the first one</strong> — you'll see the recommendation drop below your
+          average demand, which is the cheaper choice when waste hurts more than a lost sale.
+        </p>
+      </div>
+
+      <div>
+        <div id="calcMsg"></div>
+        <div id="calcSaving"></div>
+        <div class="grid g3" id="calcTiles" style="margin-bottom:18px"></div>
+        <div class="tw">
+          <table id="calcTable"></table>
+        </div>
+        <figcaption id="calcCap" style="margin-top:10px"></figcaption>
+        <div class="btnrow" id="dlRow" hidden style="margin-top:14px">
+          <button class="btn" type="button" id="dlCsv">Download this order list</button>
+        </div>
+        <div id="dlFallback" hidden style="margin-top:14px">
+          <p class="hint" style="font-size:12.5px;color:var(--ink-3);margin:0 0 8px">
+            If the download didn't start — some browsers block it when this page is embedded —
+            copy the list from here instead.
+          </p>
+          <textarea readonly spellcheck="false" style="min-height:120px"></textarea>
+          <div class="btnrow" style="margin-top:8px">
+            <button class="btn ghost" type="button" id="copyCsv">Copy to clipboard</button>
+          </div>
         </div>
       </div>
+    </div>
+  </section>
 
-      <hr class="rule" style="margin:18px 0">
+  <!-- ============ WHY ============ -->
+  <section id="why" class="stack fade" hidden>
+    <div>
+      <p class="eyebrow">The one idea behind every number on this site</p>
+      <h2>Why these numbers</h2>
+      <p class="lede">
+        Ordering too little and ordering too much are not equally bad, and which one is worse
+        decides how much you should order. That's the whole thing.
+      </p>
+    </div>
 
-      <div class="field">
-        <label for="cover">Order enough to cover</label>
-        <select id="cover">
-          <option value="1">the next 1 day</option>
-          <option value="3">the next 3 days</option>
-          <option value="7" selected>the next 7 days</option>
-          <option value="14">the next 14 days</option>
-        </select>
+    <div class="grid g2">
+      <div class="card">
+        <h3 style="color:var(--blue)">If you order too little</h3>
+        <p class="prose" style="font-size:15px;margin-top:8px">
+          You lose the <strong>profit</strong> on a sale you could have made. Annoying — but
+          you still have your money, and the goods you didn't sell are still yours to sell
+          tomorrow.
+        </p>
       </div>
-      <div class="field">
-        <label for="pMiss">You lose this much when you run out
-          <span class="ccy-tag" data-ccy></span></label>
-        <span class="hint">Your profit on one unit you could have sold.</span>
-        <input type="number" id="pMiss" min="0.01" step="0.05">
+      <div class="card">
+        <h3 style="color:var(--amber)">If you order too much</h3>
+        <p class="prose" style="font-size:15px;margin-top:8px">
+          You lose <strong>what you paid</strong> for everything that doesn't sell. For fresh
+          food that's most of it. This is usually the more expensive mistake, and it's the one
+          people make by trying to never run out.
+        </p>
       </div>
-      <div class="field" style="margin-bottom:6px">
-        <label for="pWaste">You lose this much on one wasted unit
-          <span class="ccy-tag" data-ccy></span></label>
-        <span class="hint">What you paid for it, minus anything you get back.</span>
-        <input type="number" id="pWaste" min="0.01" step="0.05">
-      </div>
-      <p class="hint" style="font-size:12px;color:var(--ink-3);margin:0">
-        Both boxes are per unit, in the currency selected at the top of the page — switch it
-        and these convert with everything else.
-        <strong style="color:var(--ink-2)">For fresh food that spoils, set the waste box
-        higher than the first one</strong> — you'll see the recommendation drop below your
-        average demand, which is the cheaper choice when waste hurts more than a lost sale.
+    </div>
+
+    <div class="callout">
+      <span class="hd">So the right amount to order isn't "enough to never run out"</span>
+      <p style="margin:0">
+        If wasting a unit costs you more than missing a sale, then <strong>running out
+          sometimes is the cheaper outcome</strong> — and the calculator deliberately leaves
+        you short on the quietest days, because covering those days would cost more in waste
+        than it earns in sales. That's why the recommended plan on the next tab runs out 48%
+        of the time and still costs 29% less than what most stores do.
+        <br><br>
+        This isn't a shortcut or an approximation. It's a standard result in operations
+        research (the "newsvendor" problem), and the maths is a single line: order enough to
+        cover demand <em>P</em> of the time, where <em>P</em> = your missed-sale cost divided
+        by the sum of both costs. Put your two numbers in the calculator and it does exactly
+        that.
       </p>
     </div>
 
     <div>
-      <div id="calcMsg"></div>
-      <div id="calcSaving"></div>
-      <div class="grid g3" id="calcTiles" style="margin-bottom:18px"></div>
-      <div class="tw"><table id="calcTable"></table></div>
-      <figcaption id="calcCap" style="margin-top:10px"></figcaption>
-      <div class="btnrow" style="margin-top:14px">
-        <button class="btn" type="button" id="dlCsv">Download this order list</button>
-      </div>
-      <div id="dlFallback" hidden style="margin-top:14px">
-        <p class="hint" style="font-size:12.5px;color:var(--ink-3);margin:0 0 8px">
-          If the download didn't start — some browsers block it when this page is embedded —
-          copy the list from here instead.
+      <h3>What the calculator does with your data</h3>
+      <p class="prose" style="margin-top:8px">
+        It looks at how much you actually sold, day by day, and builds up a picture of how
+        much your demand swings around — not just the average, but the good days and the
+        quiet ones. Then it picks the order quantity that leaves you covered often enough to
+        be worth it, given your two costs. It doesn't assume your sales follow a neat curve,
+        which matters for slow-moving items where most days are zero: those get handled
+        correctly rather than being smoothed into a fractional daily average that never
+        happens in real life.
+      </p>
+      <p class="prose">
+        <strong>What it needs from you:</strong> at least a few weeks of daily sales per
+        product. More is better — a couple of months gives a much steadier read on your busy
+        days. It doesn't need prices, promotions, or anything else, though it will use a
+        price column if you have one.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ PROOF ============ -->
+  <section id="overview" class="stack fade">
+    <div>
+      <p class="eyebrow">Tested on 100,720 real ordering decisions from 720 supermarket products</p>
+      <h2 style="font-size:19px;margin-bottom:14px">Does this actually work?</h2>
+      <div class="hero">
+        <div class="figure" id="heroFig">−28.6%</div>
+        <p class="caption">
+          <strong>lower inventory costs</strong> than ordering the way most stores do today.
+          And the plan a lot of teams reach for instead — always keep 95% of items in stock —
+          actually costs <strong>2.5× more</strong> than doing nothing clever at all.
         </p>
-        <textarea readonly spellcheck="false" style="min-height:120px"></textarea>
-        <div class="btnrow" style="margin-top:8px">
-          <button class="btn ghost" type="button" id="copyCsv">Copy to clipboard</button>
+      </div>
+      <p class="lede" style="margin-top:20px;margin-bottom:0">
+        These results come from real Walmart sales data (2011–2016), using the same ordering
+        method the calculator applies to your data. Every plan was tested against sales that
+        actually happened, never against a prediction of them.
+      </p>
+    </div>
+
+    <div class="grid g4" id="tiles"></div>
+
+    <div>
+      <h2>What each plan costs you</h2>
+      <p class="lede">
+        Three ways of deciding how much to order, run against the same demand that actually
+        happened — not against a guess.
+      </p>
+      <div class="tw">
+        <table id="moneyTable"></table>
+      </div>
+      <figure style="margin-top:18px">
+        <div class="legend">
+          <span><i style="background:var(--blue)"></i>Cost of missed sales</span>
+          <span><i style="background:var(--amber)"></i>Cost of unsold stock thrown away</span>
+        </div>
+        <div id="costBars"></div>
+        <figcaption>
+          Each bar is one plan's total cost, split into the two ways it can lose you money.
+          The "always keep 95% in stock" bar is mostly amber — it avoids running out by
+          throwing away a lot of unsold stock.
+        </figcaption>
+      </figure>
+    </div>
+
+    <div class="callout blue">
+      <span class="hd">Why the best plan still runs out of stock sometimes</span>
+      <p style="margin:0">
+        <strong>The best plan runs out of stock about 48% of the time. That's not a mistake
+          — it's the cheaper choice.</strong> When throwing away a wasted item costs more than
+        losing a sale, it's cheaper to run out sometimes than to always have enough on the
+        shelf. Today's approach runs out less often (31%) — but that lower number is bought
+        with far more waste: 78,106 units thrown out instead of 20,714. A low
+        "in-stock rate" sounds good but isn't the same as low cost — check the total-cost
+        column, not the stockout column alone.
+      </p>
+    </div>
+
+    <div class="callout amber">
+      <span class="hd">These numbers depend on a few assumptions you can change</span>
+      <p style="margin:0">
+        The sales data doesn't say what your profit margin is, how much of your unsold stock
+        actually spoils, or what it costs to hold it. This page assumes a
+        <strong>30% profit margin</strong>, that <strong>60% of unsold stock</strong> is a
+        total loss, and a small daily holding cost — reasonable numbers for fresh food, but
+        you should use your own. Go to <a href="#" data-goto="simulator" style="color:var(--jade)">How much to order</a>
+        and move the sliders: the smarter
+        plan keeps winning across the whole range, from barely-perishable to
+        everything-spoils.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ SIMULATOR ============ -->
+  <section id="simulator" class="stack fade" hidden>
+    <div>
+      <hr class="rule" style="margin-bottom:30px">
+      <p class="eyebrow">Stress-test the assumptions — drag either slider</p>
+      <h2>Would it still work if the costs were different?</h2>
+      <p class="lede">
+        Move the two sliders and watch the total cost of each plan change, on the same
+        100,720 Walmart outcomes. The point is that the smarter plan stays cheapest across
+        the whole range — the result doesn't depend on having picked flattering numbers.
+      </p>
+    </div>
+
+    <div class="sim">
+      <div class="card">
+        <div class="ctrl">
+          <label for="cu"><span>Cost of a missed sale <span class="chip cool">lost profit</span></span>
+            <output id="cuOut">$0.88</output></label>
+          <input type="range" id="cu" min="0.05" max="3" step="0.01" value="0.88">
+        </div>
+        <div class="ctrl">
+          <label for="co"><span>Cost of wasted stock <span class="chip warn">thrown away</span></span>
+            <output id="coOut">$1.27</output></label>
+          <input type="range" id="co" min="0.05" max="3" step="0.01" value="1.27">
+        </div>
+
+        <div class="readout">
+          <div class="row" style="align-items:flex-end;margin-bottom:2px">
+            <span>Target: have enough stock</span><span class="big-cr" id="crOut">41%</span>
+          </div>
+          <div class="row" style="margin-bottom:6px"><span>&nbsp;</span><span style="color:var(--ink-3)">of the
+              time</span></div>
+          <div class="row"><span>vs. always-in-stock plan</span><b id="qtyOut">—</b></div>
+        </div>
+        <div class="readout">
+          <div class="row"><span>Our recommended plan</span><b class="win" id="cNews">—</b></div>
+          <div class="row"><span>What you're probably doing now</span><b id="cNaive">—</b></div>
+          <div class="row"><span>Always keep 95% in stock</span><b id="cFixed">—</b></div>
+          <div class="row" style="border-top:1px solid var(--line);margin-top:7px;padding-top:10px">
+            <span>You'd save</span><b class="win" id="cSaved">—</b>
+          </div>
         </div>
       </div>
-    </div>
-  </div>
-</section>
 
-<!-- ============ WHY ============ -->
-<section id="why" class="stack fade" hidden>
-  <div>
-    <p class="eyebrow">The one idea behind every number on this site</p>
-    <h2>Why these numbers</h2>
-    <p class="lede">
-      Ordering too little and ordering too much are not equally bad, and which one is worse
-      decides how much you should order. That's the whole thing.
-    </p>
-  </div>
-
-  <div class="grid g2">
-    <div class="card">
-      <h3 style="color:var(--blue)">If you order too little</h3>
-      <p class="prose" style="font-size:15px;margin-top:8px">
-        You lose the <strong>profit</strong> on a sale you could have made. Annoying — but
-        you still have your money, and the goods you didn't sell are still yours to sell
-        tomorrow.
-      </p>
-    </div>
-    <div class="card">
-      <h3 style="color:var(--amber)">If you order too much</h3>
-      <p class="prose" style="font-size:15px;margin-top:8px">
-        You lose <strong>what you paid</strong> for everything that doesn't sell. For fresh
-        food that's most of it. This is usually the more expensive mistake, and it's the one
-        people make by trying to never run out.
-      </p>
-    </div>
-  </div>
-
-  <div class="callout">
-    <span class="hd">So the right amount to order isn't "enough to never run out"</span>
-    <p style="margin:0">
-      If wasting a unit costs you more than missing a sale, then <strong>running out
-      sometimes is the cheaper outcome</strong> — and the calculator deliberately leaves
-      you short on the quietest days, because covering those days would cost more in waste
-      than it earns in sales. That's why the recommended plan on the next tab runs out 48%
-      of the time and still costs 29% less than what most stores do.
-      <br><br>
-      This isn't a shortcut or an approximation. It's a standard result in operations
-      research (the "newsvendor" problem), and the maths is a single line: order enough to
-      cover demand <em>P</em> of the time, where <em>P</em> = your missed-sale cost divided
-      by the sum of both costs. Put your two numbers in the calculator and it does exactly
-      that.
-    </p>
-  </div>
-
-  <div>
-    <h3>What the calculator does with your data</h3>
-    <p class="prose" style="margin-top:8px">
-      It looks at how much you actually sold, day by day, and builds up a picture of how
-      much your demand swings around — not just the average, but the good days and the
-      quiet ones. Then it picks the order quantity that leaves you covered often enough to
-      be worth it, given your two costs. It doesn't assume your sales follow a neat curve,
-      which matters for slow-moving items where most days are zero: those get handled
-      correctly rather than being smoothed into a fractional daily average that never
-      happens in real life.
-    </p>
-    <p class="prose">
-      <strong>What it needs from you:</strong> at least a few weeks of daily sales per
-      product. More is better — a couple of months gives a much steadier read on your busy
-      days. It doesn't need prices, promotions, or anything else, though it will use a
-      price column if you have one.
-    </p>
-  </div>
-</section>
-
-<!-- ============ PROOF ============ -->
-<section id="overview" class="stack fade">
-  <div>
-    <p class="eyebrow">Tested on 100,720 real ordering decisions from 720 supermarket products</p>
-    <h2 style="font-size:19px;margin-bottom:14px">Does this actually work?</h2>
-    <div class="hero">
-      <div class="figure" id="heroFig">−28.6%</div>
-      <p class="caption">
-        <strong>lower inventory costs</strong> than ordering the way most stores do today.
-        And the plan a lot of teams reach for instead — always keep 95% of items in stock —
-        actually costs <strong>2.5× more</strong> than doing nothing clever at all.
-      </p>
-    </div>
-    <p class="lede" style="margin-top:20px;margin-bottom:0">
-      These results come from real Walmart sales data (2011–2016), using the same ordering
-      method the calculator applies to your data. Every plan was tested against sales that
-      actually happened, never against a prediction of them.
-    </p>
-  </div>
-
-  <div class="grid g4" id="tiles"></div>
-
-  <div>
-    <h2>What each plan costs you</h2>
-    <p class="lede">
-      Three ways of deciding how much to order, run against the same demand that actually
-      happened — not against a guess.
-    </p>
-    <div class="tw"><table id="moneyTable"></table></div>
-    <figure style="margin-top:18px">
-      <div class="legend">
-        <span><i style="background:var(--blue)"></i>Cost of missed sales</span>
-        <span><i style="background:var(--amber)"></i>Cost of unsold stock thrown away</span>
+      <div>
+        <figure>
+          <div class="legend">
+            <span><i style="background:var(--jade)"></i>Our recommended plan, at every in-stock target</span>
+            <span><i style="background:var(--ink-3)"></i>What you're probably doing now</span>
+            <span><i style="background:var(--amber)"></i>Always keep 95% in stock</span>
+          </div>
+          <div id="curve"></div>
+          <figcaption id="curveCap"></figcaption>
+        </figure>
+        <div class="callout" style="margin-top:20px" id="simNote"></div>
       </div>
-      <div id="costBars"></div>
+    </div>
+
+    <div>
+      <h3>Why the answer usually isn't "always keep it in stock"</h3>
+      <p class="prose" style="margin-top:8px">
+        Missing a sale costs you the profit on that one item — you still have the goods, you
+        just didn't sell them today. Wasting stock costs you almost what you paid for it,
+        because most of it gets thrown out. When wasting stock costs roughly three times more
+        than missing a sale, the cheapest plan runs out of stock well below the "always
+        in-stock" target that feels safe by default. Drag the wasted-stock slider down toward
+        zero and the recommended target climbs back up toward 95% — that's the only situation
+        where "always keep it in stock" is actually the cheapest plan.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ FORECAST ============ -->
+  <section id="forecast" class="stack fade" hidden>
+    <div>
+      <p class="eyebrow">Based on the most recent 28 days of sales history</p>
+      <h2>What we predict</h2>
+      <p class="lede">
+        Three example products. The shaded area is the range we expect actual sales to fall
+        in most of the time — that range, not just the line through the middle, is what the
+        order recommendations on the previous tab are based on.
+      </p>
+    </div>
+    <div class="legend">
+      <span><i style="background:var(--ink-2)"></i>What actually sold</span>
+      <span><i style="background:var(--jade)"></i>Our best-guess prediction</span>
+      <span><i style="background:var(--jade-dim);border:1px solid var(--jade)"></i>Likely range (8 times out of
+        10)</span>
+    </div>
+    <div id="series" class="stack"></div>
+    <div class="callout">
+      <span class="hd">Why we tested on your slow-sellers too</span>
+      <p style="margin:0">
+        It would have been easy to only prove this works on your best-selling items — they're
+        the easiest to predict, since they sell every day. Instead, a third of the products
+        tested are slow-moving, rarely-sold items, because those are exactly where a bad
+        prediction costs you the most in wasted stock. Across everything tested, <strong>62%
+          of product-days had zero sales</strong> — so the numbers on this page reflect your
+        whole range, not just the easy part of it.
+      </p>
+    </div>
+    <div class="tw">
+      <table id="strataTable"></table>
+    </div>
+  </section>
+
+  <!-- ============ PERFORMANCE ============ -->
+  <section id="performance" class="stack fade" hidden>
+    <div>
+      <p class="eyebrow">For anyone curious how this was built and tested</p>
+      <h2>Technical details</h2>
+      <p class="lede">
+        Nothing on this page is a black box. This section shows the model comparisons, the
+        testing method, and every real bug we caught while building it — written honestly,
+        including the parts that didn't work at first. Skip it if you just wanted the
+        numbers; they're on the earlier tabs.
+      </p>
+    </div>
+
+    <div>
+      <h3>How the predictions were tested</h3>
+      <p class="lede" style="margin-top:6px">
+        Every model was tested the same way real forecasting works: trained only on data up
+        to a cutoff date, then checked against sales that happened <em>after</em> that date —
+        never on data it had already seen. This was repeated 5 times at different cutoff
+        dates, and we report the average <em>and</em> the range across those 5 tests. A model
+        that wins on average but does badly in one test is a different, riskier bet than one
+        that wins consistently — averages alone hide that difference.
+      </p>
+    </div>
+
+    <figure>
+      <div id="modelBars"></div>
       <figcaption>
-        Each bar is one plan's total cost, split into the two ways it can lose you money.
-        The "always keep 95% in stock" bar is mostly amber — it avoids running out by
-        throwing away a lot of unsold stock.
+        MASE across 5 folds, lower is better. Whiskers are the fold range, so a short bar
+        with a long whisker is a model that got lucky somewhere.
       </figcaption>
     </figure>
-  </div>
 
-  <div class="callout blue">
-    <span class="hd">Why the best plan still runs out of stock sometimes</span>
-    <p style="margin:0">
-      <strong>The best plan runs out of stock about 48% of the time. That's not a mistake
-      — it's the cheaper choice.</strong> When throwing away a wasted item costs more than
-      losing a sale, it's cheaper to run out sometimes than to always have enough on the
-      shelf. Today's approach runs out less often (31%) — but that lower number is bought
-      with far more waste: 78,106 units thrown out instead of 20,714. A low
-      "in-stock rate" sounds good but isn't the same as low cost — check the total-cost
-      column, not the stockout column alone.
-    </p>
-  </div>
+    <div class="tw">
+      <table id="foldTable"></table>
+    </div>
 
-  <div class="callout amber">
-    <span class="hd">These numbers depend on a few assumptions you can change</span>
-    <p style="margin:0">
-      The sales data doesn't say what your profit margin is, how much of your unsold stock
-      actually spoils, or what it costs to hold it. This page assumes a
-      <strong>30% profit margin</strong>, that <strong>60% of unsold stock</strong> is a
-      total loss, and a small daily holding cost — reasonable numbers for fresh food, but
-      you should use your own. Go to <a href="#" data-goto="simulator"
-      style="color:var(--jade)">How much to order</a> and move the sliders: the smarter
-      plan keeps winning across the whole range, from barely-perishable to
-      everything-spoils.
-    </p>
-  </div>
-</section>
+    <div class="callout amber">
+      <span class="hd">A baseline beat the model, and it is reported rather than tuned away</span>
+      <p style="margin:0">
+        LightGBM wins overall by <strong>0.005 MASE</strong> — comfortably inside a
+        fold-to-fold spread of 0.018–0.026. On the <strong>sparse band</strong> AutoETS wins
+        outright (0.9931 vs 1.0090), and on <strong>fold 0</strong> it beats the GBM head to
+        head. What the GBM actually buys is not a large accuracy jump: it is one model
+        instead of 720, a quantile distribution the classical methods don't provide, and
+        SHAP attributions the optimizer can be defended with.
+      </p>
+    </div>
 
-<!-- ============ SIMULATOR ============ -->
-<section id="simulator" class="stack fade" hidden>
-  <div>
-    <hr class="rule" style="margin-bottom:30px">
-    <p class="eyebrow">Stress-test the assumptions — drag either slider</p>
-    <h2>Would it still work if the costs were different?</h2>
-    <p class="lede">
-      Move the two sliders and watch the total cost of each plan change, on the same
-      100,720 Walmart outcomes. The point is that the smarter plan stays cheapest across
-      the whole range — the result doesn't depend on having picked flattering numbers.
-    </p>
-  </div>
-
-  <div class="sim">
-    <div class="card">
-      <div class="ctrl">
-        <label for="cu"><span>Cost of a missed sale <span class="chip cool">lost profit</span></span>
-          <output id="cuOut">$0.88</output></label>
-        <input type="range" id="cu" min="0.05" max="3" step="0.01" value="0.88">
-      </div>
-      <div class="ctrl">
-        <label for="co"><span>Cost of wasted stock <span class="chip warn">thrown away</span></span>
-          <output id="coOut">$1.27</output></label>
-        <input type="range" id="co" min="0.05" max="3" step="0.01" value="1.27">
-      </div>
-
-      <div class="readout">
-        <div class="row" style="align-items:flex-end;margin-bottom:2px">
-          <span>Target: have enough stock</span><span class="big-cr" id="crOut">41%</span>
-        </div>
-        <div class="row" style="margin-bottom:6px"><span>&nbsp;</span><span style="color:var(--ink-3)">of the time</span></div>
-        <div class="row"><span>vs. always-in-stock plan</span><b id="qtyOut">—</b></div>
-      </div>
-      <div class="readout">
-        <div class="row"><span>Our recommended plan</span><b class="win" id="cNews">—</b></div>
-        <div class="row"><span>What you're probably doing now</span><b id="cNaive">—</b></div>
-        <div class="row"><span>Always keep 95% in stock</span><b id="cFixed">—</b></div>
-        <div class="row" style="border-top:1px solid var(--line);margin-top:7px;padding-top:10px">
-          <span>You'd save</span><b class="win" id="cSaved">—</b></div>
-      </div>
+    <div class="grid g2">
+      <figure>
+        <div id="strataBars"></div>
+        <figcaption>MASE by intermittency band. The routing hybrid this suggested was built,
+          priced, and rejected — it cost 3.6% more.</figcaption>
+      </figure>
+      <figure>
+        <div id="shapBars"></div>
+        <figcaption>Mean |SHAP|, fold 4. No <code>units_lag_*</code> feature reaches the top
+          15 — the rolling statistics carry the autoregressive signal.</figcaption>
+      </figure>
     </div>
 
     <div>
-      <figure>
-        <div class="legend">
-          <span><i style="background:var(--jade)"></i>Our recommended plan, at every in-stock target</span>
-          <span><i style="background:var(--ink-3)"></i>What you're probably doing now</span>
-          <span><i style="background:var(--amber)"></i>Always keep 95% in stock</span>
+      <h3>MinT reconciliation — coherence, and what it costs</h3>
+      <p class="lede" style="margin-top:6px;margin-bottom:16px">
+        Forecast each level independently and the numbers don't add up: SKU forecasts don't
+        sum to store forecasts. MinT fixes that exactly — and the bottom level pays for it.
+      </p>
+      <div class="grid g2">
+        <div class="tw">
+          <table id="coherenceTable"></table>
         </div>
-        <div id="curve"></div>
-        <figcaption id="curveCap"></figcaption>
-      </figure>
-      <div class="callout" style="margin-top:20px" id="simNote"></div>
+        <div class="tw">
+          <table id="levelTable"></table>
+        </div>
+      </div>
+      <div class="callout blue" style="margin-top:16px">
+        <span class="hd">Which forecast feeds which consumer</span>
+        <p style="margin:0">
+          Reconciliation improves every aggregate level and makes the bottom level ~1.5%
+          worse on MASE. Orders are placed at <strong>item × store</strong>, so the cost
+          function optimises against the <strong>unreconciled</strong> forecast — coherence
+          with a store total buys nothing when deciding how many units of one SKU go on one
+          shelf. The reconciled forecasts serve the aggregate planning views instead, where
+          coherence <em>is</em> the requirement. <code>USE_RECONCILED = False</code> is a
+          named constant pinned by a test, not a default.
+        </p>
+      </div>
     </div>
-  </div>
 
-  <div>
-    <h3>Why the answer usually isn't "always keep it in stock"</h3>
-    <p class="prose" style="margin-top:8px">
-      Missing a sale costs you the profit on that one item — you still have the goods, you
-      just didn't sell them today. Wasting stock costs you almost what you paid for it,
-      because most of it gets thrown out. When wasting stock costs roughly three times more
-      than missing a sale, the cheapest plan runs out of stock well below the "always
-      in-stock" target that feels safe by default. Drag the wasted-stock slider down toward
-      zero and the recommended target climbs back up toward 95% — that's the only situation
-      where "always keep it in stock" is actually the cheapest plan.
-    </p>
-  </div>
-</section>
+    <hr class="rule">
 
-<!-- ============ FORECAST ============ -->
-<section id="forecast" class="stack fade" hidden>
-  <div>
-    <p class="eyebrow">Based on the most recent 28 days of sales history</p>
-    <h2>What we predict</h2>
-    <p class="lede">
-      Three example products. The shaded area is the range we expect actual sales to fall
-      in most of the time — that range, not just the line through the middle, is what the
-      order recommendations on the previous tab are based on.
-    </p>
-  </div>
-  <div class="legend">
-    <span><i style="background:var(--ink-2)"></i>What actually sold</span>
-    <span><i style="background:var(--jade)"></i>Our best-guess prediction</span>
-    <span><i style="background:var(--jade-dim);border:1px solid var(--jade)"></i>Likely range (8 times out of 10)</span>
-  </div>
-  <div id="series" class="stack"></div>
-  <div class="callout">
-    <span class="hd">Why we tested on your slow-sellers too</span>
-    <p style="margin:0">
-      It would have been easy to only prove this works on your best-selling items — they're
-      the easiest to predict, since they sell every day. Instead, a third of the products
-      tested are slow-moving, rarely-sold items, because those are exactly where a bad
-      prediction costs you the most in wasted stock. Across everything tested, <strong>62%
-      of product-days had zero sales</strong> — so the numbers on this page reflect your
-      whole range, not just the easy part of it.
-    </p>
-  </div>
-  <div class="tw"><table id="strataTable"></table></div>
-</section>
-
-<!-- ============ PERFORMANCE ============ -->
-<section id="performance" class="stack fade" hidden>
-  <div>
-    <p class="eyebrow">For anyone curious how this was built and tested</p>
-    <h2>Technical details</h2>
-    <p class="lede">
-      Nothing on this page is a black box. This section shows the model comparisons, the
-      testing method, and every real bug we caught while building it — written honestly,
-      including the parts that didn't work at first. Skip it if you just wanted the
-      numbers; they're on the earlier tabs.
-    </p>
-  </div>
-
-  <div>
-    <h3>How the predictions were tested</h3>
-    <p class="lede" style="margin-top:6px">
-      Every model was tested the same way real forecasting works: trained only on data up
-      to a cutoff date, then checked against sales that happened <em>after</em> that date —
-      never on data it had already seen. This was repeated 5 times at different cutoff
-      dates, and we report the average <em>and</em> the range across those 5 tests. A model
-      that wins on average but does badly in one test is a different, riskier bet than one
-      that wins consistently — averages alone hide that difference.
-    </p>
-  </div>
-
-  <figure>
-    <div id="modelBars"></div>
-    <figcaption>
-      MASE across 5 folds, lower is better. Whiskers are the fold range, so a short bar
-      with a long whisker is a model that got lucky somewhere.
-    </figcaption>
-  </figure>
-
-  <div class="tw"><table id="foldTable"></table></div>
-
-  <div class="callout amber">
-    <span class="hd">A baseline beat the model, and it is reported rather than tuned away</span>
-    <p style="margin:0">
-      LightGBM wins overall by <strong>0.005 MASE</strong> — comfortably inside a
-      fold-to-fold spread of 0.018–0.026. On the <strong>sparse band</strong> AutoETS wins
-      outright (0.9931 vs 1.0090), and on <strong>fold 0</strong> it beats the GBM head to
-      head. What the GBM actually buys is not a large accuracy jump: it is one model
-      instead of 720, a quantile distribution the classical methods don't provide, and
-      SHAP attributions the optimizer can be defended with.
-    </p>
-  </div>
-
-  <div class="grid g2">
-    <figure><div id="strataBars"></div>
-      <figcaption>MASE by intermittency band. The routing hybrid this suggested was built,
-        priced, and rejected — it cost 3.6% more.</figcaption></figure>
-    <figure><div id="shapBars"></div>
-      <figcaption>Mean |SHAP|, fold 4. No <code>units_lag_*</code> feature reaches the top
-        15 — the rolling statistics carry the autoregressive signal.</figcaption></figure>
-  </div>
-
-  <div>
-    <h3>MinT reconciliation — coherence, and what it costs</h3>
-    <p class="lede" style="margin-top:6px;margin-bottom:16px">
-      Forecast each level independently and the numbers don't add up: SKU forecasts don't
-      sum to store forecasts. MinT fixes that exactly — and the bottom level pays for it.
-    </p>
-    <div class="grid g2">
-      <div class="tw"><table id="coherenceTable"></table></div>
-      <div class="tw"><table id="levelTable"></table></div>
-    </div>
-    <div class="callout blue" style="margin-top:16px">
-      <span class="hd">Which forecast feeds which consumer</span>
-      <p style="margin:0">
-        Reconciliation improves every aggregate level and makes the bottom level ~1.5%
-        worse on MASE. Orders are placed at <strong>item × store</strong>, so the cost
-        function optimises against the <strong>unreconciled</strong> forecast — coherence
-        with a store total buys nothing when deciding how many units of one SKU go on one
-        shelf. The reconciled forecasts serve the aggregate planning views instead, where
-        coherence <em>is</em> the requirement. <code>USE_RECONCILED = False</code> is a
-        named constant pinned by a test, not a default.
+    <div>
+      <p class="eyebrow">Five real catches · the part that can't be faked</p>
+      <h3 style="font-size:20px">Every real bug we caught along the way</h3>
+      <p class="lede" style="margin-top:6px">
+        Every one of these produced plausible-looking output. That's what makes them worth
+        writing down honestly: none of them announced itself, and four of the five were
+        caught by asking a number to justify itself, not by anything crashing.
       </p>
     </div>
-  </div>
 
-  <hr class="rule">
+    <div class="log">
+      <div class="log-item">
+        <div class="log-n">01</div>
+        <div>
+          <h3>784 rows where 7 belong <span class="tag">Phase 8 · /optimize</span></h3>
+          <p class="prose">
+            The optimize endpoint fetched every horizon for a SKU with no date filter,
+            pulling <strong>28 days × 7 quantile levels × 4 stores</strong> into a single
+            array and interpolating across it. The output looked entirely reasonable — order
+            quantities in a sane range — over a demand distribution that was structurally
+            meaningless: duplicated quantile keys from different days, sorted by value with
+            no coherent ordering. Nothing failed. It was caught by checking the row count,
+            seeing 784 where one coherent curve needs 7, and asking why. Fixed by pinning to
+            a single period, which is the classic newsvendor framing anyway.
+          </p>
+        </div>
+      </div>
 
-  <div>
-    <p class="eyebrow">Five real catches · the part that can't be faked</p>
-    <h3 style="font-size:20px">Every real bug we caught along the way</h3>
-    <p class="lede" style="margin-top:6px">
-      Every one of these produced plausible-looking output. That's what makes them worth
-      writing down honestly: none of them announced itself, and four of the five were
-      caught by asking a number to justify itself, not by anything crashing.
-    </p>
-  </div>
+      <div class="log-item">
+        <div class="log-n">02</div>
+        <div>
+          <h3>A 500 where a 422 belonged <span class="tag">Phase 8 · /optimize</span></h3>
+          <p class="prose">
+            A caller-chosen <code>Cu</code>/<code>Co</code> can legitimately push the critical
+            ratio past the top fitted quantile — <code>Cu ≫ Co</code> drives it toward 1.0.
+            The interpolator correctly refuses to extrapolate a tail the model never
+            estimated, but the handler didn't catch that, so a valid request returned a bare
+            server error. The happy-path test at a moderate ratio could never have reached
+            it; the test that found it was written specifically to probe the edge.
+          </p>
+        </div>
+      </div>
 
-  <div class="log">
-    <div class="log-item">
-      <div class="log-n">01</div>
-      <div>
-        <h3>784 rows where 7 belong <span class="tag">Phase 8 · /optimize</span></h3>
-        <p class="prose">
-          The optimize endpoint fetched every horizon for a SKU with no date filter,
-          pulling <strong>28 days × 7 quantile levels × 4 stores</strong> into a single
-          array and interpolating across it. The output looked entirely reasonable — order
-          quantities in a sane range — over a demand distribution that was structurally
-          meaningless: duplicated quantile keys from different days, sorted by value with
-          no coherent ordering. Nothing failed. It was caught by checking the row count,
-          seeing 784 where one coherent curve needs 7, and asking why. Fixed by pinning to
-          a single period, which is the classic newsvendor framing anyway.
-        </p>
+      <div class="log-item">
+        <div class="log-n">03</div>
+        <div>
+          <h3>Serving quantiles that cross <span class="tag">Phase 8 · /forecast</span></h3>
+          <p class="prose">
+            LightGBM fits each quantile level as an independent model, and nothing constrains
+            them to be ordered — roughly <strong>1.3%</strong> of rows come out with q0.90
+            above q0.95, squarely inside the band the newsvendor rule selects from. A crossing
+            there returns a <em>lower</em> stocking quantity for a <em>higher</em> service
+            level: silently wrong, in the direction that causes stockouts. The read-time fix
+            existed already; the endpoint simply forgot to apply it. The fixture now plants a
+            deliberately crossed grid so it can't regress quietly.
+          </p>
+        </div>
+      </div>
+
+      <div class="log-item">
+        <div class="log-n">04</div>
+        <div>
+          <h3>A DELETE that kept widening <span class="tag">Phases 5–9 · scorers</span></h3>
+          <p class="prose">
+            Three scorers write to the same metrics table, and each clears its previous output
+            first. The point scorer originally deleted <em>everything</em>, wiping the
+            quantile scorer's rows depending on call order. Narrowing it to "everything except
+            pinball" fixed that symptom but not the cause — it still swept up the
+            reconciliation metrics and the WRMSSE figure, so retraining the model for a wider
+            quantile grid <strong>silently destroyed Phase 6's results</strong>. This
+            dashboard's MinT panel would have been built on an empty table. Found while
+            extracting data for this page: two queries came back with 1 row and 0 rows where
+            8 and 2 were expected. The real fix, applied to all three: delete an
+            <strong>allowlist of what you write</strong>, never a denylist of what you
+            recognise — a denylist can always grow to cover someone else's rows.
+          </p>
+        </div>
+      </div>
+
+      <div class="log-item">
+        <div class="log-n">05</div>
+        <div>
+          <h3>A quantile grid that couldn't express its own premise <span class="tag">Phase 7</span></h3>
+          <p class="prose">
+            The brief specified quantiles at <code>{0.5, 0.9, 0.95, 0.99}</code>. But the
+            whole point of the project is that perishables have a <em>low</em> optimal service
+            level — and realistic fresh-food critical ratios land between
+            <strong>0.25 and 0.63</strong>, below the lowest fitted level. Every order would
+            have been clamped at the median, and the headline finding would have been
+            invisible: not wrong, just unreachable. Caught by computing realistic critical
+            ratios <em>before</em> wiring the optimizer rather than by noticing clamped output
+            afterwards. The grid was extended to seven levels and the model refit.
+          </p>
+        </div>
       </div>
     </div>
 
-    <div class="log-item">
-      <div class="log-n">02</div>
-      <div>
-        <h3>A 500 where a 422 belonged <span class="tag">Phase 8 · /optimize</span></h3>
-        <p class="prose">
-          A caller-chosen <code>Cu</code>/<code>Co</code> can legitimately push the critical
-          ratio past the top fitted quantile — <code>Cu ≫ Co</code> drives it toward 1.0.
-          The interpolator correctly refuses to extrapolate a tail the model never
-          estimated, but the handler didn't catch that, so a valid request returned a bare
-          server error. The happy-path test at a moderate ratio could never have reached
-          it; the test that found it was written specifically to probe the edge.
-        </p>
-      </div>
+    <div class="callout">
+      <span class="hd">What the pattern says</span>
+      <p style="margin:0">
+        Four of five were found by interrogating a number that looked fine — a row count, a
+        metric that came back thin, a ratio computed ahead of the code that would consume it.
+        None was found by a crash. That is the argument for building the checks that catch
+        structure rather than exceptions: a perturbation test that corrupts the future and
+        asserts the past didn't move, a scorer that reports how many series it excluded, a
+        coherence gap asserted to floating-point zero rather than printed and admired.
+      </p>
     </div>
-
-    <div class="log-item">
-      <div class="log-n">03</div>
-      <div>
-        <h3>Serving quantiles that cross <span class="tag">Phase 8 · /forecast</span></h3>
-        <p class="prose">
-          LightGBM fits each quantile level as an independent model, and nothing constrains
-          them to be ordered — roughly <strong>1.3%</strong> of rows come out with q0.90
-          above q0.95, squarely inside the band the newsvendor rule selects from. A crossing
-          there returns a <em>lower</em> stocking quantity for a <em>higher</em> service
-          level: silently wrong, in the direction that causes stockouts. The read-time fix
-          existed already; the endpoint simply forgot to apply it. The fixture now plants a
-          deliberately crossed grid so it can't regress quietly.
-        </p>
-      </div>
-    </div>
-
-    <div class="log-item">
-      <div class="log-n">04</div>
-      <div>
-        <h3>A DELETE that kept widening <span class="tag">Phases 5–9 · scorers</span></h3>
-        <p class="prose">
-          Three scorers write to the same metrics table, and each clears its previous output
-          first. The point scorer originally deleted <em>everything</em>, wiping the
-          quantile scorer's rows depending on call order. Narrowing it to "everything except
-          pinball" fixed that symptom but not the cause — it still swept up the
-          reconciliation metrics and the WRMSSE figure, so retraining the model for a wider
-          quantile grid <strong>silently destroyed Phase 6's results</strong>. This
-          dashboard's MinT panel would have been built on an empty table. Found while
-          extracting data for this page: two queries came back with 1 row and 0 rows where
-          8 and 2 were expected. The real fix, applied to all three: delete an
-          <strong>allowlist of what you write</strong>, never a denylist of what you
-          recognise — a denylist can always grow to cover someone else's rows.
-        </p>
-      </div>
-    </div>
-
-    <div class="log-item">
-      <div class="log-n">05</div>
-      <div>
-        <h3>A quantile grid that couldn't express its own premise <span class="tag">Phase 7</span></h3>
-        <p class="prose">
-          The brief specified quantiles at <code>{0.5, 0.9, 0.95, 0.99}</code>. But the
-          whole point of the project is that perishables have a <em>low</em> optimal service
-          level — and realistic fresh-food critical ratios land between
-          <strong>0.25 and 0.63</strong>, below the lowest fitted level. Every order would
-          have been clamped at the median, and the headline finding would have been
-          invisible: not wrong, just unreachable. Caught by computing realistic critical
-          ratios <em>before</em> wiring the optimizer rather than by noticing clamped output
-          afterwards. The grid was extended to seven levels and the model refit.
-        </p>
-      </div>
-    </div>
-  </div>
-
-  <div class="callout">
-    <span class="hd">What the pattern says</span>
-    <p style="margin:0">
-      Four of five were found by interrogating a number that looked fine — a row count, a
-      metric that came back thin, a ratio computed ahead of the code that would consume it.
-      None was found by a crash. That is the argument for building the checks that catch
-      structure rather than exceptions: a perturbation test that corrupts the future and
-      asserts the past didn't move, a scorer that reports how many series it excluded, a
-      coherence gap asserted to floating-point zero rather than printed and admired.
-    </p>
-  </div>
-</section>
+  </section>
 
 </main>
 
 <footer class="wrap">
   <div>Built on M5 (Walmart) — CA / FOODS, 720 series, 1.4M rows. All costs USD; every cost
     parameter is a stated assumption, not a measurement.</div>
-  <div style="margin-top:6px">DuckDB · LightGBM (Tweedie) · statsforecast · Nixtla hierarchicalforecast · FastAPI · 207 tests</div>
+  <div style="margin-top:6px">DuckDB · LightGBM (Tweedie) · statsforecast · Nixtla hierarchicalforecast · FastAPI · 207
+    tests</div>
 </footer>
 
 <script>
-const DATA = __DATA__;
-const $ = s => document.querySelector(s);
-const fmt = (n,d=0) => n.toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
-const C = {jade:'#2FA97C', amber:'#C4862B', blue:'#4F86D4', ink3:'#7A8A84', line:'#222E2A', ink2:'#A6B5AF'};
+  const DATA = __DATA__;
+  const $ = s => document.querySelector(s);
+  const fmt = (n, d = 0) => n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
+  const C = { jade: '#2FA97C', amber: '#C4862B', blue: '#4F86D4', ink3: '#7A8A84', line: '#222E2A', ink2: '#A6B5AF' };
 
-/* ---------------- currency: ONE source of truth ----------------
-   Every amount in this app is stored in USD and converted only for display. `FX` below is
-   the single definition of the alternate currency -- its rate, symbol, code and locale.
-   The header label, the toggle button text, the money formatter and the calculator's cost
-   inputs all read from it, so changing `FX.rate` here updates every number on the page and
-   nothing else needs touching.
+  /* ---------------- currency: ONE source of truth ----------------
+     Every amount in this app is stored in USD and converted only for display. `FX` below is
+     the single definition of the alternate currency -- its rate, symbol, code and locale.
+     The header label, the toggle button text, the money formatter and the calculator's cost
+     inputs all read from it, so changing `FX.rate` here updates every number on the page and
+     nothing else needs touching.
+  
+     A live rate is not possible here: the page is a self-contained artifact under a strict
+     CSP that blocks all outbound requests, so there is nothing to fetch from. The rate is
+     therefore a fixed constant and is labelled as one in the header rather than presented as
+     a market quote. */
+  const FX = {
+    code: 'INR',
+    symbol: '₹',
+    rate: 95.21,          // 1 USD = FX.rate units of FX.code
+    locale: 'en-IN',
+    note: 'fixed rate, display only',
+  };
 
-   A live rate is not possible here: the page is a self-contained artifact under a strict
-   CSP that blocks all outbound requests, so there is nothing to fetch from. The rate is
-   therefore a fixed constant and is labelled as one in the header rather than presented as
-   a market quote. */
-const FX = {
-  code: 'INR',
-  symbol: '₹',
-  rate: 83,          // 1 USD = FX.rate units of FX.code
-  locale: 'en-IN',
-  note: 'fixed rate, display only',
-};
+  let CURRENCY = 'USD';
 
-let CURRENCY = 'USD';
+  /** USD amount -> display string in the currently selected currency. */
+  const money = n => CURRENCY === 'USD'
+    ? '$' + Math.round(n).toLocaleString('en-US')
+    : FX.symbol + Math.round(n * FX.rate).toLocaleString(FX.locale);
 
-/** USD amount -> display string in the currently selected currency. */
-const money = n => CURRENCY === 'USD'
-  ? '$' + Math.round(n).toLocaleString('en-US')
-  : FX.symbol + Math.round(n * FX.rate).toLocaleString(FX.locale);
+  /** Convert a USD amount into whatever currency is on screen (unrounded). */
+  const toDisplayCcy = usd => CURRENCY === 'USD' ? usd : usd * FX.rate;
+  /** Convert a number the user typed in the on-screen currency back to USD. */
+  const toUsd = shown => CURRENCY === 'USD' ? shown : shown / FX.rate;
+  /** Symbol only, for inline labels. */
+  const ccySymbol = () => CURRENCY === 'USD' ? '$' : FX.symbol;
 
-/** Convert a USD amount into whatever currency is on screen (unrounded). */
-const toDisplayCcy = usd => CURRENCY === 'USD' ? usd : usd * FX.rate;
-/** Convert a number the user typed in the on-screen currency back to USD. */
-const toUsd = shown => CURRENCY === 'USD' ? shown : shown / FX.rate;
-/** Symbol only, for inline labels. */
-const ccySymbol = () => CURRENCY === 'USD' ? '$' : FX.symbol;
+  // Header label and toggle text are generated, never hardcoded in the markup.
+  $('#fxRate').innerHTML =
+    `1 USD = ${FX.symbol}${FX.rate} <span style="color:var(--ink-3)">(${FX.note})</span>`;
+  $('#curINR').textContent = `${FX.code} ${FX.symbol}`;
 
-// Header label and toggle text are generated, never hardcoded in the markup.
-$('#fxRate').innerHTML =
-  `1 USD = ${FX.symbol}${FX.rate} <span style="color:var(--ink-3)">(${FX.note})</span>`;
-$('#curINR').textContent = `${FX.code} ${FX.symbol}`;
+  function setCurrency(code) {
+    CURRENCY = code;
+    $('#curUSD').setAttribute('aria-pressed', String(code === 'USD'));
+    $('#curINR').setAttribute('aria-pressed', String(code === 'INR'));
+    renderCostInputs();   // rewrite the calculator's two cost boxes in the new currency
+    renderOverviewMoney();
+    update();             // simulator readouts + curve labels re-read money()
+    runCalculator();      // calculator table + tiles re-read money()
+  }
+  $('#curUSD').addEventListener('click', () => setCurrency('USD'));
+  $('#curINR').addEventListener('click', () => setCurrency('INR'));
 
-function setCurrency(code){
-  CURRENCY = code;
-  $('#curUSD').setAttribute('aria-pressed', String(code==='USD'));
-  $('#curINR').setAttribute('aria-pressed', String(code==='INR'));
-  renderCostInputs();   // rewrite the calculator's two cost boxes in the new currency
-  renderOverviewMoney();
-  update();             // simulator readouts + curve labels re-read money()
-  runCalculator();      // calculator table + tiles re-read money()
-}
-$('#curUSD').addEventListener('click', ()=>setCurrency('USD'));
-$('#curINR').addEventListener('click', ()=>setCurrency('INR'));
-
-/* ---------------- tabs ----------------
-   One tab can own several sections: the M5 cost sensitivity belongs with the proof, and
-   the example forecasts belong with the technical detail. Mapping tab -> sections keeps
-   that grouping without reshuffling the markup. */
-const TAB_SECTIONS = {
-  calculator: ['calculator'],
-  why:        ['why'],
-  overview:   ['overview','simulator'],
-  performance:['forecast','performance'],
-};
-const ALL_SECTIONS = Object.values(TAB_SECTIONS).flat();
-const tabs = [...document.querySelectorAll('.tab')];
-function show(name){
-  const wanted = TAB_SECTIONS[name] || [name];
-  tabs.forEach(t=>t.setAttribute('aria-selected', String(t.dataset.t===name)));
-  ALL_SECTIONS.forEach(id=>{
-    const el = document.getElementById(id);
-    if(!el) return;
-    el.hidden = !wanted.includes(id);
-    if(wanted.includes(id)){ el.classList.remove('fade'); void el.offsetWidth; el.classList.add('fade'); }
+  /* ---------------- tabs ----------------
+     One tab can own several sections: the M5 cost sensitivity belongs with the proof, and
+     the example forecasts belong with the technical detail. Mapping tab -> sections keeps
+     that grouping without reshuffling the markup. */
+  const TAB_SECTIONS = {
+    calculator: ['calculator'],
+    why: ['why'],
+    overview: ['overview', 'simulator'],
+    performance: ['forecast', 'performance'],
+  };
+  const ALL_SECTIONS = Object.values(TAB_SECTIONS).flat();
+  const tabs = [...document.querySelectorAll('.tab')];
+  function show(name) {
+    const wanted = TAB_SECTIONS[name] || [name];
+    tabs.forEach(t => t.setAttribute('aria-selected', String(t.dataset.t === name)));
+    ALL_SECTIONS.forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.hidden = !wanted.includes(id);
+      if (wanted.includes(id)) { el.classList.remove('fade'); void el.offsetWidth; el.classList.add('fade'); }
+    });
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }
+  tabs.forEach(t => t.addEventListener('click', () => show(t.dataset.t)));
+  document.addEventListener('click', e => {
+    const g = e.target.closest('[data-goto]');
+    if (g) { e.preventDefault(); show(g.dataset.goto); }
   });
-  window.scrollTo({top:0,behavior:'instant'});
-}
-tabs.forEach(t=>t.addEventListener('click',()=>show(t.dataset.t)));
-document.addEventListener('click', e=>{
-  const g = e.target.closest('[data-goto]');
-  if(g){ e.preventDefault(); show(g.dataset.goto); }
-});
 
-/* ---------------- overview ---------------- */
-const M = DATA.money;
-const byPolicy = p => M.find(m=>m.policy.startsWith(p));
-const naiveM = byPolicy('Current'), fixedM = byPolicy('Fixed'), newsM = byPolicy('Newsvendor');
-const savedAbs = naiveM.total_cost - newsM.total_cost;
+  /* ---------------- overview ---------------- */
+  const M = DATA.money;
+  const byPolicy = p => M.find(m => m.policy.startsWith(p));
+  const naiveM = byPolicy('Current'), fixedM = byPolicy('Fixed'), newsM = byPolicy('Newsvendor');
+  const savedAbs = naiveM.total_cost - newsM.total_cost;
 
-function renderOverviewMoney(){
-  $('#tiles').innerHTML = [
-    ['Money saved vs today', money(savedAbs), `<span class="chip good">−28.6% of total cost</span>`],
-    ['Less stock thrown away', fmt(newsM.waste_units)+' units', `<span class="chip good">−73% vs today</span>`],
-    ['Times you\'d run out', (newsM.stockout_rate*100).toFixed(1)+'%', `<span class="chip cool">on purpose — see below</span>`],
-    ['Ordering decisions tested', fmt(DATA.n_decisions), `<span class="chip good">against real sales, not guesses</span>`]
-  ].map(([k,v,d])=>`<div class="tile"><div class="k">${k}</div><div class="v">${v}</div><div class="d">${d}</div></div>`).join('');
+  function renderOverviewMoney() {
+    $('#tiles').innerHTML = [
+      ['Money saved vs today', money(savedAbs), `<span class="chip good">−28.6% of total cost</span>`],
+      ['Less stock thrown away', fmt(newsM.waste_units) + ' units', `<span class="chip good">−73% vs today</span>`],
+      ['Times you\'d run out', (newsM.stockout_rate * 100).toFixed(1) + '%', `<span class="chip cool">on purpose — see below</span>`],
+      ['Ordering decisions tested', fmt(DATA.n_decisions), `<span class="chip good">against real sales, not guesses</span>`]
+    ].map(([k, v, d]) => `<div class="tile"><div class="k">${k}</div><div class="v">${v}</div><div class="d">${d}</div></div>`).join('');
 
-  $('#moneyTable').innerHTML = `
+    $('#moneyTable').innerHTML = `
   <thead><tr><th>Plan</th><th>Times you'd run out</th><th>Stock thrown away</th><th>Cost of missed sales</th>
   <th>Cost of waste</th><th>Total cost</th><th>vs today</th></tr></thead><tbody>` +
-  M.map(m=>{
-    const win = m.policy.startsWith('Newsvendor');
-    const delta = (m.total_cost-naiveM.total_cost)/naiveM.total_cost;
-    const dTxt = m===naiveM ? '—' : `<span class="${delta<0?'win':'lose'}">${delta>0?'+':''}${(delta*100).toFixed(1)}%</span>`;
-    const label = m===naiveM ? "What you're probably doing now"
-      : m===fixedM ? 'Always keep 95% in stock'
-      : "Our recommended plan";
-    return `<tr class="${win?'hi':''}"><td>${label}</td>
-    <td class="num">${(m.stockout_rate*100).toFixed(1)}%</td>
+      M.map(m => {
+        const win = m.policy.startsWith('Newsvendor');
+        const delta = (m.total_cost - naiveM.total_cost) / naiveM.total_cost;
+        const dTxt = m === naiveM ? '—' : `<span class="${delta < 0 ? 'win' : 'lose'}">${delta > 0 ? '+' : ''}${(delta * 100).toFixed(1)}%</span>`;
+        const label = m === naiveM ? "What you're probably doing now"
+          : m === fixedM ? 'Always keep 95% in stock'
+            : "Our recommended plan";
+        return `<tr class="${win ? 'hi' : ''}"><td>${label}</td>
+    <td class="num">${(m.stockout_rate * 100).toFixed(1)}%</td>
     <td class="num">${fmt(m.waste_units)}</td>
     <td class="num">${money(m.understock_cost)}</td>
-    <td class="num">${money(m.overstock_cost+m.holding_cost)}</td>
+    <td class="num">${money(m.overstock_cost + m.holding_cost)}</td>
     <td class="num"><b>${money(m.total_cost)}</b></td><td class="num">${dTxt}</td></tr>`;
-  }).join('') + '</tbody>';
+      }).join('') + '</tbody>';
 
-  /* stacked cost bars */
-  const w=760,rowH=52,h=M.length*rowH+30, max=Math.max(...M.map(m=>m.total_cost)), lx=190, bw=w-lx-90;
-  let s=`<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Total cost by policy, split into understock and overstock">`;
-  M.forEach((m,i)=>{
-    const y=i*rowH+12, u=m.understock_cost/max*bw, o=(m.overstock_cost+m.holding_cost)/max*bw;
-    const short=m.policy.replace(" (naive: last week's sales)","").replace(' service level','');
-    s+=`<text x="0" y="${y+17}" class="axis" style="font-size:11.5px;fill:${C.ink2}">${short}</text>`;
-    s+=`<rect x="${lx}" y="${y}" width="${u}" height="24" fill="${C.blue}" rx="2"/>`;
-    s+=`<rect x="${lx+u+2}" y="${y}" width="${Math.max(o-2,0)}" height="24" fill="${C.amber}" rx="2"/>`;
-    s+=`<text x="${lx+u+o+10}" y="${y+17}" class="axis" style="font-size:11.5px;fill:#E8EFEC">${money(m.total_cost)}</text>`;
-  });
-  s+='</svg>'; $('#costBars').innerHTML=s;
-}
-renderOverviewMoney();
-
-/* ---------------- simulator ---------------- */
-const SW = DATA.sweep, NAIVE = DATA.naive, F95 = DATA.fixed95;
-const cost = (p,cu,co) => p.short*cu + p.left*co;
-
-function renderCurve(cu,co,cr,best){
-  const w=760,h=310,ml=64,mr=18,mt=14,mb=42, iw=w-ml-mr, ih=h-mt-mb;
-  const costs = SW.map(p=>cost(p,cu,co));
-  const nC = cost(NAIVE,cu,co), fC = cost(F95,cu,co);
-  const lo=0, hi=Math.max(...costs, nC, fC)*1.06;
-  const X = c => ml + (c-0.10)/(0.99-0.10)*iw;
-  const Y = v => mt + ih - (v-lo)/(hi-lo)*ih;
-  let s=`<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Total cost against service level">`;
-  for(let i=0;i<=4;i++){ const v=lo+(hi-lo)*i/4, y=Y(v);
-    s+=`<line x1="${ml}" y1="${y}" x2="${w-mr}" y2="${y}" class="gridline"/>`;
-    s+=`<text x="${ml-9}" y="${y+3.5}" class="axis" text-anchor="end">${'$'+fmt(Math.round(v/1000))+'k'}</text>`; }
-  [0.1,0.25,0.5,0.75,0.95].forEach(t=>{
-    s+=`<text x="${X(t)}" y="${h-22}" class="axis" text-anchor="middle">${Math.round(t*100)}%</text>`; });
-  s+=`<text x="${ml}" y="${h-6}" class="axis-title">service level (CR)</text>`;
-  // reference lines
-  s+=`<line x1="${ml}" y1="${Y(nC)}" x2="${w-mr}" y2="${Y(nC)}" stroke="${C.ink3}" stroke-width="1.5" stroke-dasharray="4 4"/>`;
-  s+=`<text x="${w-mr}" y="${Y(nC)-7}" class="axis" text-anchor="end" style="fill:${C.ink3}">naive ${money(nC)}</text>`;
-  if(Y(fC)>mt+8){
-    s+=`<line x1="${ml}" y1="${Y(fC)}" x2="${w-mr}" y2="${Y(fC)}" stroke="${C.amber}" stroke-width="1.5" stroke-dasharray="4 4"/>`;
-    s+=`<text x="${w-mr}" y="${Y(fC)-7}" class="axis" text-anchor="end" style="fill:${C.amber}">fixed 95% ${money(fC)}</text>`;
-  } else {
-    s+=`<text x="${w-mr}" y="${mt+12}" class="axis" text-anchor="end" style="fill:${C.amber}">fixed 95% ${money(fC)} ↑ off-scale</text>`;
+    /* stacked cost bars */
+    const w = 760, rowH = 52, h = M.length * rowH + 30, max = Math.max(...M.map(m => m.total_cost)), lx = 190, bw = w - lx - 90;
+    let s = `<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Total cost by policy, split into understock and overstock">`;
+    M.forEach((m, i) => {
+      const y = i * rowH + 12, u = m.understock_cost / max * bw, o = (m.overstock_cost + m.holding_cost) / max * bw;
+      const short = m.policy.replace(" (naive: last week's sales)", "").replace(' service level', '');
+      s += `<text x="0" y="${y + 17}" class="axis" style="font-size:11.5px;fill:${C.ink2}">${short}</text>`;
+      s += `<rect x="${lx}" y="${y}" width="${u}" height="24" fill="${C.blue}" rx="2"/>`;
+      s += `<rect x="${lx + u + 2}" y="${y}" width="${Math.max(o - 2, 0)}" height="24" fill="${C.amber}" rx="2"/>`;
+      s += `<text x="${lx + u + o + 10}" y="${y + 17}" class="axis" style="font-size:11.5px;fill:#E8EFEC">${money(m.total_cost)}</text>`;
+    });
+    s += '</svg>'; $('#costBars').innerHTML = s;
   }
-  // curve
-  const pts = SW.map((p,i)=>`${X(p.cr).toFixed(1)},${Y(costs[i]).toFixed(1)}`).join(' ');
-  s+=`<polyline points="${pts}" fill="none" stroke="${C.jade}" stroke-width="2" stroke-linejoin="round"/>`;
-  // optimum
-  const bx=X(best.cr), by=Y(best.cost);
-  s+=`<line x1="${bx}" y1="${mt}" x2="${bx}" y2="${mt+ih}" stroke="${C.jade}" stroke-width="1" stroke-dasharray="3 3" opacity=".55"/>`;
-  s+=`<circle cx="${bx}" cy="${by}" r="5.5" fill="${C.jade}" stroke="#0C1211" stroke-width="2"/>`;
-  const lblX = bx > w-190 ? bx-12 : bx+12, anch = bx > w-190 ? 'end':'start';
-  s+=`<text x="${lblX}" y="${by-13}" class="axis" text-anchor="${anch}" style="fill:#E8EFEC;font-size:11.5px">optimum ${Math.round(best.cr*100)}% · ${money(best.cost)}</text>`;
-  s+='</svg>';
-  $('#curve').innerHTML=s;
-  return {nC,fC};
-}
+  renderOverviewMoney();
 
-function update(){
-  const cu=+$('#cu').value, co=+$('#co').value, cr=cu/(cu+co);
-  $('#cuOut').textContent=money(cu); $('#coOut').textContent=money(co);
-  $('#cu').style.setProperty('--p', ((cu-0.05)/(3-0.05)*100)+'%');
-  $('#co').style.setProperty('--p', ((co-0.05)/(3-0.05)*100)+'%');
-  $('#crOut').textContent=Math.round(cr*100)+'%';
+  /* ---------------- simulator ---------------- */
+  const SW = DATA.sweep, NAIVE = DATA.naive, F95 = DATA.fixed95;
+  const cost = (p, cu, co) => p.short * cu + p.left * co;
 
-  let best=null;
-  SW.forEach(p=>{ const c=cost(p,cu,co); if(!best||c<best.cost) best={cr:p.cr,cost:c,p}; });
-  const {nC,fC} = renderCurve(cu,co,cr,best);
+  function renderCurve(cu, co, cr, best) {
+    const w = 760, h = 310, ml = 64, mr = 18, mt = 14, mb = 42, iw = w - ml - mr, ih = h - mt - mb;
+    const costs = SW.map(p => cost(p, cu, co));
+    const nC = cost(NAIVE, cu, co), fC = cost(F95, cu, co);
+    const lo = 0, hi = Math.max(...costs, nC, fC) * 1.06;
+    const X = c => ml + (c - 0.10) / (0.99 - 0.10) * iw;
+    const Y = v => mt + ih - (v - lo) / (hi - lo) * ih;
+    let s = `<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Total cost against service level">`;
+    for (let i = 0; i <= 4; i++) {
+      const v = lo + (hi - lo) * i / 4, y = Y(v);
+      s += `<line x1="${ml}" y1="${y}" x2="${w - mr}" y2="${y}" class="gridline"/>`;
+      s += `<text x="${ml - 9}" y="${y + 3.5}" class="axis" text-anchor="end">${'$' + fmt(Math.round(v / 1000)) + 'k'}</text>`;
+    }
+    [0.1, 0.25, 0.5, 0.75, 0.95].forEach(t => {
+      s += `<text x="${X(t)}" y="${h - 22}" class="axis" text-anchor="middle">${Math.round(t * 100)}%</text>`;
+    });
+    s += `<text x="${ml}" y="${h - 6}" class="axis-title">service level (CR)</text>`;
+    // reference lines
+    s += `<line x1="${ml}" y1="${Y(nC)}" x2="${w - mr}" y2="${Y(nC)}" stroke="${C.ink3}" stroke-width="1.5" stroke-dasharray="4 4"/>`;
+    s += `<text x="${w - mr}" y="${Y(nC) - 7}" class="axis" text-anchor="end" style="fill:${C.ink3}">naive ${money(nC)}</text>`;
+    if (Y(fC) > mt + 8) {
+      s += `<line x1="${ml}" y1="${Y(fC)}" x2="${w - mr}" y2="${Y(fC)}" stroke="${C.amber}" stroke-width="1.5" stroke-dasharray="4 4"/>`;
+      s += `<text x="${w - mr}" y="${Y(fC) - 7}" class="axis" text-anchor="end" style="fill:${C.amber}">fixed 95% ${money(fC)}</text>`;
+    } else {
+      s += `<text x="${w - mr}" y="${mt + 12}" class="axis" text-anchor="end" style="fill:${C.amber}">fixed 95% ${money(fC)} ↑ off-scale</text>`;
+    }
+    // curve
+    const pts = SW.map((p, i) => `${X(p.cr).toFixed(1)},${Y(costs[i]).toFixed(1)}`).join(' ');
+    s += `<polyline points="${pts}" fill="none" stroke="${C.jade}" stroke-width="2" stroke-linejoin="round"/>`;
+    // optimum
+    const bx = X(best.cr), by = Y(best.cost);
+    s += `<line x1="${bx}" y1="${mt}" x2="${bx}" y2="${mt + ih}" stroke="${C.jade}" stroke-width="1" stroke-dasharray="3 3" opacity=".55"/>`;
+    s += `<circle cx="${bx}" cy="${by}" r="5.5" fill="${C.jade}" stroke="#0C1211" stroke-width="2"/>`;
+    const lblX = bx > w - 190 ? bx - 12 : bx + 12, anch = bx > w - 190 ? 'end' : 'start';
+    s += `<text x="${lblX}" y="${by - 13}" class="axis" text-anchor="${anch}" style="fill:#E8EFEC;font-size:11.5px">optimum ${Math.round(best.cr * 100)}% · ${money(best.cost)}</text>`;
+    s += '</svg>';
+    $('#curve').innerHTML = s;
+    return { nC, fC };
+  }
 
-  // policy the CR actually selects (clamped to fitted grid)
-  const sel = SW.reduce((a,b)=>Math.abs(b.cr-cr)<Math.abs(a.cr-cr)?b:a);
-  const selCost = cost(sel,cu,co);
-  $('#cNews').textContent=money(selCost);
-  $('#cNaive').textContent=money(nC);
-  $('#cFixed').textContent=money(fC);
-  const saved=(nC-selCost)/nC;
-  $('#cSaved').textContent=(saved>=0?'−':'+')+Math.abs(saved*100).toFixed(1)+'% ('+money(Math.abs(nC-selCost))+')';
-  $('#cSaved').className = saved>=0?'win':'lose';
-  $('#qtyOut').textContent = 'runs out '+(sel.stockout_rate*100).toFixed(1)+'% of the time, vs '+(F95.stockout_rate*100).toFixed(1)+'%';
+  function update() {
+    const cu = +$('#cu').value, co = +$('#co').value, cr = cu / (cu + co);
+    $('#cuOut').textContent = money(cu); $('#coOut').textContent = money(co);
+    $('#cu').style.setProperty('--p', ((cu - 0.05) / (3 - 0.05) * 100) + '%');
+    $('#co').style.setProperty('--p', ((co - 0.05) / (3 - 0.05) * 100) + '%');
+    $('#crOut').textContent = Math.round(cr * 100) + '%';
 
-  $('#curveCap').textContent =
-    `Not a smoothed guess: for every possible in-stock target, we counted exactly how many units would have been missed or wasted across all 100,720 real outcomes, then multiplied by your two costs above. Moving a slider only changes that multiplication, so the line updates instantly with no re-modelling.`;
+    let best = null;
+    SW.forEach(p => { const c = cost(p, cu, co); if (!best || c < best.cost) best = { cr: p.cr, cost: c, p }; });
+    const { nC, fC } = renderCurve(cu, co, cr, best);
 
-  const gap = best.cr - cr, lost = selCost - best.cost;
-  const gapTxt = Math.abs(gap)<=0.011
-    ? `The cheapest target here is <strong>${Math.round(best.cr*100)}%</strong>, matching what the simple cost math above predicts — they agree at this cost ratio.`
-    : `<strong>The simple math and the real data disagree slightly, and it's worth knowing why.</strong>
-       The cost math above says target <strong>${Math.round(cr*100)}%</strong>, but the
-       actual cheapest target on real outcomes is <strong>${Math.round(best.cr*100)}%</strong>
+    // policy the CR actually selects (clamped to fitted grid)
+    const sel = SW.reduce((a, b) => Math.abs(b.cr - cr) < Math.abs(a.cr - cr) ? b : a);
+    const selCost = cost(sel, cu, co);
+    $('#cNews').textContent = money(selCost);
+    $('#cNaive').textContent = money(nC);
+    $('#cFixed').textContent = money(fC);
+    const saved = (nC - selCost) / nC;
+    $('#cSaved').textContent = (saved >= 0 ? '−' : '+') + Math.abs(saved * 100).toFixed(1) + '% (' + money(Math.abs(nC - selCost)) + ')';
+    $('#cSaved').className = saved >= 0 ? 'win' : 'lose';
+    $('#qtyOut').textContent = 'runs out ' + (sel.stockout_rate * 100).toFixed(1) + '% of the time, vs ' + (F95.stockout_rate * 100).toFixed(1) + '%';
+
+    $('#curveCap').textContent =
+      `Not a smoothed guess: for every possible in-stock target, we counted exactly how many units would have been missed or wasted across all 100,720 real outcomes, then multiplied by your two costs above. Moving a slider only changes that multiplication, so the line updates instantly with no re-modelling.`;
+
+    const gap = best.cr - cr, lost = selCost - best.cost;
+    const gapTxt = Math.abs(gap) <= 0.011
+      ? `The cheapest target here is <strong>${Math.round(best.cr * 100)}%</strong>, matching what the simple cost math above predicts — they agree at this cost ratio.`
+      : `<strong>The simple math and the real data disagree slightly, and it's worth knowing why.</strong>
+       The cost math above says target <strong>${Math.round(cr * 100)}%</strong>, but the
+       actual cheapest target on real outcomes is <strong>${Math.round(best.cr * 100)}%</strong>
        — following the math exactly would leave ${money(Math.abs(lost))} on the table
-       (${(Math.abs(lost)/selCost*100).toFixed(2)}% of total cost). That's because our demand
+       (${(Math.abs(lost) / selCost * 100).toFixed(2)}% of total cost). That's because our demand
        predictions tend to run a little low, so aiming a bit higher than the simple math
        suggests ends up matching reality more closely.`;
-  $('#simNote').innerHTML =
-    `<span class="hd">These two costs are your call — change them to match your business</span><p style="margin:0">${gapTxt}
+    $('#simNote').innerHTML =
+      `<span class="hd">These two costs are your call — change them to match your business</span><p style="margin:0">${gapTxt}
      Both sliders are a cost per unit — set them to what a missed sale and a wasted item
      actually cost you. The default (${money(0.88)} / ${money(1.27)}) matches the assumptions
      used in the money table above. These sliders use one flat cost per unit, while the
      money table priced every item at its own shelf price, so totals here run 0.1–2% higher
      depending on the plan.</p>`;
-}
-['input','change'].forEach(ev=>{ $('#cu').addEventListener(ev,update); $('#co').addEventListener(ev,update); });
+  }
+  ['input', 'change'].forEach(ev => { $('#cu').addEventListener(ev, update); $('#co').addEventListener(ev, update); });
 
-/* ---------------- forecast explorer ---------------- */
-$('#series').innerHTML = DATA.examples.map((ex,idx)=>{
-  const w=760,h=190,ml=40,mr=14,mt=12,mb=26,iw=w-ml-mr,ih=h-mt-mb;
-  const hist=ex.hist, fMap=new Map(ex.point.map(p=>[p.d,p.yhat]));
-  const loM=new Map(ex.lo.map(p=>[p.d,p.v])), hiM=new Map(ex.hi.map(p=>[p.d,p.v]));
-  const dates=hist.map(r=>r.d);
-  const maxV=Math.max(1,...hist.map(r=>r.units),...ex.hi.map(p=>p.v));
-  const X=i=>ml+(i/(dates.length-1))*iw, Y=v=>mt+ih-(v/maxV)*ih;
-  let s=`<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="${ex.item} at ${ex.store}">`;
-  for(let i=0;i<=2;i++){const v=maxV*i/2,y=Y(v);
-    s+=`<line x1="${ml}" y1="${y}" x2="${w-mr}" y2="${y}" class="gridline"/>`;
-    s+=`<text x="${ml-8}" y="${y+3.5}" class="axis" text-anchor="end">${Math.round(v)}</text>`;}
-  const fi=dates.findIndex(d=>fMap.has(d));
-  if(fi>0){ s+=`<line x1="${X(fi)}" y1="${mt}" x2="${X(fi)}" y2="${mt+ih}" stroke="${C.ink3}" stroke-width="1" stroke-dasharray="3 3"/>`;
-    s+=`<text x="${X(fi)+6}" y="${mt+11}" class="axis">prediction starts here</text>`; }
-  const band=dates.map((d,i)=>hiM.has(d)?`${X(i).toFixed(1)},${Y(hiM.get(d)).toFixed(1)}`:null).filter(Boolean);
-  const bandLo=dates.map((d,i)=>loM.has(d)?`${X(i).toFixed(1)},${Y(loM.get(d)).toFixed(1)}`:null).filter(Boolean).reverse();
-  if(band.length) s+=`<polygon points="${band.concat(bandLo).join(' ')}" fill="${C.jade}" opacity=".16"/>`;
-  s+=`<polyline points="${hist.map((r,i)=>`${X(i).toFixed(1)},${Y(r.units).toFixed(1)}`).join(' ')}" fill="none" stroke="${C.ink2}" stroke-width="1.6"/>`;
-  const fp=dates.map((d,i)=>fMap.has(d)?`${X(i).toFixed(1)},${Y(fMap.get(d)).toFixed(1)}`:null).filter(Boolean);
-  if(fp.length) s+=`<polyline points="${fp.join(' ')}" fill="none" stroke="${C.jade}" stroke-width="2"/>`;
-  s+='</svg>';
-  const plain = {dense:'Fast-seller', mid:'Medium-seller', sparse:'Slow-seller'}[ex.stratum] || ex.stratum;
-  return `<figure><h3 style="margin-bottom:2px">${ex.item} · ${ex.store}
-    <span class="tag">${plain} · no sales ${Math.round(ex.zero_share*100)}% of days</span></h3>
+  /* ---------------- forecast explorer ---------------- */
+  $('#series').innerHTML = DATA.examples.map((ex, idx) => {
+    const w = 760, h = 190, ml = 40, mr = 14, mt = 12, mb = 26, iw = w - ml - mr, ih = h - mt - mb;
+    const hist = ex.hist, fMap = new Map(ex.point.map(p => [p.d, p.yhat]));
+    const loM = new Map(ex.lo.map(p => [p.d, p.v])), hiM = new Map(ex.hi.map(p => [p.d, p.v]));
+    const dates = hist.map(r => r.d);
+    const maxV = Math.max(1, ...hist.map(r => r.units), ...ex.hi.map(p => p.v));
+    const X = i => ml + (i / (dates.length - 1)) * iw, Y = v => mt + ih - (v / maxV) * ih;
+    let s = `<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="${ex.item} at ${ex.store}">`;
+    for (let i = 0; i <= 2; i++) {
+      const v = maxV * i / 2, y = Y(v);
+      s += `<line x1="${ml}" y1="${y}" x2="${w - mr}" y2="${y}" class="gridline"/>`;
+      s += `<text x="${ml - 8}" y="${y + 3.5}" class="axis" text-anchor="end">${Math.round(v)}</text>`;
+    }
+    const fi = dates.findIndex(d => fMap.has(d));
+    if (fi > 0) {
+      s += `<line x1="${X(fi)}" y1="${mt}" x2="${X(fi)}" y2="${mt + ih}" stroke="${C.ink3}" stroke-width="1" stroke-dasharray="3 3"/>`;
+      s += `<text x="${X(fi) + 6}" y="${mt + 11}" class="axis">prediction starts here</text>`;
+    }
+    const band = dates.map((d, i) => hiM.has(d) ? `${X(i).toFixed(1)},${Y(hiM.get(d)).toFixed(1)}` : null).filter(Boolean);
+    const bandLo = dates.map((d, i) => loM.has(d) ? `${X(i).toFixed(1)},${Y(loM.get(d)).toFixed(1)}` : null).filter(Boolean).reverse();
+    if (band.length) s += `<polygon points="${band.concat(bandLo).join(' ')}" fill="${C.jade}" opacity=".16"/>`;
+    s += `<polyline points="${hist.map((r, i) => `${X(i).toFixed(1)},${Y(r.units).toFixed(1)}`).join(' ')}" fill="none" stroke="${C.ink2}" stroke-width="1.6"/>`;
+    const fp = dates.map((d, i) => fMap.has(d) ? `${X(i).toFixed(1)},${Y(fMap.get(d)).toFixed(1)}` : null).filter(Boolean);
+    if (fp.length) s += `<polyline points="${fp.join(' ')}" fill="none" stroke="${C.jade}" stroke-width="2"/>`;
+    s += '</svg>';
+    const plain = { dense: 'Fast-seller', mid: 'Medium-seller', sparse: 'Slow-seller' }[ex.stratum] || ex.stratum;
+    return `<figure><h3 style="margin-bottom:2px">${ex.item} · ${ex.store}
+    <span class="tag">${plain} · no sales ${Math.round(ex.zero_share * 100)}% of days</span></h3>
     ${s}</figure>`;
-}).join('');
-
-const STRATA_PLAIN = {dense:'Fast-sellers', mid:'Medium-sellers', sparse:'Slow-sellers'};
-$('#strataTable').innerHTML = `<thead><tr><th>Department</th><th>Group</th><th>Products tested</th>
-<th>Days with no sales</th></tr></thead><tbody>` + DATA.strata_profile.map(r=>
-`<tr><td>${r.dept_id}</td><td>${STRATA_PLAIN[r.stratum_name]||r.stratum_name}</td><td class="num">${r.items}</td>
-<td class="num">${Math.round(r.lo*100)}–${Math.round(r.hi*100)}%</td></tr>`).join('')+'</tbody>';
-
-/* ---------------- performance ---------------- */
-const folds = DATA.folds.filter(f=>f.metric==='mase');
-const models=[...new Set(folds.map(f=>f.model_name))].map(m=>{
-  const v=folds.filter(f=>f.model_name===m).map(f=>f.value);
-  return {m, mean:v.reduce((a,b)=>a+b,0)/v.length, min:Math.min(...v), max:Math.max(...v)};
-}).sort((a,b)=>a.mean-b.mean);
-
-(function(){
-  const w=760,rowH=40,h=models.length*rowH+34,lx=130,bw=w-lx-70;
-  const hi=Math.max(...models.map(d=>d.max))*1.04, lo=0.95;
-  const X=v=>lx+(v-lo)/(hi-lo)*bw;
-  let s=`<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="MASE by model with fold range">`;
-  models.forEach((d,i)=>{
-    const y=i*rowH+14, best=i===0;
-    s+=`<text x="0" y="${y+15}" class="axis" style="font-size:11.5px;fill:${best?'#E8EFEC':C.ink2}">${d.m}</text>`;
-    s+=`<rect x="${lx}" y="${y+3}" width="${Math.max(X(d.mean)-lx,1)}" height="18" rx="2" fill="${best?C.jade:C.ink3}" opacity="${best?1:.55}"/>`;
-    s+=`<line x1="${X(d.min)}" y1="${y+12}" x2="${X(d.max)}" y2="${y+12}" stroke="#E8EFEC" stroke-width="1.5" opacity=".65"/>`;
-    s+=`<line x1="${X(d.min)}" y1="${y+7}" x2="${X(d.min)}" y2="${y+17}" stroke="#E8EFEC" stroke-width="1.5" opacity=".65"/>`;
-    s+=`<line x1="${X(d.max)}" y1="${y+7}" x2="${X(d.max)}" y2="${y+17}" stroke="#E8EFEC" stroke-width="1.5" opacity=".65"/>`;
-    s+=`<text x="${w-56}" y="${y+16}" class="axis" style="font-size:11.5px;fill:#E8EFEC">${d.mean.toFixed(4)}</text>`;
-  });
-  s+=`<text x="${lx}" y="${h-6}" class="axis-title">MASE — lower is better · 1.0 = as good as naive</text></svg>`;
-  $('#modelBars').innerHTML=s;
-})();
-
-(function(){
-  const metrics=['mase','rmsse','bias'];
-  const ms=[...new Set(DATA.folds.map(f=>f.model_name))];
-  let head='<thead><tr><th>Model</th>'+metrics.map(m=>`<th>${m.toUpperCase()} mean</th><th>spread</th>`).join('')+'</tr></thead>';
-  const rows=ms.map(m=>{
-    const cells=metrics.map(me=>{
-      const v=DATA.folds.filter(f=>f.model_name===m&&f.metric===me).map(f=>f.value);
-      const mu=v.reduce((a,b)=>a+b,0)/v.length;
-      const sd=Math.sqrt(v.reduce((a,b)=>a+(b-mu)**2,0)/(v.length-1));
-      return `<td class="num">${mu.toFixed(4)}</td><td class="num" style="color:var(--ink-3)">±${sd.toFixed(4)}</td>`;
-    }).join('');
-    const mu=DATA.folds.filter(f=>f.model_name===m&&f.metric==='mase').map(f=>f.value);
-    const best=Math.min(...ms.map(x=>{const q=DATA.folds.filter(f=>f.model_name===x&&f.metric==='mase').map(f=>f.value);return q.reduce((a,b)=>a+b,0)/q.length;}));
-    const isBest=Math.abs(mu.reduce((a,b)=>a+b,0)/mu.length-best)<1e-9;
-    return `<tr class="${isBest?'hi':''}"><td>${m}</td>${cells}</tr>`;
   }).join('');
-  $('#foldTable').innerHTML=head+'<tbody>'+rows+'</tbody>';
-})();
 
-(function(){
-  const order=['dense','mid','sparse'], keep=['lgbm','ets','seasonal_naive'];
-  const w=380,gh=64,h=order.length*gh+30,lx=74,bw=w-lx-46;
-  const vals=DATA.strata.filter(r=>keep.includes(r.model_name));
-  const hi=Math.max(...vals.map(v=>v.mean))*1.03, lo=0.95;
-  let s=`<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="MASE by intermittency band">`;
-  order.forEach((st,i)=>{
-    const y0=i*gh+10;
-    s+=`<text x="0" y="${y0+22}" class="axis" style="font-size:11.5px;fill:${C.ink2}">${st}</text>`;
-    keep.forEach((m,j)=>{
-      const r=vals.find(v=>v.stratum===st&&v.model_name===m); if(!r) return;
-      const y=y0+j*15, wpx=Math.max((r.mean-lo)/(hi-lo)*bw,1);
-      const col=m==='lgbm'?C.jade:(m==='ets'?C.blue:C.ink3);
-      s+=`<rect x="${lx}" y="${y}" width="${wpx}" height="11" rx="2" fill="${col}" opacity=".9"/>`;
-      s+=`<text x="${lx+wpx+6}" y="${y+9.5}" class="axis" style="font-size:9.5px">${r.mean.toFixed(3)}</text>`;
+  const STRATA_PLAIN = { dense: 'Fast-sellers', mid: 'Medium-sellers', sparse: 'Slow-sellers' };
+  $('#strataTable').innerHTML = `<thead><tr><th>Department</th><th>Group</th><th>Products tested</th>
+<th>Days with no sales</th></tr></thead><tbody>` + DATA.strata_profile.map(r =>
+    `<tr><td>${r.dept_id}</td><td>${STRATA_PLAIN[r.stratum_name] || r.stratum_name}</td><td class="num">${r.items}</td>
+<td class="num">${Math.round(r.lo * 100)}–${Math.round(r.hi * 100)}%</td></tr>`).join('') + '</tbody>';
+
+  /* ---------------- performance ---------------- */
+  const folds = DATA.folds.filter(f => f.metric === 'mase');
+  const models = [...new Set(folds.map(f => f.model_name))].map(m => {
+    const v = folds.filter(f => f.model_name === m).map(f => f.value);
+    return { m, mean: v.reduce((a, b) => a + b, 0) / v.length, min: Math.min(...v), max: Math.max(...v) };
+  }).sort((a, b) => a.mean - b.mean);
+
+  (function () {
+    const w = 760, rowH = 40, h = models.length * rowH + 34, lx = 130, bw = w - lx - 70;
+    const hi = Math.max(...models.map(d => d.max)) * 1.04, lo = 0.95;
+    const X = v => lx + (v - lo) / (hi - lo) * bw;
+    let s = `<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="MASE by model with fold range">`;
+    models.forEach((d, i) => {
+      const y = i * rowH + 14, best = i === 0;
+      s += `<text x="0" y="${y + 15}" class="axis" style="font-size:11.5px;fill:${best ? '#E8EFEC' : C.ink2}">${d.m}</text>`;
+      s += `<rect x="${lx}" y="${y + 3}" width="${Math.max(X(d.mean) - lx, 1)}" height="18" rx="2" fill="${best ? C.jade : C.ink3}" opacity="${best ? 1 : .55}"/>`;
+      s += `<line x1="${X(d.min)}" y1="${y + 12}" x2="${X(d.max)}" y2="${y + 12}" stroke="#E8EFEC" stroke-width="1.5" opacity=".65"/>`;
+      s += `<line x1="${X(d.min)}" y1="${y + 7}" x2="${X(d.min)}" y2="${y + 17}" stroke="#E8EFEC" stroke-width="1.5" opacity=".65"/>`;
+      s += `<line x1="${X(d.max)}" y1="${y + 7}" x2="${X(d.max)}" y2="${y + 17}" stroke="#E8EFEC" stroke-width="1.5" opacity=".65"/>`;
+      s += `<text x="${w - 56}" y="${y + 16}" class="axis" style="font-size:11.5px;fill:#E8EFEC">${d.mean.toFixed(4)}</text>`;
     });
-  });
-  s+='</svg>';
-  $('#strataBars').innerHTML=`<div class="legend" style="font-size:10.5px">
+    s += `<text x="${lx}" y="${h - 6}" class="axis-title">MASE — lower is better · 1.0 = as good as naive</text></svg>`;
+    $('#modelBars').innerHTML = s;
+  })();
+
+  (function () {
+    const metrics = ['mase', 'rmsse', 'bias'];
+    const ms = [...new Set(DATA.folds.map(f => f.model_name))];
+    let head = '<thead><tr><th>Model</th>' + metrics.map(m => `<th>${m.toUpperCase()} mean</th><th>spread</th>`).join('') + '</tr></thead>';
+    const rows = ms.map(m => {
+      const cells = metrics.map(me => {
+        const v = DATA.folds.filter(f => f.model_name === m && f.metric === me).map(f => f.value);
+        const mu = v.reduce((a, b) => a + b, 0) / v.length;
+        const sd = Math.sqrt(v.reduce((a, b) => a + (b - mu) ** 2, 0) / (v.length - 1));
+        return `<td class="num">${mu.toFixed(4)}</td><td class="num" style="color:var(--ink-3)">±${sd.toFixed(4)}</td>`;
+      }).join('');
+      const mu = DATA.folds.filter(f => f.model_name === m && f.metric === 'mase').map(f => f.value);
+      const best = Math.min(...ms.map(x => { const q = DATA.folds.filter(f => f.model_name === x && f.metric === 'mase').map(f => f.value); return q.reduce((a, b) => a + b, 0) / q.length; }));
+      const isBest = Math.abs(mu.reduce((a, b) => a + b, 0) / mu.length - best) < 1e-9;
+      return `<tr class="${isBest ? 'hi' : ''}"><td>${m}</td>${cells}</tr>`;
+    }).join('');
+    $('#foldTable').innerHTML = head + '<tbody>' + rows + '</tbody>';
+  })();
+
+  (function () {
+    const order = ['dense', 'mid', 'sparse'], keep = ['lgbm', 'ets', 'seasonal_naive'];
+    const w = 380, gh = 64, h = order.length * gh + 30, lx = 74, bw = w - lx - 46;
+    const vals = DATA.strata.filter(r => keep.includes(r.model_name));
+    const hi = Math.max(...vals.map(v => v.mean)) * 1.03, lo = 0.95;
+    let s = `<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="MASE by intermittency band">`;
+    order.forEach((st, i) => {
+      const y0 = i * gh + 10;
+      s += `<text x="0" y="${y0 + 22}" class="axis" style="font-size:11.5px;fill:${C.ink2}">${st}</text>`;
+      keep.forEach((m, j) => {
+        const r = vals.find(v => v.stratum === st && v.model_name === m); if (!r) return;
+        const y = y0 + j * 15, wpx = Math.max((r.mean - lo) / (hi - lo) * bw, 1);
+        const col = m === 'lgbm' ? C.jade : (m === 'ets' ? C.blue : C.ink3);
+        s += `<rect x="${lx}" y="${y}" width="${wpx}" height="11" rx="2" fill="${col}" opacity=".9"/>`;
+        s += `<text x="${lx + wpx + 6}" y="${y + 9.5}" class="axis" style="font-size:9.5px">${r.mean.toFixed(3)}</text>`;
+      });
+    });
+    s += '</svg>';
+    $('#strataBars').innerHTML = `<div class="legend" style="font-size:10.5px">
     <span><i style="background:${C.jade}"></i>lgbm</span>
     <span><i style="background:${C.blue}"></i>ets</span>
-    <span><i style="background:${C.ink3}"></i>seasonal naive</span></div>`+s;
-})();
+    <span><i style="background:${C.ink3}"></i>seasonal naive</span></div>` + s;
+  })();
 
-(function(){
-  const d=DATA.shap.slice(0,12), w=380,rh=22,h=d.length*rh+16,lx=150,bw=w-lx-42;
-  const max=Math.max(...d.map(x=>x.value));
-  let s=`<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="SHAP feature importance">`;
-  d.forEach((x,i)=>{const y=i*rh+6;
-    s+=`<text x="0" y="${y+11}" class="axis" style="font-size:10px">${x.feature}</text>`;
-    s+=`<rect x="${lx}" y="${y+2}" width="${Math.max(x.value/max*bw,1)}" height="11" rx="2" fill="${C.jade}" opacity=".8"/>`;
-    s+=`<text x="${lx+x.value/max*bw+6}" y="${y+11.5}" class="axis" style="font-size:9.5px">${x.value.toFixed(3)}</text>`;});
-  s+='</svg>'; $('#shapBars').innerHTML=s;
-})();
-
-$('#coherenceTable').innerHTML='<thead><tr><th>Parent → child</th><th>Max gap before</th><th>after</th></tr></thead><tbody>'+
-DATA.coherence.map(r=>`<tr><td>${r.parent_level} → ${r.child_level}</td>
-<td class="num">${fmt(r.max_before,2)}</td>
-<td class="num win">${Number(r.max_after).toExponential(1)}</td></tr>`).join('')+'</tbody>';
-
-(function(){
-  const order=['state','store','store_dept','item_store'];
-  const get=(lv,m,src)=>{const r=src.find(x=>x.level===lv&&x.model_name===m);return r?r.mean:null;};
-  $('#levelTable').innerHTML='<thead><tr><th>Level</th><th>RMSSE base</th><th>MinT</th><th>Δ</th></tr></thead><tbody>'+
-  order.map(lv=>{
-    const b=get(lv,'lgbm',DATA.levels), r=get(lv,'lgbm_mint',DATA.levels);
-    if(b==null||r==null) return '';
-    const d=r-b;
-    return `<tr><td>${lv}</td><td class="num">${b.toFixed(4)}</td><td class="num">${r.toFixed(4)}</td>
-    <td class="num ${d<0?'win':'lose'}">${d>0?'+':''}${d.toFixed(4)}</td></tr>`;
-  }).join('')+'</tbody>';
-})();
-
-/* ================= ORDER CALCULATOR =================
-   Works entirely on data the user pastes in, in the browser. Nothing is uploaded.
-
-   Why this doesn't use the trained LightGBM model: that model takes item_id as an input
-   and needs a year of history per series, so it can only score the 180 M5 products it was
-   fitted on -- it has no way to represent a product it has never seen. What transfers is
-   the ordering rule, which is where Phase 7 measured most of the saving coming from
-   (fixing the policy cut cost 71%; improving the forecast cut it 18%).
-
-   So demand is taken straight from the user's own history as an empirical distribution of
-   H-day totals, and the newsvendor rule picks the quantile. No distributional assumption,
-   which matters for slow movers where most days are zero and a fitted curve would invent
-   fractional daily demand that never occurs. */
-
-const CAL = {skus:new Map()};
-
-/* Costs are held in USD and only ever *displayed* in the selected currency. Keeping the
-   canonical value out of the input box is what makes USD->INR->USD lossless: switching
-   currency rewrites the box from the stored USD figure and never reads it back, so the
-   2-decimal display rounding can't accumulate into the underlying number. */
-const COST_USD = {miss: 1.50, waste: 1.00};
-
-function renderCostInputs(){
-  $('#pMiss').value  = toDisplayCcy(COST_USD.miss).toFixed(2);
-  $('#pWaste').value = toDisplayCcy(COST_USD.waste).toFixed(2);
-  document.querySelectorAll('[data-ccy]').forEach(el=>{
-    el.textContent = CURRENCY === 'USD' ? 'USD $' : `${FX.code} ${FX.symbol}`;
-  });
-}
-/** Read the boxes back into canonical USD. Only ever called from a real user edit. */
-function syncCostsFromInputs(){
-  const m = parseFloat($('#pMiss').value), w = parseFloat($('#pWaste').value);
-  if(Number.isFinite(m) && m > 0) COST_USD.miss  = toUsd(m);
-  if(Number.isFinite(w) && w > 0) COST_USD.waste = toUsd(w);
-}
-
-function parseCsv(text){
-  const lines = text.trim().split(/\r?\n/).filter(l=>l.trim());
-  if(lines.length < 2) return {error:'Not enough rows — paste a header row and some sales.'};
-  const split = l => l.split(',').map(c=>c.trim().replace(/^"|"$/g,''));
-  const head = split(lines[0]).map(h=>h.toLowerCase());
-  const find = (...names) => head.findIndex(h => names.some(n => h === n || h.includes(n)));
-  const iSku   = find('sku','product','item','name','description');
-  const iDate  = find('date','day','week','period');
-  const iUnits = find('units_sold','units','sold','qty','quantity','sales','demand');
-  const iPrice = find('unit_price','price');
-
-  if(iSku < 0)   return {error:'Could not find a product column. Name one of them "sku", "product" or "item".'};
-  if(iUnits < 0) return {error:'Could not find a sales column. Name one of them "units_sold", "qty" or "sales".'};
-
-  const rows=[]; let skipped=0;
-  for(let i=1;i<lines.length;i++){
-    const c = split(lines[i]);
-    const sku = c[iSku];
-    const units = Number(String(c[iUnits]).replace(/[^0-9.\-]/g,''));
-    if(!sku || !Number.isFinite(units)){ skipped++; continue; }
-    rows.push({sku, date: iDate>=0 ? c[iDate] : String(i),
-               units: Math.max(units,0),
-               price: iPrice>=0 ? Number(c[iPrice]) : null});
-  }
-  if(!rows.length) return {error:'No usable rows — check the sales column contains numbers.'};
-  return {rows, skipped, hasDate: iDate>=0};
-}
-
-/** Empirical quantile by linear interpolation on the sorted sample. */
-function quantile(sorted, q){
-  if(!sorted.length) return 0;
-  if(q <= 0) return sorted[0];
-  if(q >= 1) return sorted[sorted.length-1];
-  const pos=(sorted.length-1)*q, lo=Math.floor(pos), hi=Math.ceil(pos);
-  return lo===hi ? sorted[lo] : sorted[lo] + (pos-lo)*(sorted[hi]-sorted[lo]);
-}
-
-/** Every H-day total observable in the history -- the demand one order must cover. */
-function windowTotals(units, h){
-  if(h <= 1) return units.slice();
-  const out=[];
-  for(let i=0;i+h<=units.length;i++){
-    let s=0; for(let j=0;j<h;j++) s+=units[i+j];
-    out.push(s);
-  }
-  return out;
-}
-
-function runCalculator(){
-  const raw = $('#csv').value;
-  const msg=$('#calcMsg'), tiles=$('#calcTiles'), table=$('#calcTable'), cap=$('#calcCap');
-  const clear = html => {
-    msg.innerHTML=html; tiles.innerHTML=''; table.innerHTML=''; cap.textContent='';
-    $('#calcSaving').innerHTML=''; CAL.skus=new Map();
-  };
-
-  if(!raw.trim()) return clear(`<div class="msg">Paste your sales history on the left, or press
-    <strong>Load example data</strong> to see it working on real supermarket sales.</div>`);
-  const parsed = parseCsv(raw);
-  if(parsed.error) return clear(`<div class="msg">${parsed.error}</div>`);
-
-  const h = +$('#cover').value;
-  const cu = Math.max(COST_USD.miss, 0.0001);   // USD, canonical
-  const co = Math.max(COST_USD.waste, 0.0001);  // USD, canonical
-  const cr = cu/(cu+co);
-
-  const bySku = new Map();
-  parsed.rows.forEach(r=>{ if(!bySku.has(r.sku)) bySku.set(r.sku,[]); bySku.get(r.sku).push(r); });
-
-  const results=[]; let thin=0;
-  bySku.forEach((rows, sku)=>{
-    if(parsed.hasDate) rows.sort((a,b)=>String(a.date).localeCompare(String(b.date)));
-    const units = rows.map(r=>r.units);
-    const totals = windowTotals(units, h);
-    if(totals.length < 4){ thin++; return; }
-    const sorted=[...totals].sort((a,b)=>a-b);
-    const order = quantile(sorted, cr);
-    const expected = totals.reduce((a,b)=>a+b,0)/totals.length;
-    const ordered = Math.ceil(order);
-
-    // Expected cost of any order quantity, averaged over every window actually observed.
-    const costOf = q => totals.reduce(
-      (a,t)=>a + Math.max(t-q,0)*cu + Math.max(q-t,0)*co, 0) / totals.length;
-
-    // Baseline: order the average demand and stop thinking about it. This is the honest
-    // comparison for "what does optimising actually buy me" -- it uses the same demand
-    // history and the same cost formula, so the only difference is the order quantity.
-    const naiveOrder = Math.round(expected);
-    const recCost = costOf(ordered), naiveCost = costOf(naiveOrder);
-
-    results.push({
-      sku, days:units.length, order:ordered, expected,
-      surplus: ordered-expected,
-      runOut: totals.filter(t=>t>ordered).length/totals.length,
-      expCost: recCost, naiveOrder, naiveCost, saved: naiveCost - recCost,
-      zeroShare: units.filter(u=>u===0).length/units.length,
+  (function () {
+    const d = DATA.shap.slice(0, 12), w = 380, rh = 22, h = d.length * rh + 16, lx = 150, bw = w - lx - 42;
+    const max = Math.max(...d.map(x => x.value));
+    let s = `<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="SHAP feature importance">`;
+    d.forEach((x, i) => {
+      const y = i * rh + 6;
+      s += `<text x="0" y="${y + 11}" class="axis" style="font-size:10px">${x.feature}</text>`;
+      s += `<rect x="${lx}" y="${y + 2}" width="${Math.max(x.value / max * bw, 1)}" height="11" rx="2" fill="${C.jade}" opacity=".8"/>`;
+      s += `<text x="${lx + x.value / max * bw + 6}" y="${y + 11.5}" class="axis" style="font-size:9.5px">${x.value.toFixed(3)}</text>`;
     });
-  });
+    s += '</svg>'; $('#shapBars').innerHTML = s;
+  })();
 
-  if(!results.length) return clear(`<div class="msg">Not enough history yet. Each product needs
+  $('#coherenceTable').innerHTML = '<thead><tr><th>Parent → child</th><th>Max gap before</th><th>after</th></tr></thead><tbody>' +
+    DATA.coherence.map(r => `<tr><td>${r.parent_level} → ${r.child_level}</td>
+<td class="num">${fmt(r.max_before, 2)}</td>
+<td class="num win">${Number(r.max_after).toExponential(1)}</td></tr>`).join('') + '</tbody>';
+
+  (function () {
+    const order = ['state', 'store', 'store_dept', 'item_store'];
+    const get = (lv, m, src) => { const r = src.find(x => x.level === lv && x.model_name === m); return r ? r.mean : null; };
+    $('#levelTable').innerHTML = '<thead><tr><th>Level</th><th>RMSSE base</th><th>MinT</th><th>Δ</th></tr></thead><tbody>' +
+      order.map(lv => {
+        const b = get(lv, 'lgbm', DATA.levels), r = get(lv, 'lgbm_mint', DATA.levels);
+        if (b == null || r == null) return '';
+        const d = r - b;
+        return `<tr><td>${lv}</td><td class="num">${b.toFixed(4)}</td><td class="num">${r.toFixed(4)}</td>
+    <td class="num ${d < 0 ? 'win' : 'lose'}">${d > 0 ? '+' : ''}${d.toFixed(4)}</td></tr>`;
+      }).join('') + '</tbody>';
+  })();
+
+  /* ================= ORDER CALCULATOR =================
+     Works entirely on data the user pastes in, in the browser. Nothing is uploaded.
+  
+     Why this doesn't use the trained LightGBM model: that model takes item_id as an input
+     and needs a year of history per series, so it can only score the 180 M5 products it was
+     fitted on -- it has no way to represent a product it has never seen. What transfers is
+     the ordering rule, which is where Phase 7 measured most of the saving coming from
+     (fixing the policy cut cost 71%; improving the forecast cut it 18%).
+  
+     So demand is taken straight from the user's own history as an empirical distribution of
+     H-day totals, and the newsvendor rule picks the quantile. No distributional assumption,
+     which matters for slow movers where most days are zero and a fitted curve would invent
+     fractional daily demand that never occurs. */
+
+  const CAL = { skus: new Map() };
+
+  /* Costs are held in USD and only ever *displayed* in the selected currency. Keeping the
+     canonical value out of the input box is what makes USD->INR->USD lossless: switching
+     currency rewrites the box from the stored USD figure and never reads it back, so the
+     2-decimal display rounding can't accumulate into the underlying number. */
+  const COST_USD = { miss: 1.50, waste: 1.00 };
+
+  function renderCostInputs() {
+    $('#pMiss').value = toDisplayCcy(COST_USD.miss).toFixed(2);
+    $('#pWaste').value = toDisplayCcy(COST_USD.waste).toFixed(2);
+    document.querySelectorAll('[data-ccy]').forEach(el => {
+      el.textContent = CURRENCY === 'USD' ? 'USD $' : `${FX.code} ${FX.symbol}`;
+    });
+  }
+  /** Read the boxes back into canonical USD. Only ever called from a real user edit. */
+  function syncCostsFromInputs() {
+    const m = parseFloat($('#pMiss').value), w = parseFloat($('#pWaste').value);
+    if (Number.isFinite(m) && m > 0) COST_USD.miss = toUsd(m);
+    if (Number.isFinite(w) && w > 0) COST_USD.waste = toUsd(w);
+  }
+
+  function parseCsv(text) {
+    const lines = text.trim().split(/\r?\n/).filter(l => l.trim());
+    if (lines.length < 2) return { error: 'Not enough rows — paste a header row and some sales.' };
+    const split = l => l.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+    const head = split(lines[0]).map(h => h.toLowerCase());
+    const find = (...names) => head.findIndex(h => names.some(n => h === n || h.includes(n)));
+    const iSku = find('sku', 'product', 'item', 'name', 'description');
+    const iDate = find('date', 'day', 'week', 'period');
+    const iUnits = find('units_sold', 'units', 'sold', 'qty', 'quantity', 'sales', 'demand');
+    const iPrice = find('unit_price', 'price');
+
+    if (iSku < 0) return { error: 'Could not find a product column. Name one of them "sku", "product" or "item".' };
+    if (iUnits < 0) return { error: 'Could not find a sales column. Name one of them "units_sold", "qty" or "sales".' };
+
+    const rows = []; let skipped = 0;
+    for (let i = 1; i < lines.length; i++) {
+      const c = split(lines[i]);
+      const sku = c[iSku];
+      const units = Number(String(c[iUnits]).replace(/[^0-9.\-]/g, ''));
+      if (!sku || !Number.isFinite(units)) { skipped++; continue; }
+      rows.push({
+        sku, date: iDate >= 0 ? c[iDate] : String(i),
+        units: Math.max(units, 0),
+        price: iPrice >= 0 ? Number(c[iPrice]) : null
+      });
+    }
+    if (!rows.length) return { error: 'No usable rows — check the sales column contains numbers.' };
+    return { rows, skipped, hasDate: iDate >= 0 };
+  }
+
+  /** Empirical quantile by linear interpolation on the sorted sample. */
+  function quantile(sorted, q) {
+    if (!sorted.length) return 0;
+    if (q <= 0) return sorted[0];
+    if (q >= 1) return sorted[sorted.length - 1];
+    const pos = (sorted.length - 1) * q, lo = Math.floor(pos), hi = Math.ceil(pos);
+    return lo === hi ? sorted[lo] : sorted[lo] + (pos - lo) * (sorted[hi] - sorted[lo]);
+  }
+
+  /** Every H-day total observable in the history -- the demand one order must cover. */
+  function windowTotals(units, h) {
+    if (h <= 1) return units.slice();
+    const out = [];
+    for (let i = 0; i + h <= units.length; i++) {
+      let s = 0; for (let j = 0; j < h; j++) s += units[i + j];
+      out.push(s);
+    }
+    return out;
+  }
+
+  function runCalculator() {
+    const raw = $('#csv').value;
+    const msg = $('#calcMsg'), tiles = $('#calcTiles'), table = $('#calcTable'), cap = $('#calcCap');
+    const clear = html => {
+      msg.innerHTML = html; tiles.innerHTML = ''; table.innerHTML = ''; cap.textContent = '';
+      $('#calcSaving').innerHTML = ''; CAL.skus = new Map();
+      // Nothing to download when there is no order list -- the button would hand back a
+      // header row and nothing else, which reads as the download being broken.
+      $('#dlRow').hidden = true; $('#dlFallback').hidden = true;
+    };
+
+    if (!raw.trim()) return clear(`<div class="msg">Paste your sales history on the left, or press
+    <strong>Load example data</strong> to see it working on real supermarket sales.</div>`);
+    const parsed = parseCsv(raw);
+    if (parsed.error) return clear(`<div class="msg">${parsed.error}</div>`);
+
+    const h = +$('#cover').value;
+    const cu = Math.max(COST_USD.miss, 0.0001);   // USD, canonical
+    const co = Math.max(COST_USD.waste, 0.0001);  // USD, canonical
+    const cr = cu / (cu + co);
+
+    const bySku = new Map();
+    parsed.rows.forEach(r => { if (!bySku.has(r.sku)) bySku.set(r.sku, []); bySku.get(r.sku).push(r); });
+
+    const results = []; let thin = 0;
+    bySku.forEach((rows, sku) => {
+      if (parsed.hasDate) rows.sort((a, b) => String(a.date).localeCompare(String(b.date)));
+      const units = rows.map(r => r.units);
+      const totals = windowTotals(units, h);
+      if (totals.length < 4) { thin++; return; }
+      const sorted = [...totals].sort((a, b) => a - b);
+      const order = quantile(sorted, cr);
+      const expected = totals.reduce((a, b) => a + b, 0) / totals.length;
+      const ordered = Math.ceil(order);
+
+      // Expected cost of any order quantity, averaged over every window actually observed.
+      const costOf = q => totals.reduce(
+        (a, t) => a + Math.max(t - q, 0) * cu + Math.max(q - t, 0) * co, 0) / totals.length;
+
+      // Baseline: order the average demand and stop thinking about it. This is the honest
+      // comparison for "what does optimising actually buy me" -- it uses the same demand
+      // history and the same cost formula, so the only difference is the order quantity.
+      const naiveOrder = Math.round(expected);
+      const recCost = costOf(ordered), naiveCost = costOf(naiveOrder);
+
+      results.push({
+        sku, days: units.length, order: ordered, expected,
+        surplus: ordered - expected,
+        runOut: totals.filter(t => t > ordered).length / totals.length,
+        expCost: recCost, naiveOrder, naiveCost, saved: naiveCost - recCost,
+        zeroShare: units.filter(u => u === 0).length / units.length,
+      });
+    });
+
+    if (!results.length) return clear(`<div class="msg">Not enough history yet. Each product needs
     a few more days than the period you're covering — try a shorter period, or add more days.</div>`);
 
-  results.sort((a,b)=>b.order-a.order);
-  CAL.skus = new Map(results.map(r=>[r.sku,r]));
+    results.sort((a, b) => b.order - a.order);
+    CAL.skus = new Map(results.map(r => [r.sku, r]));
+    $('#dlRow').hidden = false;
 
-  const shortest = Math.min(...results.map(r=>r.days));
-  const notes=[];
-  if(thin) notes.push(`${thin} product${thin>1?'s':''} skipped — not enough days of history.`);
-  if(parsed.skipped) notes.push(`${parsed.skipped} row${parsed.skipped>1?'s':''} skipped — couldn't read the sales number.`);
-  if(shortest < 28) notes.push(`Only ${shortest} days of history for at least one product. It still works, but 8+ weeks reads your busy days far more reliably.`);
-  msg.innerHTML = notes.length ? `<div class="msg">${notes.join('<br>')}</div>`
-    : `<div class="msg ok">Ready — ${results.length} products, ${shortest}+ days of history each.</div>`;
+    const shortest = Math.min(...results.map(r => r.days));
+    const notes = [];
+    if (thin) notes.push(`${thin} product${thin > 1 ? 's' : ''} skipped — not enough days of history.`);
+    if (parsed.skipped) notes.push(`${parsed.skipped} row${parsed.skipped > 1 ? 's' : ''} skipped — couldn't read the sales number.`);
+    if (shortest < 28) notes.push(`Only ${shortest} days of history for at least one product. It still works, but 8+ weeks reads your busy days far more reliably.`);
+    msg.innerHTML = notes.length ? `<div class="msg">${notes.join('<br>')}</div>`
+      : `<div class="msg ok">Ready — ${results.length} products, ${shortest}+ days of history each.</div>`;
 
-  const totUnits  = results.reduce((a,r)=>a+r.order,0);
-  const netBuffer = results.reduce((a,r)=>a+r.surplus,0);
-  const totCost   = results.reduce((a,r)=>a+r.expCost,0);
-  const totNaive  = results.reduce((a,r)=>a+r.naiveCost,0);
-  const totSaved  = totNaive - totCost;
-  const savedPct  = totNaive > 0 ? totSaved/totNaive : 0;
+    const totUnits = results.reduce((a, r) => a + r.order, 0);
+    const netBuffer = results.reduce((a, r) => a + r.surplus, 0);
+    const totCost = results.reduce((a, r) => a + r.expCost, 0);
+    const totNaive = results.reduce((a, r) => a + r.naiveCost, 0);
+    const totSaved = totNaive - totCost;
+    const savedPct = totNaive > 0 ? totSaved / totNaive : 0;
 
-  $('#calcSaving').innerHTML = `
+    $('#calcSaving').innerHTML = `
     <div class="saving-hero">
       <div class="k">Expected saving vs ordering the average</div>
-      <div class="v">${money(totSaved)}${savedPct>0.0005?` <span style="font-size:17px;color:var(--ink-3)">(${(savedPct*100).toFixed(1)}%)</span>`:''}</div>
+      <div class="v">${money(totSaved)}${savedPct > 0.0005 ? ` <span style="font-size:17px;color:var(--ink-3)">(${(savedPct * 100).toFixed(1)}%)</span>` : ''}</div>
       <div class="d">
-        per ${h}-day cycle, across ${results.length} product${results.length>1?'s':''}. This is an
+        per ${h}-day cycle, across ${results.length} product${results.length > 1 ? 's' : ''}. This is an
         <strong>expected value, not a guarantee</strong> — it's what the maths works out to on
         average across your own past demand, and any single cycle can land either side of it.
         The comparison orders your average demand instead, then prices both the same way.
       </div>
     </div>`;
 
-  // The buffer is signed on purpose. When wasting stock costs more than a missed sale the
-  // cheapest order sits *below* average demand, and a tile that only ever showed a
-  // non-negative "spare" would hide the single most important thing this tool has to say.
-  const bufferLabel = netBuffer >= 0 ? 'Spare stock included' : 'Held back below average';
-  const bufferNote = netBuffer >= 0
-    ? 'extra units above typical demand, to absorb a busy spell'
-    : 'fewer units than average demand — cheaper, because waste costs you more';
-  tiles.innerHTML = [
-    ['Total units to order', fmt(totUnits), `to cover the next ${h} day${h>1?'s':''}`],
-    [bufferLabel, (netBuffer>=0?'+':'−')+fmt(Math.abs(Math.round(netBuffer))), bufferNote],
-    ['Expected cost of being wrong', money(totCost), `vs ${money(totNaive)} ordering the average`],
-  ].map(([k,v,d])=>`<div class="tile"><div class="k">${k}</div><div class="v">${v}</div><div class="d">${d}</div></div>`).join('');
+    // The buffer is signed on purpose. When wasting stock costs more than a missed sale the
+    // cheapest order sits *below* average demand, and a tile that only ever showed a
+    // non-negative "spare" would hide the single most important thing this tool has to say.
+    const bufferLabel = netBuffer >= 0 ? 'Spare stock included' : 'Held back below average';
+    const bufferNote = netBuffer >= 0
+      ? 'extra units above typical demand, to absorb a busy spell'
+      : 'fewer units than average demand — cheaper, because waste costs you more';
+    tiles.innerHTML = [
+      ['Total units to order', fmt(totUnits), `to cover the next ${h} day${h > 1 ? 's' : ''}`],
+      [bufferLabel, (netBuffer >= 0 ? '+' : '−') + fmt(Math.abs(Math.round(netBuffer))), bufferNote],
+      ['Expected cost of being wrong', money(totCost), `vs ${money(totNaive)} ordering the average`],
+    ].map(([k, v, d]) => `<div class="tile"><div class="k">${k}</div><div class="v">${v}</div><div class="d">${d}</div></div>`).join('');
 
-  table.innerHTML = `<thead><tr><th>Product</th><th>Order this many</th><th>Typical demand</th>
+    table.innerHTML = `<thead><tr><th>Product</th><th>Order this many</th><th>Typical demand</th>
     <th>vs typical</th><th>Chance you run out</th><th>Expected saving</th><th>What to know</th>
     </tr></thead><tbody>` +
-  results.map(r=>{
-    let note='';
-    if(r.order===0) note='Sells too rarely to stock every cycle — order on request.';
-    else if(r.zeroShare>0.6) note='Slow seller — keep orders small and watch a few cycles.';
-    else if(r.surplus < 0) note='Below average on purpose — waste costs you more than a missed sale.';
-    else if(r.surplus < 1) note='Demand is steady, so barely any spare is needed.';
-    else note='Carrying spare to cover the busy days.';
-    const vs = r.surplus >= 0
-      ? `<span class="win">+${r.surplus.toFixed(1)}</span>`
-      : `<span class="lose">${r.surplus.toFixed(1)}</span>`;
-    // A near-zero saving is honest output, not a rounding artefact: when the optimal order
-    // lands on the average anyway, optimising genuinely buys nothing for that product.
-    const sv = r.saved > 0.005
-      ? `<span class="win">${money(r.saved)}</span>`
-      : `<span style="color:var(--ink-3)">—</span>`;
-    return `<tr><td>${r.sku}</td>
+      results.map(r => {
+        let note = '';
+        if (r.order === 0) note = 'Sells too rarely to stock every cycle — order on request.';
+        else if (r.zeroShare > 0.6) note = 'Slow seller — keep orders small and watch a few cycles.';
+        else if (r.surplus < 0) note = 'Below average on purpose — waste costs you more than a missed sale.';
+        else if (r.surplus < 1) note = 'Demand is steady, so barely any spare is needed.';
+        else note = 'Carrying spare to cover the busy days.';
+        const vs = r.surplus >= 0
+          ? `<span class="win">+${r.surplus.toFixed(1)}</span>`
+          : `<span class="lose">${r.surplus.toFixed(1)}</span>`;
+        // A near-zero saving is honest output, not a rounding artefact: when the optimal order
+        // lands on the average anyway, optimising genuinely buys nothing for that product.
+        const sv = r.saved > 0.005
+          ? `<span class="win">${money(r.saved)}</span>`
+          : `<span style="color:var(--ink-3)">—</span>`;
+        return `<tr><td>${r.sku}</td>
       <td class="num"><span class="order-qty">${fmt(r.order)}</span></td>
       <td class="num">${r.expected.toFixed(1)}</td>
       <td class="num">${vs}</td>
-      <td class="num">${(r.runOut*100).toFixed(0)}%</td>
+      <td class="num">${(r.runOut * 100).toFixed(0)}%</td>
       <td class="num">${sv}</td>
       <td class="note-cell">${note}</td></tr>`;
-  }).join('') + '</tbody>';
+      }).join('') + '</tbody>';
 
-  cap.textContent = `Aiming to have enough stock ${Math.round(cr*100)}% of the time — worked out `
-    + `from your two costs, not chosen. "Typical demand" is your average ${h}-day total, and `
-    + `"vs typical" is how far above or below it you're ordering. A negative number is not an `
-    + `error: when waste costs more than a missed sale, ordering under your average is the `
-    + `cheaper plan.`;
-}
+    cap.textContent = `Aiming to have enough stock ${Math.round(cr * 100)}% of the time — worked out `
+      + `from your two costs, not chosen. "Typical demand" is your average ${h}-day total, and `
+      + `"vs typical" is how far above or below it you're ordering. A negative number is not an `
+      + `error: when waste costs more than a missed sale, ordering under your average is the `
+      + `cheaper plan.`;
+  }
 
-$('#loadDemo').addEventListener('click', ()=>{ $('#csv').value = DATA.demoCsv; runCalculator(); });
-$('#csvFile').addEventListener('change', e=>{
-  const f = e.target.files && e.target.files[0];
-  if(!f) return;
-  const fr = new FileReader();
-  fr.onload = () => { $('#csv').value = String(fr.result); runCalculator(); };
-  fr.readAsText(f);
-});
-['input','change'].forEach(ev=>{
-  ['#csv','#cover'].forEach(sel=>$(sel).addEventListener(ev, runCalculator));
-  // Cost boxes must write back to canonical USD before recalculating, or the stored value
-  // and the displayed value drift apart the moment someone types.
-  ['#pMiss','#pWaste'].forEach(sel=>$(sel).addEventListener(ev, ()=>{
-    syncCostsFromInputs(); runCalculator();
-  }));
-});
+  $('#loadDemo').addEventListener('click', () => { $('#csv').value = DATA.demoCsv; runCalculator(); });
+  $('#csvFile').addEventListener('change', e => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    const fr = new FileReader();
+    fr.onload = () => { $('#csv').value = String(fr.result); runCalculator(); };
+    fr.readAsText(f);
+  });
+  ['input', 'change'].forEach(ev => {
+    ['#csv', '#cover'].forEach(sel => $(sel).addEventListener(ev, runCalculator));
+    // Cost boxes must write back to canonical USD before recalculating, or the stored value
+    // and the displayed value drift apart the moment someone types.
+    ['#pMiss', '#pWaste'].forEach(sel => $(sel).addEventListener(ev, () => {
+      syncCostsFromInputs(); runCalculator();
+    }));
+  });
 
-/** The order list as CSV text. Pure, so it can be tested without a DOM. */
-function orderListCsv(){
-  const cur = CURRENCY === 'USD' ? 'usd' : FX.code.toLowerCase();
-  const lines = [`product,order_quantity,typical_demand,vs_typical,chance_of_running_out,expected_saving_${cur}`];
-  CAL.skus.forEach(r=>lines.push([
-    JSON.stringify(r.sku), r.order, r.expected.toFixed(2), r.surplus.toFixed(2),
-    (r.runOut*100).toFixed(0) + '%', toDisplayCcy(r.saved).toFixed(2),
-  ].join(',')));
-  return lines.join('\r\n');   // CRLF so Excel opens it cleanly
-}
+  /** The order list as CSV text. Pure, so it can be tested without a DOM. */
+  function orderListCsv() {
+    const cur = CURRENCY === 'USD' ? 'usd' : FX.code.toLowerCase();
+    const lines = [`product,order_quantity,typical_demand,vs_typical,chance_of_running_out,expected_saving_${cur}`];
+    CAL.skus.forEach(r => lines.push([
+      JSON.stringify(r.sku), r.order, r.expected.toFixed(2), r.surplus.toFixed(2),
+      (r.runOut * 100).toFixed(0) + '%', toDisplayCcy(r.saved).toFixed(2),
+    ].join(',')));
+    return lines.join('\r\n');   // CRLF so Excel opens it cleanly
+  }
 
-$('#dlCsv').addEventListener('click', ()=>{
-  if(!CAL.skus.size) return;
-  const name = `order-list-next-${+$('#cover').value}-days.csv`;
-  // BOM so Excel reads UTF-8 (product names and the currency symbol survive).
-  const blob = new Blob(['﻿' + orderListCsv()], {type:'text/csv;charset=utf-8'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = name; a.rel = 'noopener';
-  // Must be in the document: a detached anchor's click() is ignored by some browsers.
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  // Deferred: revoking synchronously after click() kills the blob before the browser has
-  // read it, which is exactly why the first version of this button appeared to do nothing.
-  setTimeout(()=>URL.revokeObjectURL(url), 10000);
+  $('#dlCsv').addEventListener('click', () => {
+    if (!CAL.skus.size) return;
+    const name = `order-list-next-${+$('#cover').value}-days.csv`;
+    // BOM so Excel reads UTF-8 (product names and the currency symbol survive).
+    const blob = new Blob(['﻿' + orderListCsv()], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = name; a.rel = 'noopener';
+    // Must be in the document: a detached anchor's click() is ignored by some browsers.
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    // Deferred: revoking synchronously after click() kills the blob before the browser has
+    // read it, which is exactly why the first version of this button appeared to do nothing.
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
 
-  // This page can be embedded in a sandboxed frame where downloads are blocked outright,
-  // and no amount of correct code changes that -- so always leave a copyable copy behind.
-  const box = $('#dlFallback');
-  box.hidden = false;
-  box.querySelector('textarea').value = orderListCsv();
-});
-$('#copyCsv').addEventListener('click', async ()=>{
-  const ta = $('#dlFallback textarea');
-  ta.select();
-  try { await navigator.clipboard.writeText(ta.value); $('#copyCsv').textContent='Copied'; }
-  catch { document.execCommand('copy'); $('#copyCsv').textContent='Copied'; }
-  setTimeout(()=>$('#copyCsv').textContent='Copy to clipboard', 1800);
-});
+    // This page can be embedded in a sandboxed frame where downloads are blocked outright,
+    // and no amount of correct code changes that -- so always leave a copyable copy behind.
+    const box = $('#dlFallback');
+    box.hidden = false;
+    box.querySelector('textarea').value = orderListCsv();
+  });
+  $('#copyCsv').addEventListener('click', async () => {
+    const ta = $('#dlFallback textarea');
+    ta.select();
+    try { await navigator.clipboard.writeText(ta.value); $('#copyCsv').textContent = 'Copied'; }
+    catch { document.execCommand('copy'); $('#copyCsv').textContent = 'Copied'; }
+    setTimeout(() => $('#copyCsv').textContent = 'Copy to clipboard', 1800);
+  });
 
-renderCostInputs();
-runCalculator();
-update();
+  renderCostInputs();
+  runCalculator();
+  update();
 </script>
