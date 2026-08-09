@@ -470,6 +470,17 @@
     margin-bottom: 20px
   }
 
+  .ctrl .hint {
+    display: block;
+    font-family: var(--sans);
+    font-size: 12.5px;
+    line-height: 1.45;
+    color: var(--ink-3);
+    text-transform: none;
+    letter-spacing: 0;
+    margin: 3px 0 9px
+  }
+
   .ctrl label {
     display: flex;
     justify-content: space-between;
@@ -943,10 +954,11 @@
       <p class="eyebrow">Paste your own sales history — nothing leaves your browser</p>
       <h2>How much should I order?</h2>
       <p class="lede">
-        Give it your recent sales per product and what a missed sale and a wasted item cost
-        you. It works out how many units to order for each one — including how much spare to
-        carry above your average demand, so you're covered on a busy day without throwing
-        stock away.
+        Give it your recent sales per product, your profit margin, and how much of a unit you
+        lose when it doesn't sell. It works out how many units to order for each one —
+        including how much spare to carry above your average demand, so you're covered on a
+        busy day without throwing stock away. Because the two settings are percentages, each
+        product is costed off its own price rather than one flat figure for the whole list.
       </p>
     </div>
 
@@ -955,9 +967,9 @@
         <div class="field">
           <label for="csv">Your sales history</label>
           <span class="hint">One row per product per day. Needs columns for product,
-            date and units sold — extra columns are ignored.</span>
+            date, units sold and unit price — extra columns are ignored.</span>
           <textarea id="csv" spellcheck="false"
-            placeholder="sku,date,units_sold&#10;Bananas,2024-05-01,14&#10;Bananas,2024-05-02,9&#10;Milk 1L,2024-05-01,31"></textarea>
+            placeholder="sku,date,units_sold,unit_price&#10;Milk 1L,2024-05-01,31,1.40&#10;Milk 1L,2024-05-02,27,1.40&#10;Bread,2024-05-01,14,2.20&#10;Yogurt,2024-05-01,9,5.90"></textarea>
           <div class="btnrow">
             <button class="btn ghost" type="button" id="loadDemo">Load example data</button>
             <label class="btn ghost" style="cursor:pointer;margin:0">
@@ -977,24 +989,25 @@
             <option value="14">the next 14 days</option>
           </select>
         </div>
-        <div class="field">
-          <label for="pMiss">You lose this much when you run out
-            <span class="ccy-tag" data-ccy></span></label>
-          <span class="hint">Your profit on one unit you could have sold.</span>
-          <input type="number" id="pMiss" min="0.01" step="0.05">
+        <div class="ctrl">
+          <label for="pMargin"><span>Your profit margin</span><output id="pMarginOut">30%</output></label>
+          <span class="hint">Of the shelf price, the share you keep. A sale you miss costs
+            you this much <em>of that product's own price</em>.</span>
+          <input type="range" id="pMargin" min="1" max="95" step="1" value="30">
         </div>
-        <div class="field" style="margin-bottom:6px">
-          <label for="pWaste">You lose this much on one wasted unit
-            <span class="ccy-tag" data-ccy></span></label>
-          <span class="hint">What you paid for it, minus anything you get back.</span>
-          <input type="number" id="pWaste" min="0.01" step="0.05">
+        <div class="ctrl">
+          <label for="pWaste"><span>Written off if it doesn't sell</span><output
+              id="pWasteOut">60%</output></label>
+          <span class="hint">Of what you paid for it. 100% if it gets thrown away, less if
+            you can still shift it at a discount.</span>
+          <input type="range" id="pWaste" min="0" max="100" step="1" value="60">
         </div>
         <p class="hint" style="font-size:12px;color:var(--ink-3);margin:0">
-          Both boxes are per unit, in the currency selected at the top of the page — switch it
-          and these convert with everything else.
-          <strong style="color:var(--ink-2)">For fresh food that spoils, set the waste box
-            higher than the first one</strong> — you'll see the recommendation drop below your
-          average demand, which is the cheaper choice when waste hurts more than a lost sale.
+          Both are percentages of <strong style="color:var(--ink-2)">each product's own
+            price</strong>, so a $6 item and a $1 item are costed differently from the same
+          two settings. Prices come from a <code>unit_price</code> column in your file;
+          products without one are priced at <span id="fallbackPrice" class="ccy-tag"></span>,
+          which changes their money figures but not how many units to order.
         </p>
       </div>
 
@@ -1038,17 +1051,19 @@
       <div class="card">
         <h3 style="color:var(--blue)">If you order too little</h3>
         <p class="prose" style="font-size:15px;margin-top:8px">
-          You lose the <strong>profit</strong> on a sale you could have made. Annoying — but
-          you still have your money, and the goods you didn't sell are still yours to sell
+          You lose the <strong>profit</strong> on a sale you could have made — your margin,
+          so a 30% margin on a $6 item costs you $1.80 and on a $1 item costs 30¢. Annoying,
+          but you still have your money, and the goods you didn't sell are still yours to sell
           tomorrow.
         </p>
       </div>
       <div class="card">
         <h3 style="color:var(--amber)">If you order too much</h3>
         <p class="prose" style="font-size:15px;margin-top:8px">
-          You lose <strong>what you paid</strong> for everything that doesn't sell. For fresh
-          food that's most of it. This is usually the more expensive mistake, and it's the one
-          people make by trying to never run out.
+          You lose <strong>what you paid</strong> for everything that doesn't sell — not the
+          shelf price, the wholesale cost, because you never earned the margin. For fresh food
+          you lose nearly all of it; where you can discount it, less. This is usually the more
+          expensive mistake, and it's the one people make by trying to never run out.
         </p>
       </div>
     </div>
@@ -1065,8 +1080,40 @@
         This isn't a shortcut or an approximation. It's a standard result in operations
         research (the "newsvendor" problem), and the maths is a single line: order enough to
         cover demand <em>P</em> of the time, where <em>P</em> = your missed-sale cost divided
-        by the sum of both costs. Put your two numbers in the calculator and it does exactly
+        by the sum of both costs. Move the two sliders in the calculator and it does exactly
         that.
+      </p>
+    </div>
+
+    <div>
+      <h3>Why the two settings are percentages, not amounts</h3>
+      <p class="prose" style="margin-top:8px">
+        A missed sale on a $6 bottle and a missed sale on a $1 loaf are not the same loss, so
+        one flat cash figure can't price a mixed product list. The calculator asks for two
+        <strong>rates</strong> instead and applies them to each product's own price, taken
+        from the <code>unit_price</code> column of your file:
+      </p>
+      <ul class="prose" style="margin-top:6px">
+        <li><strong>Profit margin</strong> — the share of the shelf price you keep. Run out,
+          and that's what the missed sale costs you: <em>price × margin</em>.</li>
+        <li><strong>Written off if it doesn't sell</strong> — the share of what you
+          <em>paid</em> that you can't recover. Note it comes off your cost, not the shelf
+          price: you never earned the margin, so you can't lose it twice. That works out to
+          <em>price × (1 − margin) × write-off</em>.</li>
+      </ul>
+      <p class="prose">
+        These are the same two formulas the engine behind the rest of this site uses on the
+        Walmart data, so the calculator and the results on the other tabs are costed
+        identically rather than by two different rules.
+      </p>
+      <p class="prose">
+        One consequence worth knowing, because it looks like a bug and isn't: the
+        <strong>service level</strong> the two settings imply is the same for every product.
+        Price appears in both costs, so it cancels out of the ratio between them. What is
+        <em>not</em> the same for every product is the money — a write-off on an expensive
+        item costs more — or the quantity, since each product's order is a percentile of its
+        own sales history. Two products at an identical 41% service level routinely order
+        very different amounts.
       </p>
     </div>
 
@@ -1083,9 +1130,10 @@
       </p>
       <p class="prose">
         <strong>What it needs from you:</strong> at least a few weeks of daily sales per
-        product. More is better — a couple of months gives a much steadier read on your busy
-        days. It doesn't need prices, promotions, or anything else, though it will use a
-        price column if you have one.
+        product, and a <code>unit_price</code> column. More history is better — a couple of
+        months gives a much steadier read on your busy days. Without a price a product still
+        gets an order quantity, but its money figures fall back to a default price and the
+        results table marks it with an asterisk so you know which ones those are.
       </p>
     </div>
   </section>
@@ -1512,6 +1560,21 @@
     ? '$' + Math.round(n).toLocaleString('en-US')
     : FX.symbol + Math.round(n * FX.rate).toLocaleString(FX.locale);
 
+  /** Same, to 2dp. Unit prices and per-product savings are too small to round to whole units. */
+  const moneyFine = n => {
+    const v = CURRENCY === 'USD' ? n : n * FX.rate;
+    const opts = { minimumFractionDigits: 2, maximumFractionDigits: 2 };
+    return (CURRENCY === 'USD' ? '$' : FX.symbol)
+      + v.toLocaleString(CURRENCY === 'USD' ? 'en-US' : FX.locale, opts);
+  };
+
+  /* Whole units read better for headline figures, but rounding a $0.68 saving to "$1" both
+     overstates it and makes the currency toggle look broken -- $1 next to the same figure
+     shown as INR 65 implies a rate of 50, not 95.21. So the choice of precision follows the
+     magnitude *as displayed*, which keeps the two currencies in exact proportion. */
+  const moneySmart = n =>
+    Math.abs(CURRENCY === 'USD' ? n : n * FX.rate) < 100 ? moneyFine(n) : money(n);
+
   /** Convert a USD amount into whatever currency is on screen (unrounded). */
   const toDisplayCcy = usd => CURRENCY === 'USD' ? usd : usd * FX.rate;
   /** Convert a number the user typed in the on-screen currency back to USD. */
@@ -1528,7 +1591,9 @@
     CURRENCY = code;
     $('#curUSD').setAttribute('aria-pressed', String(code === 'USD'));
     $('#curINR').setAttribute('aria-pressed', String(code === 'INR'));
-    renderCostInputs();   // rewrite the calculator's two cost boxes in the new currency
+    // The two rate sliders are percentages and never convert; only the fallback-price label
+    // beside them is money, and renderRateInputs() is what redraws it.
+    renderRateInputs();
     renderOverviewMoney();
     update();             // simulator readouts + curve labels re-read money()
     runCalculator();      // calculator table + tiles re-read money()
@@ -1854,24 +1919,56 @@
 
   const CAL = { skus: new Map() };
 
-  /* Costs are held in USD and only ever *displayed* in the selected currency. Keeping the
-     canonical value out of the input box is what makes USD->INR->USD lossless: switching
-     currency rewrites the box from the stored USD figure and never reads it back, so the
-     2-decimal display rounding can't accumulate into the underlying number. */
-  const COST_USD = { miss: 1.50, waste: 1.00 };
+  /* ---- the cost model, ported from src/inventory_engine/optimize/costs.py ----
+     Two flat cash amounts cannot price a mixed product list: the same missed sale is worth
+     far more on a $6 item than on a $1 one. So the inputs are *rates* and each product's
+     costs come off its own shelf price, which is exactly what `CostModel` does server-side:
 
-  function renderCostInputs() {
-    $('#pMiss').value = toDisplayCcy(COST_USD.miss).toFixed(2);
-    $('#pWaste').value = toDisplayCcy(COST_USD.waste).toFixed(2);
-    document.querySelectorAll('[data-ccy]').forEach(el => {
-      el.textContent = CURRENCY === 'USD' ? 'USD $' : `${FX.code} ${FX.symbol}`;
-    });
+         unit_cost = price x (1 - margin)
+         Cu        = price x margin                              (lost gross margin)
+         Co        = unit_cost x (spoilage + holding)            (write-off + carrying)
+
+     Note `Co` is a fraction of what you *paid*, not of the shelf price -- you can only write
+     off your own cost, never the margin you never earned. That is why the second slider is
+     labelled "of what you paid for it".
+
+     Rates are pure numbers, so unlike the cash amounts they replace they need no currency
+     conversion at all. Only the money they produce does. */
+  const RATES = { margin: 0.30, spoilage: 0.60 };
+
+  /** Daily carrying cost as a fraction of unit cost. `DEFAULT_HOLDING_RATE` in costs.py. */
+  const HOLDING_RATE = 0.02;
+
+  /** Shelf price for rows with no `unit_price`. `FALLBACK_PRICE` in costs.py, USD. */
+  const FALLBACK_PRICE_USD = 3.00;
+
+  /** Cu and Co for one unit of a product priced at `price`. Mirrors CostModel exactly. */
+  function unitCosts(price) {
+    const cost = price * (1 - RATES.margin);
+    return { cu: price * RATES.margin, co: cost * (RATES.spoilage + HOLDING_RATE) };
   }
-  /** Read the boxes back into canonical USD. Only ever called from a real user edit. */
-  function syncCostsFromInputs() {
-    const m = parseFloat($('#pMiss').value), w = parseFloat($('#pWaste').value);
-    if (Number.isFinite(m) && m > 0) COST_USD.miss = toUsd(m);
-    if (Number.isFinite(w) && w > 0) COST_USD.waste = toUsd(w);
+
+  /* CR = Cu / (Cu + Co). Price cancels out of that fraction -- both costs scale linearly
+     with price -- so the *service level* is shared across products while the *cash* at stake
+     is not. costs.py says the same thing in `critical_ratio`'s docstring. This is worth
+     knowing when reading the table: two products at the same service level still order very
+     different quantities, because each is a quantile of its own demand history. */
+  function criticalRatio() {
+    const { cu, co } = unitCosts(1);
+    return cu + co > 0 ? cu / (cu + co) : 0.5;
+  }
+
+  function renderRateInputs() {
+    $('#pMarginOut').textContent = `${Math.round(RATES.margin * 100)}%`;
+    $('#pWasteOut').textContent = `${Math.round(RATES.spoilage * 100)}%`;
+    $('#fallbackPrice').textContent = moneyFine(FALLBACK_PRICE_USD);
+  }
+  /** Read the sliders back into canonical rates. Only ever called from a real user edit. */
+  function syncRatesFromInputs() {
+    const m = parseFloat($('#pMargin').value), w = parseFloat($('#pWaste').value);
+    if (Number.isFinite(m)) RATES.margin = Math.min(Math.max(m, 1), 95) / 100;
+    if (Number.isFinite(w)) RATES.spoilage = Math.min(Math.max(w, 0), 100) / 100;
+    renderRateInputs();
   }
 
   function parseCsv(text) {
@@ -1941,25 +2038,34 @@
     if (parsed.error) return clear(`<div class="msg">${parsed.error}</div>`);
 
     const h = +$('#cover').value;
-    const cu = Math.max(COST_USD.miss, 0.0001);   // USD, canonical
-    const co = Math.max(COST_USD.waste, 0.0001);  // USD, canonical
-    const cr = cu / (cu + co);
+    const cr = criticalRatio();
 
     const bySku = new Map();
     parsed.rows.forEach(r => { if (!bySku.has(r.sku)) bySku.set(r.sku, []); bySku.get(r.sku).push(r); });
 
-    const results = []; let thin = 0;
+    const results = []; let thin = 0, unpriced = 0;
     bySku.forEach((rows, sku) => {
       if (parsed.hasDate) rows.sort((a, b) => String(a.date).localeCompare(String(b.date)));
       const units = rows.map(r => r.units);
       const totals = windowTotals(units, h);
       if (totals.length < 4) { thin++; return; }
+
+      // Latest quoted price, not the mean: the order being costed is a future one, and M5-style
+      // data reprices weekly. A product with no usable price anywhere falls back to the same
+      // constant the server-side model uses, and is counted so the page can say so out loud --
+      // silently pricing it at zero would make its costs and saving vanish without explanation.
+      const priced = rows.map(r => r.price).filter(p => Number.isFinite(p) && p > 0);
+      if (!priced.length) unpriced++;
+      const price = priced.length ? priced[priced.length - 1] : FALLBACK_PRICE_USD;
+      const { cu, co } = unitCosts(price);
+
       const sorted = [...totals].sort((a, b) => a - b);
       const order = quantile(sorted, cr);
       const expected = totals.reduce((a, b) => a + b, 0) / totals.length;
       const ordered = Math.ceil(order);
 
-      // Expected cost of any order quantity, averaged over every window actually observed.
+      // Expected cost of any order quantity, averaged over every window actually observed --
+      // now in this product's own money, because cu and co came off its own price.
       const costOf = q => totals.reduce(
         (a, t) => a + Math.max(t - q, 0) * cu + Math.max(q - t, 0) * co, 0) / totals.length;
 
@@ -1971,6 +2077,7 @@
 
       results.push({
         sku, days: units.length, order: ordered, expected,
+        price, priced: priced.length > 0, cu, co,
         surplus: ordered - expected,
         runOut: totals.filter(t => t > ordered).length / totals.length,
         expCost: recCost, naiveOrder, naiveCost, saved: naiveCost - recCost,
@@ -1988,6 +2095,7 @@
     const shortest = Math.min(...results.map(r => r.days));
     const notes = [];
     if (thin) notes.push(`${thin} product${thin > 1 ? 's' : ''} skipped — not enough days of history.`);
+    if (unpriced) notes.push(`${unpriced} product${unpriced > 1 ? 's have' : ' has'} no price in your file — priced at ${money(FALLBACK_PRICE_USD)} for the money columns only. How many units to order is unaffected.`);
     if (parsed.skipped) notes.push(`${parsed.skipped} row${parsed.skipped > 1 ? 's' : ''} skipped — couldn't read the sales number.`);
     if (shortest < 28) notes.push(`Only ${shortest} days of history for at least one product. It still works, but 8+ weeks reads your busy days far more reliably.`);
     msg.innerHTML = notes.length ? `<div class="msg">${notes.join('<br>')}</div>`
@@ -2003,7 +2111,7 @@
     $('#calcSaving').innerHTML = `
     <div class="saving-hero">
       <div class="k">Expected saving vs ordering the average</div>
-      <div class="v">${money(totSaved)}${savedPct > 0.0005 ? ` <span style="font-size:17px;color:var(--ink-3)">(${(savedPct * 100).toFixed(1)}%)</span>` : ''}</div>
+      <div class="v">${moneySmart(totSaved)}${savedPct > 0.0005 ? ` <span style="font-size:17px;color:var(--ink-3)">(${(savedPct * 100).toFixed(1)}%)</span>` : ''}</div>
       <div class="d">
         per ${h}-day cycle, across ${results.length} product${results.length > 1 ? 's' : ''}. This is an
         <strong>expected value, not a guarantee</strong> — it's what the maths works out to on
@@ -2022,12 +2130,12 @@
     tiles.innerHTML = [
       ['Total units to order', fmt(totUnits), `to cover the next ${h} day${h > 1 ? 's' : ''}`],
       [bufferLabel, (netBuffer >= 0 ? '+' : '−') + fmt(Math.abs(Math.round(netBuffer))), bufferNote],
-      ['Expected cost of being wrong', money(totCost), `vs ${money(totNaive)} ordering the average`],
+      ['Expected cost of being wrong', moneySmart(totCost), `vs ${moneySmart(totNaive)} ordering the average`],
     ].map(([k, v, d]) => `<div class="tile"><div class="k">${k}</div><div class="v">${v}</div><div class="d">${d}</div></div>`).join('');
 
-    table.innerHTML = `<thead><tr><th>Product</th><th>Order this many</th><th>Typical demand</th>
-    <th>vs typical</th><th>Chance you run out</th><th>Expected saving</th><th>What to know</th>
-    </tr></thead><tbody>` +
+    table.innerHTML = `<thead><tr><th>Product</th><th>Unit price</th><th>Order this many</th>
+    <th>Typical demand</th><th>vs typical</th><th>Chance you run out</th><th>Expected saving</th>
+    <th>What to know</th></tr></thead><tbody>` +
       results.map(r => {
         let note = '';
         if (r.order === 0) note = 'Sells too rarely to stock every cycle — order on request.';
@@ -2041,9 +2149,14 @@
         // A near-zero saving is honest output, not a rounding artefact: when the optimal order
         // lands on the average anyway, optimising genuinely buys nothing for that product.
         const sv = r.saved > 0.005
-          ? `<span class="win">${money(r.saved)}</span>`
+          ? `<span class="win">${moneyFine(r.saved)}</span>`
           : `<span style="color:var(--ink-3)">—</span>`;
+        // Flagged when it came from the fallback rather than the file, so nobody reads an
+        // invented price as one of their own.
+        const px = r.priced ? moneyFine(r.price)
+          : `<span style="color:var(--ink-3)" title="No unit_price in your file">${moneyFine(r.price)}*</span>`;
         return `<tr><td>${r.sku}</td>
+      <td class="num">${px}</td>
       <td class="num"><span class="order-qty">${fmt(r.order)}</span></td>
       <td class="num">${r.expected.toFixed(1)}</td>
       <td class="num">${vs}</td>
@@ -2053,10 +2166,12 @@
       }).join('') + '</tbody>';
 
     cap.textContent = `Aiming to have enough stock ${Math.round(cr * 100)}% of the time — worked out `
-      + `from your two costs, not chosen. "Typical demand" is your average ${h}-day total, and `
-      + `"vs typical" is how far above or below it you're ordering. A negative number is not an `
-      + `error: when waste costs more than a missed sale, ordering under your average is the `
-      + `cheaper plan.`;
+      + `from your ${Math.round(RATES.margin * 100)}% margin and ${Math.round(RATES.spoilage * 100)}% `
+      + `write-off, not chosen. That target is shared across products (both costs scale with `
+      + `price, so price cancels out of it), but the money columns are each product's own: they `
+      + `come from its own price. "Typical demand" is your average ${h}-day total, and "vs typical" `
+      + `is how far above or below it you're ordering. A negative number is not an error: when `
+      + `waste costs more than a missed sale, ordering under your average is the cheaper plan.`;
   }
 
   $('#loadDemo').addEventListener('click', () => { $('#csv').value = DATA.demoCsv; runCalculator(); });
@@ -2069,19 +2184,21 @@
   });
   ['input', 'change'].forEach(ev => {
     ['#csv', '#cover'].forEach(sel => $(sel).addEventListener(ev, runCalculator));
-    // Cost boxes must write back to canonical USD before recalculating, or the stored value
-    // and the displayed value drift apart the moment someone types.
-    ['#pMiss', '#pWaste'].forEach(sel => $(sel).addEventListener(ev, () => {
-      syncCostsFromInputs(); runCalculator();
+    // Sliders write back to canonical rates before recalculating, so the readout beside the
+    // slider and the number the maths uses can never disagree.
+    ['#pMargin', '#pWaste'].forEach(sel => $(sel).addEventListener(ev, () => {
+      syncRatesFromInputs(); runCalculator();
     }));
   });
 
   /** The order list as CSV text. Pure, so it can be tested without a DOM. */
   function orderListCsv() {
     const cur = CURRENCY === 'USD' ? 'usd' : FX.code.toLowerCase();
-    const lines = [`product,order_quantity,typical_demand,vs_typical,chance_of_running_out,expected_saving_${cur}`];
+    const lines = [`product,unit_price_${cur},price_source,order_quantity,typical_demand,`
+      + `vs_typical,chance_of_running_out,expected_saving_${cur}`];
     CAL.skus.forEach(r => lines.push([
-      JSON.stringify(r.sku), r.order, r.expected.toFixed(2), r.surplus.toFixed(2),
+      JSON.stringify(r.sku), toDisplayCcy(r.price).toFixed(2), r.priced ? 'your file' : 'default',
+      r.order, r.expected.toFixed(2), r.surplus.toFixed(2),
       (r.runOut * 100).toFixed(0) + '%', toDisplayCcy(r.saved).toFixed(2),
     ].join(',')));
     return lines.join('\r\n');   // CRLF so Excel opens it cleanly
@@ -2117,7 +2234,7 @@
     setTimeout(() => $('#copyCsv').textContent = 'Copy to clipboard', 1800);
   });
 
-  renderCostInputs();
+  renderRateInputs();
   runCalculator();
   update();
 </script>
