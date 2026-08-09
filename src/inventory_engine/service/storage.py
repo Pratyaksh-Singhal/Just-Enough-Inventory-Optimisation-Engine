@@ -18,6 +18,7 @@ readable handle, delete.
 from __future__ import annotations
 
 import hashlib
+import re
 import shutil
 import uuid
 from dataclasses import dataclass
@@ -124,7 +125,22 @@ class LocalDiskStorage:
 
     @staticmethod
     def _path_for(uri: str) -> Path:
-        """Resolve a ``file://`` URI back to a path.
+        """Resolve a ``file://`` URI back to a path, on Windows and POSIX alike.
+
+        The two platforms disagree about the leading slash, and getting it wrong is not a
+        cosmetic difference -- it turns an absolute path into a relative one.
+
+        * Windows: ``file:///D:/data/x.csv`` -> ``urlparse().path`` is ``/D:/data/x.csv``.
+          The slash is an artefact of the URI form and must go, leaving ``D:/data/x.csv``.
+        * POSIX: ``file:///data/uploads/x.csv`` -> ``urlparse().path`` is
+          ``/data/uploads/x.csv``. That slash is the root and must **stay**.
+
+        The first version stripped it unconditionally, which worked on the machine it was
+        written on and broke the moment the service ran in a Linux container: the API wrote
+        to ``/data/uploads/x.csv`` and then tried to read ``data/uploads/x.csv`` relative to
+        the working directory, giving ``FileNotFoundError`` on every single upload. Found by
+        building the image and running it, not by any test on Windows -- which is the point
+        of running it.
 
         Raises:
             ValueError: For any other scheme, rather than silently treating the URI as a
@@ -135,7 +151,11 @@ class LocalDiskStorage:
             raise ValueError(f"LocalDiskStorage cannot read {uri!r}; expected a file:// URI")
         from urllib.parse import unquote, urlparse
 
-        return Path(unquote(urlparse(uri).path).lstrip("/"))
+        path = unquote(urlparse(uri).path)
+        # A drive letter directly after the leading slash means the Windows form.
+        if re.match(r"^/[A-Za-z]:", path):
+            path = path[1:]
+        return Path(path)
 
     def free_bytes(self) -> int:
         """Bytes available on the volume holding the store, for the health probe."""
