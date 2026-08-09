@@ -27,6 +27,37 @@ every figure rather than fighting a chart library's defaults.
 The API is real and tested (`run-api`, 19 contract tests); the dashboard simply doesn't
 depend on it being up.
 
+## One tab does need a backend
+
+**Full forecast** is the exception, and it is a deliberate one. Every other tab renders from
+data baked into the file at build time; that tab uploads a CSV to the tier 2 service, polls
+a job, and draws what comes back. It cannot work without `run-service` running.
+
+So it degrades openly rather than silently: opening the tab probes `/health` once, and when
+there is nothing there it says so and points at the Order calculator, which needs no backend
+and handles the same file. The address is an editable field, prefilled with
+`http://127.0.0.1:8001` — **8001, not 8000**, because tier 1's `run-api` owns 8000 and the
+two are meant to run side by side.
+
+The probe fires on first open of that tab, not on page load: a visitor who never opens it
+should not have a failing request in their network log.
+
+### The forecast chart's colour, and why it is one hue
+
+History and forecast are the same quantity at two points in time, so they share **jade** and
+are separated by a channel that is not colour — solid for what happened, dashed for what is
+projected. The band is jade at 10%, and the order line is a neutral dotted annotation.
+
+That was not the first attempt. A muted grey history line against a jade forecast failed the
+dataviz validator at **ΔE 14.8 normal-vision, under the floor of 15** — two lines a
+full-colour reader would struggle to tell apart. Borrowing amber or blue would have been
+worse: they carry fixed meanings (overstock, understock) on every other figure here, and
+reusing them for "past" and "future" would break the one thing this palette is for.
+
+The order quantity is drawn as a **daily rate**, not its horizon total. A 28-day total of 437
+plotted on an axis whose values run 0–60 would sit far off the top of the chart and mean
+nothing; 15.6/day is the same decision in the chart's own units.
+
 ## The cost simulator is exact, not interpolated
 
 Order quantity depends only on the critical ratio. So total shortfall and leftover **units**
