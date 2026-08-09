@@ -19,6 +19,21 @@ dependencies = [
 models = ["lightgbm>=4.3", "scikit-learn>=1.5", "statsforecast>=1.7", "mlflow>=2.14"]
 hierarchy = ["hierarchicalforecast>=0.4", "scipy>=1.13"]
 api = ["fastapi>=0.111", "uvicorn[standard]>=0.30", "pydantic>=2.7"]
+# Tier 2: the backend forecast service. Postgres rather than DuckDB (concurrent writers),
+# arq rather than RQ (RQ needs os.fork, which rules out a native Windows worker).
+service = [
+    "fastapi>=0.111",
+    "uvicorn[standard]>=0.30",
+    "pydantic>=2.7",
+    "pydantic-settings>=2.4",
+    "sqlalchemy>=2.0",
+    "psycopg[binary]>=3.2",
+    "alembic>=1.13",
+    "arq>=0.26",
+    "python-multipart>=0.0.9",
+    "sentry-sdk[fastapi]>=2.13",
+    "posthog>=3.5",
+]
 dev = ["pytest>=8.2", "ruff>=0.5", "shap>=0.45", "httpx>=0.27"]
 
 [project.scripts]
@@ -31,6 +46,7 @@ run-backtest = "inventory_engine.backtest.run_backtest:main"
 run-mint = "inventory_engine.hierarchy.run_mint:main"
 run-optimize = "inventory_engine.optimize.run_optimize:main"
 run-api = "inventory_engine.api.run_server:main"
+run-service = "inventory_engine.service.run_server:main"
 run-nightly-refresh = "inventory_engine.api.run_nightly:main"
 run-api-bench = "inventory_engine.api.bench:main"
 
@@ -52,8 +68,18 @@ ignore = ["D203", "D213"]
 # FastAPI's dependency injection requires Depends(...) as an argument default -- that is
 # the framework's documented API, not the antipattern B008 flags.
 "src/inventory_engine/api/*" = ["B008"]
+"src/inventory_engine/service/*" = ["B008"]
+"src/inventory_engine/service/routers/*" = ["B008"]
+# Alembic generates these and owns their shape; reformatting them fights the tool.
+"migrations/*" = ["D", "E501", "I"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 # `tests` is on the path so test modules can share `synthetic.py`.
 pythonpath = ["src", "tests"]
+markers = [
+    # Tests that actually fit LightGBM. They run by default -- a model pipeline whose
+    # end-to-end behaviour is opt-in is a model pipeline nobody checks -- but the marker
+    # exists so `-m "not slow"` gives a fast inner loop.
+    "slow: fits a real model; seconds rather than milliseconds",
+]

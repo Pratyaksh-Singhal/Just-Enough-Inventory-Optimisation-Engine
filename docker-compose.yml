@@ -1,0 +1,88 @@
+# Local tier 2 stack: Postgres, Redis, the API and the worker.
+#
+# The API and the worker are the same image with different commands, because they must run
+# the same code -- a worker built from a stale image would fit a model the API cannot
+# describe. They share the uploads volume: LocalDiskStorage hands the worker a path, so
+# both processes have to see the same filesystem. That constraint is what forces the move
+# to S3-compatible storage the moment these run on separate hosts.
+#
+# DATABASE_URL here points at the `db` service. Deployed, it points at a hosted Postgres
+# and nothing else changes -- that is the payoff for using plain Postgres over a
+# provider-specific client.
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: inventory
+      POSTGRES_PASSWORD: inventory
+      POSTGRES_DB: inventory
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # The API and worker both wait on this. Without it they race the database's first
+      # start and crash-loop until it wins, which reads as a broken stack rather than a
+      # slow one.
+      test: ["CMD-SHELL", "pg_isready -U inventory -d inventory"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # 8001 outside, matching run-service's default, so tier 1's run-api keeps 8000 and the
+    # dashboard's prefilled address is right whether the service runs here or on the host.
+    command: uvicorn inventory_engine.service.app:app --host 0.0.0.0 --port 8001
+    environment:
+      DATABASE_URL: postgresql+psycopg://inventory:inventory@db:5432/inventory
+      REDIS_URL: redis://redis:6379
+      UPLOAD_DIR: /data/uploads
+      ENVIRONMENT: development
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      POSTHOG_API_KEY: ${POSTHOG_API_KEY:-}
+    ports:
+      - "8001:8001"
+    volumes:
+      - uploads:/data/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: arq inventory_engine.service.worker.WorkerSettings
+    environment:
+      DATABASE_URL: postgresql+psycopg://inventory:inventory@db:5432/inventory
+      REDIS_URL: redis://redis:6379
+      UPLOAD_DIR: /data/uploads
+      ENVIRONMENT: development
+      SENTRY_DSN: ${SENTRY_DSN:-}
+    volumes:
+      - uploads:/data/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  uploads:

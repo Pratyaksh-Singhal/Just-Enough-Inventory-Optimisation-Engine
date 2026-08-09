@@ -17,3 +17,14 @@ mlartifacts/
 node_modules/
 dashboard/dist/
 .env
+
+# Tier 2: users' own uploaded sales history. Never in the repo, never in a backup that
+# was not deliberately configured to hold it.
+data/uploads/
+
+# Agent tooling — installed artefacts, not project source (~1,050 files).
+# .claude/settings.json is deliberately NOT ignored: the permission config is team-wide.
+.claude/skills/
+_bmad/
+_bmad-output/
+design-artifacts/
