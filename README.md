@@ -691,6 +691,29 @@ disables the integration entirely.
 **Both are off by default.** No key, no integration — the local stack runs with neither, and
 `.env.example` ships both blank.
 
+### How long uploads are kept
+
+Being careful about *where* data goes is undermined by keeping it forever, so there is a
+finite window: `UPLOAD_RETENTION_DAYS`, 30 by default. A daily job on the worker (03:15)
+destroys anything older, and `DELETE /datasets/{id}` does it on demand.
+
+Deletion is a hard delete, not a flag. It removes the stored CSV, the dataset row, the gate
+verdicts, the jobs, and the forecast results — including `forecast_results.series`, which
+holds a copy of the user's own daily sales values. A soft delete would leave both the file
+and that copy in place, which is not what "delete my data" means to the person asking.
+
+**The bytes go first, then the row.** The two orderings fail differently and only one fails
+safely: row-first then a crash leaves a file nothing points at — sensitive data lingering
+invisibly. Bytes-first then a crash leaves a row pointing at a file that is gone, which is a
+404 and a sweep. The purge also removes unreferenced files, which is how a process killed
+between writing bytes and committing a row gets cleaned up.
+
+A queued or running forecast against a deleted dataset is failed with a stated reason rather
+than left to die on a missing file.
+
+The purge refuses a retention window of zero or less instead of reading it as "delete
+everything on the next run".
+
 Logs stay on the operator's own infrastructure: structured JSON to stdout, one object per
 line, every line carrying `request_id`. The id flows API → queue → worker, so one upload is
 one `grep`:
