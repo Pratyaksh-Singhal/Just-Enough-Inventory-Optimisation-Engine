@@ -599,12 +599,133 @@ crossed grid so this can't regress silently.
 
 ---
 
+## Phase 9b — tier 2: the Full Forecast service
+
+Everything above is **tier 1**: a fixed M5 panel, a nightly pipeline, a read-only API over
+precomputed results, and a dashboard with the numbers baked in. It is unchanged by any of
+what follows.
+
+**Tier 2** takes a user's own CSV and forecasts it. Separate package
+(`inventory_engine.service`), separate database, separate port.
+
+| | tier 1 | tier 2 |
+|---|---|---|
+| data | M5, curated | whatever the user uploads |
+| store | DuckDB, one nightly writer | Postgres, concurrent writers |
+| compute | nightly batch | arq worker, per request |
+| entry point | `run-api` (:8000) | `run-service` (:8001) |
+| UI | four tabs, data inlined | the **Full forecast** tab, live |
+
+### Why Postgres and a queue, rather than more DuckDB
+
+DuckDB gives a writer *exclusive* access to the file — documented in `api/deps.py`, worked
+around in `api/precompute.py` with a shadow copy and an atomic swap. That is a sound design
+for one nightly writer and many readers of a static warehouse, and a hopeless one here,
+where every upload and every job transition is an unscheduled write. There is no quiet
+moment to swap in.
+
+Model fitting does not happen in a request handler. `tests/test_service_layering.py`
+enforces it by AST scan over every handler module in **both** tiers — a widening of tier 1's
+`test_no_handler_imports_a_trainer`, which read one file and grepped for four strings.
+
+### The data gate
+
+Tier 2 refuses data it cannot honestly forecast, and names the shortfall:
+
+- ≥ 90 days of history per SKU, ≥ 20 recorded days, gaps ≤ 14 days
+- a failing SKU is excluded by name and reason; if *all* fail, the response says
+  `90 days of history needed, 21 found` and points at the quick calculator, which works on
+  short history precisely because it validates nothing
+
+Nothing is padded or interpolated to get past it. The transformations that *are* applied —
+duplicate `(sku, date)` rows summed, negatives read as returns, unparseable dates dropped —
+are each counted and reported back.
+
+### Honest model selection
+
+Per-SKU quantile GBM against a seasonal-naive baseline, rolling origin on the user's own
+history, fold count derived from what that history supports (90 days at a 28-day horizon is
+**two** folds, and the response says so). Selection is on pinball loss at the critical
+ratio, because that is the loss function of the number on the purchase order. **Both
+methods' scores are always returned**, and when the baseline wins the baseline is served
+and the response says by how much. Differences under 5% are reported as "too close to call"
+rather than as a victory for whichever way the noise fell.
+
+## What tier 2 sends to third parties
+
+Users upload their own sales history — product names, daily volumes, prices. That is
+commercially sensitive, so this section is specific rather than reassuring.
+
+**PostHog** (product analytics) receives six funnel events: `upload_received`,
+`upload_rejected`, `dataset_created`, `forecast_enqueued`, `forecast_completed`,
+`forecast_failed`.
+
+Their properties come from an **allowlist** in `service/observability.py` — counts,
+durations, enums and opaque UUIDs. Not a convention: `Analytics.capture` drops anything
+outside `ALLOWED_PROPERTIES` and logs a warning, so a future call site passing `sku=...`
+leaks nothing and fails a test. What is sent:
+
+`rows_read` · `sku_count` · `sku_count_admitted` · `sku_count_rejected` · `byte_size` ·
+`horizon` · `critical_ratio` · `elapsed_seconds` · `n_folds` · `method_used` (aggregated to
+`all_model` / `all_baseline` / `mixed`) · `rejection_reason` (a fixed vocabulary) ·
+`dataset_id` / `job_id` / `request_id` · `component` · `environment`
+
+Never sent: product names, unit prices, order quantities, sales figures, filenames, file
+contents, or the rendered refusal message (which names SKUs).
+
+Identity is an anonymous per-browser UUID in `localStorage`, sent as `X-Client-ID`. It
+identifies a browser, not a person; nothing links it to a name, an email or a company, and
+clearing site data resets it. There are no accounts.
+
+**Sentry** (error tracking) receives exceptions from the API and the worker, tagged by
+component. `send_default_pii=False`, request bodies are never captured, and a `before_send`
+hook drops the request object, breadcrumbs and stack-frame locals, and redacts our own
+`sku` / `filename` / `storage_uri` keys.
+
+Stated plainly: **that is not a guarantee that no user data ever reaches Sentry.** An
+exception message can contain anything — a pandas error can quote a value. The hook removes
+the channels that would carry data in bulk; it cannot sanitise arbitrary strings. An
+operator who cannot accept that residual risk should leave `SENTRY_DSN` unset, which
+disables the integration entirely.
+
+**Both are off by default.** No key, no integration — the local stack runs with neither, and
+`.env.example` ships both blank.
+
+Logs stay on the operator's own infrastructure: structured JSON to stdout, one object per
+line, every line carrying `request_id`. The id flows API → queue → worker, so one upload is
+one `grep`:
+
+```
+{"component":"api",    "request_id":"TRACE-…", "message":"dataset created",      "admitted":7}
+{"component":"api",    "request_id":"TRACE-…", "message":"forecast enqueued",    "horizon":28}
+{"component":"worker", "request_id":"TRACE-…", "message":"forecast job starting"}
+{"component":"worker", "request_id":"TRACE-…", "message":"forecast job done",    "seconds":8.2}
+```
+
+One documented exception: arq prints two banner lines before `on_startup`, the earliest
+hook a worker has, so those two lines per process start are plain text. Everything after
+them is JSON.
+
+### Running tier 2
+
+```bash
+docker compose up -d db redis          # Postgres 16 + Redis 7
+alembic upgrade head                   # tier 2 schema
+run-service                            # API on :8001 (tier 1's run-api keeps :8000)
+arq inventory_engine.service.worker.WorkerSettings
+```
+
+Then open the dashboard and use the **Full forecast** tab. Or `docker compose up` for the
+whole stack.
+
+---
+
 ## Setup
 
 ```bash
 python -m venv .venv
 .venv/Scripts/activate          # Windows
-pip install -e ".[dev]"
+pip install -e ".[dev]"         # add ".[service]" for tier 2
 ```
 
 Download the three M5 files from
