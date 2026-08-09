@@ -1,0 +1,146 @@
+# Run the suite automatically, and run it on Linux.
+#
+# The Linux job is the point of this file. A file:// path bug passed 370 tests on Windows
+# and only surfaced when the service ran in a container: urlparse().path.lstrip("/") keeps
+# a Windows drive letter absolute and makes a POSIX root relative. Nothing on the developer
+# machine could have caught it. Now every push runs the suite on both, so an OS-specific
+# bug fails here rather than in a container build.
+#
+# Windows runs the same suite without service containers -- GitHub only supports those on
+# Linux runners -- so the six Postgres integration tests skip there, exactly as they do on
+# a laptop with no database up. The Linux job asserts they did NOT skip, because a suite
+# that is green for the wrong reason is worse than a red one.
+
+name: CI
+
+on:
+  push:
+    branches: [dev, main]
+  pull_request:
+    branches: [dev, main]
+  # Lets a run be retried without an empty commit.
+  workflow_dispatch:
+
+# A new push to the same branch makes the previous run's answer irrelevant.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Pinned rather than floating. `ruff format` output changes between releases, so an
+  # unpinned CI would fail on a codebase that formats cleanly locally -- a failure about
+  # ruff's version, dressed up as a failure about the code.
+  RUFF_VERSION: "0.16.2"
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  lint:
+    name: ruff (check + format)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      # Only ruff. Linting does not need LightGBM, and pulling the model stack here would
+      # add minutes to a job that finishes in seconds.
+      - run: pip install "ruff==${{ env.RUFF_VERSION }}"
+
+      - name: ruff check
+        run: ruff check src tests migrations scripts
+
+      - name: ruff format --check
+        run: ruff format --check src tests migrations scripts
+
+  test-linux:
+    name: pytest (ubuntu, with postgres + redis)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: inventory
+          POSTGRES_PASSWORD: inventory
+          POSTGRES_DB: inventory
+        ports: ["5432:5432"]
+        # The suite starts the moment the runner is ready; without a healthcheck it would
+        # race Postgres's first start and the integration tests would skip.
+        options: >-
+          --health-cmd "pg_isready -U inventory -d inventory"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      # test_service_postgres.py creates and drops its own databases rather than touching
+      # this one -- an earlier version pointed the fixture at the application database and
+      # dropped its tables as a side effect of running.
+      TEST_DATABASE_URL: postgresql+psycopg://inventory:inventory@localhost:5432/inventory
+      DATABASE_URL: postgresql+psycopg://inventory:inventory@localhost:5432/inventory
+      REDIS_URL: redis://localhost:6379
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          # Caches the pip wheel download directory. LightGBM, statsforecast, mlflow and
+          # shap are most of the install time; keyed on pyproject so it only re-downloads
+          # when dependencies actually change.
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[api,models,hierarchy,service,dev]"
+
+      - name: pytest
+        run: python -m pytest -q
+
+      - name: Postgres tests must have actually run
+        # The integration tests skip themselves when no database is reachable, which is
+        # right on a laptop and wrong here: it would turn "the service container never came
+        # up" into a green tick. Fail loudly instead.
+        run: |
+          python -m pytest tests/test_service_postgres.py -q --no-header -rs | tee pg.log
+          if grep -qi "skipped" pg.log; then
+            echo "::error::Postgres integration tests skipped -- the service container was unreachable"
+            exit 1
+          fi
+          echo "Postgres integration tests ran against a real database."
+
+  test-windows:
+    name: pytest (windows)
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[api,models,hierarchy,service,dev]"
+
+      # No service containers on Windows runners, so the Postgres tests skip here. That is
+      # the documented behaviour, not a gap: -rs prints the skip reasons so the log says
+      # which tests did not run and why.
+      - name: pytest
+        run: python -m pytest -q -rs
