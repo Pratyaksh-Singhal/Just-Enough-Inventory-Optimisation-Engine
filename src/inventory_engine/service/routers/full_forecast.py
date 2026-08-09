@@ -35,7 +35,9 @@ from inventory_engine.service.observability import (
     EVENT_UPLOAD_REJECTED,
     analytics,
 )
+from inventory_engine.service.retention import delete_dataset
 from inventory_engine.service.schemas import (
+    DeleteResponse,
     ForecastRunRequest,
     ForecastRunResponse,
     ForecastStatusResponse,
@@ -472,6 +474,49 @@ def _result_of(row: ForecastResult, horizon: int) -> SkuResult:
             pinball_baseline=row.pinball_baseline,
         ),
         series=row.series,
+    )
+
+
+@router.delete("/datasets/{dataset_id}", response_model=DeleteResponse)
+def delete_dataset_endpoint(
+    dataset_id: uuid.UUID,
+    session: Session = Depends(get_session),
+    storage: LocalDiskStorage = Depends(get_storage),
+) -> DeleteResponse:
+    """Delete an upload and everything derived from it, now.
+
+    Hard delete, not a flag. A soft delete would leave the CSV on disk and the user's own
+    daily sales values in ``forecast_results.series``, which is not what "delete my data"
+    means to the person asking.
+
+    Idempotent: deleting an already-deleted dataset is a 404, but the second call has
+    nothing left to do either way.
+
+    Raises:
+        HTTPException: 404 if no such dataset.
+
+    """
+    dataset = session.get(Dataset, dataset_id)
+    if dataset is None:
+        raise HTTPException(status_code=404, detail=f"no dataset {dataset_id}")
+
+    result = delete_dataset(session, storage, dataset)
+    log.info(
+        "dataset deleted on request",
+        extra={"dataset_id": str(dataset_id), "jobs_cancelled": result.jobs_cancelled},
+    )
+    return DeleteResponse(
+        dataset_id=dataset_id,
+        deleted=True,
+        jobs_cancelled=result.jobs_cancelled,
+        message=(
+            "Deleted: the uploaded file, its forecasts and its stored history are gone."
+            + (
+                f" {result.jobs_cancelled} running or queued forecast(s) were cancelled."
+                if result.jobs_cancelled
+                else ""
+            )
+        ),
     )
 
 

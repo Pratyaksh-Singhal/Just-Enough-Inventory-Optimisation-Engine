@@ -30,6 +30,11 @@ class ServiceSettings(BaseSettings):
         posthog_host: PostHog ingestion endpoint, for EU or self-hosted instances.
         environment: Tag attached to Sentry events and PostHog properties.
         job_timeout_seconds: Ceiling on one forecast job in the worker.
+        upload_retention_days: Age past which an uploaded CSV and everything derived from
+            it is destroyed. Users upload their own sales history; keeping it forever is
+            not a neutral default, so there is a finite one. Must be positive --
+            :func:`~inventory_engine.service.retention.purge_expired` refuses zero rather
+            than reading it as "delete everything".
 
     """
 
@@ -47,6 +52,7 @@ class ServiceSettings(BaseSettings):
     environment: str = "development"
 
     job_timeout_seconds: int = 900
+    upload_retention_days: int = 30
 
 
 def get_settings() -> ServiceSettings:

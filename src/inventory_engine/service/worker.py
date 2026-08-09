@@ -42,7 +42,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 
 import pandas as pd
-from arq import func
+from arq import cron, func
 from arq.connections import RedisSettings
 from sqlalchemy import select
 
@@ -66,6 +66,7 @@ from inventory_engine.service.observability import (
     init_sentry,
 )
 from inventory_engine.service.pipeline import SkuForecast, forecast_sku
+from inventory_engine.service.retention import purge_expired, sweep_orphans
 from inventory_engine.service.settings import get_settings
 from inventory_engine.service.storage import LocalDiskStorage
 
@@ -272,6 +273,34 @@ def _finite(value: float | None) -> float | None:
     return float(value) if pd.notna(value) else None
 
 
+async def purge_uploads(ctx: dict) -> dict:
+    """Destroy uploads past the retention window, plus any orphaned files.
+
+    Runs on the worker rather than as a separate cron container: it needs the same
+    database, the same uploads volume and the same settings, and a second deployable to
+    delete some rows is a second thing to forget to deploy.
+    """
+    settings = get_settings()
+    bind_request_id(f"purge-{datetime.now(UTC):%Y%m%d}")
+    storage = LocalDiskStorage(settings.upload_dir)
+
+    with get_sessionmaker()() as session:
+        result = purge_expired(session, storage, settings.upload_retention_days)
+        orphans = sweep_orphans(session, storage)
+        session.commit()
+
+    log.info(
+        "retention run complete",
+        extra={
+            "retention_days": settings.upload_retention_days,
+            "datasets_deleted": result.datasets_deleted,
+            "orphans_deleted": orphans,
+            "jobs_cancelled": result.jobs_cancelled,
+        },
+    )
+    return {"datasets_deleted": result.datasets_deleted, "orphans_deleted": orphans}
+
+
 class WorkerSettings:
     """arq entry point. ``arq inventory_engine.service.worker.WorkerSettings``."""
 
@@ -279,6 +308,9 @@ class WorkerSettings:
     #: that renaming the coroutine cannot silently orphan every job the API enqueues under
     #: the old name. ``tests/test_service_worker`` asserts producer and consumer agree.
     functions = [func(run_forecast_job, name=FORECAST_TASK)]
+    #: Retention runs at 03:15 daily. Not on a timer from process start: a worker that
+    #: restarts often would either never reach the interval or run the purge on every boot.
+    cron_jobs = [cron(purge_uploads, hour=3, minute=15, run_at_startup=False)]
     redis_settings = RedisSettings.from_dsn(get_settings().redis_url)
     max_jobs = 2
     job_timeout = get_settings().job_timeout_seconds

@@ -204,6 +204,17 @@ class ForecastStatusResponse(BaseModel):
     message: str = Field(description="One line suitable for showing while polling")
 
 
+class DeleteResponse(BaseModel):
+    """``DELETE /datasets/{dataset_id}`` — the upload and everything derived from it, gone."""
+
+    dataset_id: uuid.UUID
+    deleted: bool
+    jobs_cancelled: int = Field(
+        default=0, description="Queued or running forecasts stopped because their data went"
+    )
+    message: str
+
+
 class ServiceHealth(BaseModel):
     """``GET /health`` for tier 2.
 
