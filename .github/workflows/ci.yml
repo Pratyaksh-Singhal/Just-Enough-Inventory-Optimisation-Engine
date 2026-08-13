@@ -114,13 +114,30 @@ jobs:
         # The integration tests skip themselves when no database is reachable, which is
         # right on a laptop and wrong here: it would turn "the service container never came
         # up" into a green tick. Fail loudly instead.
+        #
+        # `shell: bash` is load-bearing. An undeclared `run:` gets `bash -e {0}` with no
+        # pipefail, so `pytest | tee` returns tee's exit status and a failing pytest reads
+        # as success -- this step could only ever fail on the grep below. Declaring the
+        # shell adds `-o pipefail`, which is what makes the pipe honest.
+        shell: bash
         run: |
           python -m pytest tests/test_service_postgres.py -q --no-header -rs | tee pg.log
           if grep -qi "skipped" pg.log; then
             echo "::error::Postgres integration tests skipped -- the service container was unreachable"
             exit 1
           fi
-          echo "Postgres integration tests ran against a real database."
+          # "Nothing skipped" is not "the test that matters ran". Renaming or deselecting
+          # the migration/model drift check would leave the grep above perfectly green
+          # while the one test that can see the migration at all had silently stopped
+          # existing, so it is asserted by name.
+          if ! python -m pytest --collect-only -q --no-header \
+              "tests/test_service_postgres.py::test_the_migration_and_the_models_agree" \
+              > drift.log 2>&1; then
+            cat drift.log
+            echo "::error::the migration/model drift test could not be collected -- renamed, moved or removed"
+            exit 1
+          fi
+          echo "Postgres integration tests ran against a real database, drift check included."
 
   test-windows:
     name: pytest (windows)

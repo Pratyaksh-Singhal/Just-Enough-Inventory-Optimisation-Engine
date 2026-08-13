@@ -136,6 +136,16 @@ def test_the_migration_and_the_models_agree(monkeypatch):
     omitted from the models. Production got them (migrations run there), tests did not, and
     the next ``alembic revision --autogenerate`` would have read them as deleted and
     proposed dropping them.
+
+    What this does **not** cover
+    ----------------------------
+    ``compare_server_default`` is left at its default of ``False``, so a ``server_default``
+    present in one place and absent from the other is invisible here. That is a deliberate
+    limit and not an oversight: several columns carry a server default in the migration and
+    a Python-side ``default=`` on the model -- ``forecast_results.festival`` is one -- which
+    are consistent in effect and would be reported as drift by a comparison that only sees
+    DDL. The cost is that a genuine server-default divergence would also pass, so do not
+    read a green run here as "the defaults match".
     """
     from alembic import command
     from alembic.autogenerate import compare_metadata
