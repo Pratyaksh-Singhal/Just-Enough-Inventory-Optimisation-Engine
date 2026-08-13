@@ -33,6 +33,9 @@ service = [
     "python-multipart>=0.0.9",
     "sentry-sdk[fastapi]>=2.13",
     "posthog>=3.5",
+    # Festival dates. Lunar dates typed by hand are a silent-failure risk: a wrong
+    # Diwali measures the wrong fortnight and returns a confident ratio for it.
+    "holidays>=0.60",
 ]
 dev = ["pytest>=8.2", "ruff>=0.5", "shap>=0.45", "httpx>=0.27"]
 

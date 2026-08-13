@@ -66,6 +66,14 @@ FEATURE_COLUMNS: Final[tuple[str, ...]] = (
     *(f"roll_zero_share_{w}" for w in WINDOWS),
     "same_dow_mean_4",
     "trend_index",
+    # Calendar features, measured on the TARGET date rather than the origin. That is the
+    # documented exception to the origin rule: unlike a lag, a festival date is genuinely
+    # known in advance, exactly as tier 1's dim_calendar extends past its sales data.
+    # Knowing the target is three days before Diwali needs nothing the buyer would not have
+    # when placing the order.
+    "days_to_festival",
+    "days_since_festival",
+    "in_festival_window",
 )
 
 
@@ -120,6 +128,30 @@ def _origin_features(series: pd.Series) -> pd.DataFrame:
     return out
 
 
+def festival_features(target: pd.Timestamp, region: str | None) -> dict[str, float]:
+    """Calendar proximity for one target date.
+
+    ``region=None`` means no calendar, and the features come back at their neutral values
+    -- maximum distance, not in a window. They are still emitted rather than omitted so the
+    feature matrix has one shape regardless of region, which keeps a model fitted with a
+    calendar loadable against data without one.
+    """
+    from inventory_engine.service.festivals import HORIZON_DAYS, distance
+
+    if region is None:
+        return {
+            "days_to_festival": float(HORIZON_DAYS),
+            "days_since_festival": float(HORIZON_DAYS),
+            "in_festival_window": 0.0,
+        }
+    to_next, since_prev, inside = distance(target.date(), region)
+    return {
+        "days_to_festival": float(to_next),
+        "days_since_festival": float(since_prev),
+        "in_festival_window": float(inside),
+    }
+
+
 def _same_dow_mean(series: pd.Series, origin: pd.Timestamp, target_dow: int, n: int = 4) -> float:
     """Mean units on ``target_dow`` over the last ``n`` such weekdays at or before ``origin``.
 
@@ -135,7 +167,11 @@ def _same_dow_mean(series: pd.Series, origin: pd.Timestamp, target_dow: int, n: 
 
 
 def supervised_frame(
-    series: pd.Series, horizon: int, *, origins: pd.DatetimeIndex | None = None
+    series: pd.Series,
+    horizon: int,
+    *,
+    origins: pd.DatetimeIndex | None = None,
+    region: str | None = None,
 ) -> pd.DataFrame:
     """Build ``(origin, target)`` training rows from a daily series.
 
@@ -143,6 +179,8 @@ def supervised_frame(
         series: Daily series from :func:`to_daily`.
         horizon: Maximum days ahead to build rows for. One row per origin per ``h`` in
             ``1..horizon``.
+        region: Festival calendar to read proximity from. ``None`` emits the calendar
+            features at neutral values, so the matrix keeps one shape either way.
         origins: Restrict to these origins. ``None`` uses every origin with enough warmup
             behind it and at least one in-range target ahead of it.
 
@@ -172,7 +210,9 @@ def supervised_frame(
                     "target_dom": target.day,
                     "target_month": target.month,
                     "target_is_weekend": int(target.dayofweek >= 5),
+                    **festival_features(origin + pd.Timedelta(days=1), region),
                     "same_dow_mean_4": _same_dow_mean(series, origin, target.dayofweek),
+                    **festival_features(target, region),
                     "y": float(series.get(target, np.nan)),
                     **base.to_dict(),
                 }
@@ -182,7 +222,7 @@ def supervised_frame(
     return pd.DataFrame(rows)
 
 
-def total_frame(series: pd.Series, horizon: int) -> pd.DataFrame:
+def total_frame(series: pd.Series, horizon: int, *, region: str | None = None) -> pd.DataFrame:
     """Build one row per origin whose target is the ``horizon``-day forward total.
 
     This is the grain the order decision is actually made at. The newsvendor problem is
@@ -194,6 +234,7 @@ def total_frame(series: pd.Series, horizon: int) -> pd.DataFrame:
     Args:
         series: Daily series from :func:`to_daily`.
         horizon: Days the order must cover.
+        region: Festival calendar to read proximity from, or ``None``.
 
     Returns:
         Frame with :data:`FEATURE_COLUMNS` (``horizon`` constant) plus ``origin`` and ``y``,
@@ -213,6 +254,9 @@ def total_frame(series: pd.Series, horizon: int) -> pd.DataFrame:
             {
                 "origin": origin,
                 "horizon": horizon,
+                # The order covers origin+1 onwards, so the first covered day is the target
+                # the calendar features describe.
+                **festival_features(origin + pd.Timedelta(days=1), region),
                 "target_dow": (origin + pd.Timedelta(days=1)).dayofweek,
                 "target_dom": (origin + pd.Timedelta(days=1)).day,
                 "target_month": (origin + pd.Timedelta(days=1)).month,
