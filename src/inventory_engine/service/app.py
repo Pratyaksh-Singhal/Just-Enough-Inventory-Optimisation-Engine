@@ -62,7 +62,11 @@ def create_app(*, enable_cors: bool = True, configure_observability: bool = True
             CORSMiddleware,
             allow_origins=["*"],
             allow_credentials=False,
-            allow_methods=["GET", "POST"],
+            # DELETE is here because /datasets/{id} exists. It was missed when that endpoint
+            # was added, which meant the API offered a way to delete your data and the
+            # browser was forbidden from calling it -- the preflight returned "GET, POST".
+            # Listed explicitly rather than "*" so adding a method stays a deliberate act.
+            allow_methods=["GET", "POST", "DELETE"],
             allow_headers=["*"],
             expose_headers=[REQUEST_ID_HEADER, CLIENT_ID_HEADER],
         )

@@ -217,6 +217,27 @@ def test_a_dead_queue_degrades_health_without_failing_the_endpoint(client, monke
     assert body["status"] == "degraded"
 
 
+def test_cors_allows_every_method_the_api_actually_exposes(client):
+    """Regression: DELETE /datasets/{id} shipped while the preflight said "GET, POST".
+
+    The API offered a way to delete your own data and the browser was forbidden from
+    calling it. Derived from the route table rather than hard-coded, so the next endpoint
+    with a new verb fails here instead of in someone's console.
+    """
+    exposed = {
+        method
+        for route in client.app.routes
+        for method in getattr(route, "methods", set())
+        if method not in {"HEAD", "OPTIONS"}
+    }
+    response = client.options(
+        "/upload",
+        headers={"Origin": "http://localhost:8080", "Access-Control-Request-Method": "POST"},
+    )
+    allowed = {m.strip() for m in response.headers["access-control-allow-methods"].split(",")}
+    assert exposed <= allowed, f"CORS forbids {sorted(exposed - allowed)}, which the API exposes"
+
+
 def test_the_request_id_is_echoed_back(client):
     response = client.get("/health", headers={"X-Request-ID": "trace-me"})
     assert response.headers["X-Request-ID"] == "trace-me"
