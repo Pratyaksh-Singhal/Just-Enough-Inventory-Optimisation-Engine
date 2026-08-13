@@ -265,6 +265,28 @@ US_PROFILES: Final[dict[str, tuple[str, int, int]]] = {
 }
 
 
+#: The language the library is asked for its holiday *names* in, stated rather than
+#: inherited.
+#:
+#: This is a lookup key, not a presentation choice -- every name a user sees comes from
+#: :attr:`Source.name`, which is ours. But :data:`SOURCES` matches what the library emits,
+#: and those strings are gettext-translated: ``holidays`` declares India's
+#: ``default_language`` as ``en_IN``, where Eid al-Fitr is ``"Id-ul-Fitr"`` and Eid al-Adha
+#: is ``"Id-ul-Zuha (Bakrid)"``. Under ``en_US`` the same two are ``"Eid al-Fitr"`` and
+#: ``"Eid al-Adha"``.
+#:
+#: Left unset, the language resolves from the *ambient locale of whatever machine is
+#: running*. That is exactly what happened: this project's suite passed here and on the
+#: Linux CI runner, where gettext landed on ``en_US``, and failed on the Windows runner,
+#: where it landed on ``en_IN`` -- the calendar came back with no Eid in any of nine years
+#: while every other festival was fine, because ``"Diwali (Deepavali)"`` reads identically
+#: in both. A calendar whose contents depend on the host's locale is not a calendar.
+#:
+#: ``en_US`` rather than ``en_IN`` only because :data:`SOURCES` already spells them that
+#: way; either is correct as long as it is chosen here and not somewhere else.
+LIBRARY_LANGUAGE: Final = "en_US"
+
+
 @lru_cache(maxsize=8)
 def _subdivision_dates(subdiv: str | None) -> dict[str, tuple[date, ...]]:
     """Every holiday name in one subdivision, mapped to its dates over :data:`YEARS`.
@@ -274,12 +296,23 @@ def _subdivision_dates(subdiv: str | None) -> dict[str, tuple[date, ...]]:
     """
     import holidays
 
-    table = holidays.India(subdiv=subdiv, years=YEARS) if subdiv else holidays.India(years=YEARS)
+    table = holidays.India(subdiv=subdiv, years=YEARS, language=LIBRARY_LANGUAGE)
     out: dict[str, list[date]] = {}
     for day, label in table.items():
         for name in label.split("; "):
             out.setdefault(name, []).append(day)
     return {name: tuple(sorted(days)) for name, days in out.items()}
+
+
+def library_names(subdiv: str | None = None) -> set[str]:
+    """Every holiday name the library reports, under :data:`LIBRARY_LANGUAGE`.
+
+    Public so the tests that ask "does the library still have this" go through the same
+    language as the lookup does. When they built their own ``holidays.India`` instead, they
+    inherited the ambient locale and disagreed with this module about what the library is
+    even called -- which is the bug that took four CI runs to find.
+    """
+    return set(_subdivision_dates(subdiv))
 
 
 def _dates_for(source: Source) -> tuple[date, ...]:

@@ -21,6 +21,7 @@ import pytest
 
 from inventory_engine.service.festivals import (
     HORIZON_DAYS,
+    LIBRARY_LANGUAGE,
     OUT_OF_SCOPE,
     PARTIAL,
     SOURCES,
@@ -34,6 +35,7 @@ from inventory_engine.service.festivals import (
     festivals,
     gaps,
     is_prior_only,
+    library_names,
     next_festival,
     previous_festival,
     upcoming,
@@ -62,14 +64,6 @@ def instance(key: str, year: int):
 def full_coverage_keys() -> list[str]:
     """Festivals expected to have a date in every year."""
     return [key for key in SOURCES if key not in PARTIAL]
-
-
-def library_names(subdiv: str | None = None) -> set[str]:
-    """Every holiday name the library emits, for one subdivision or nationally."""
-    import holidays
-
-    table = holidays.India(subdiv=subdiv, years=YEARS) if subdiv else holidays.India(years=YEARS)
-    return {n for label in table.values() for n in label.split("; ")}
 
 
 def diagnosis(key: str | None = None) -> str:
@@ -121,13 +115,11 @@ def test_a_dropped_festival_is_still_available_to_re_add():
     """The out-of-scope note claims these are datable. Re-derived, or it is just a claim."""
     import holidays
 
-    every_name: set[str] = set()
-    for subdiv in [None, *sorted(holidays.India.subdivisions)]:
-        table = (
-            holidays.India(subdiv=subdiv, years=YEARS) if subdiv else holidays.India(years=YEARS)
-        )
-        for label in table.values():
-            every_name.update(n.lower() for n in label.split("; "))
+    every_name = {
+        n.lower()
+        for subdiv in [None, *sorted(holidays.India.subdivisions)]
+        for n in library_names(subdiv)
+    }
 
     for key, needle in {
         "dussehra": "dussehra",
@@ -140,6 +132,52 @@ def test_a_dropped_festival_is_still_available_to_re_add():
             f"{key} is no longer datable under any subdivision, so its OUT_OF_SCOPE note "
             f"is now wrong. Most likely the library renamed it.\n  {diagnosis()}"
         )
+
+
+# ------------------------------------------------------------------ the language it reads
+
+
+@pytest.mark.parametrize("locale", ["en_IN", "hi_IN", "C", "bn_IN.UTF-8", ""])
+def test_the_calendar_is_the_same_whatever_locale_the_host_is_in(locale, monkeypatch):
+    """Regression, and an expensive one: the calendar used to depend on the host's locale.
+
+    ``holidays`` gettext-translates its holiday names and declares India's
+    ``default_language`` as ``en_IN``, where Eid al-Fitr is "Id-ul-Fitr". ``SOURCES`` matches
+    "Eid al-Fitr", which is the ``en_US`` rendering. With no language pinned, which one you
+    got depended on the machine -- so this suite passed here and on the Linux runner and
+    failed on the Windows one, with Eid absent from all nine years while every other
+    festival was fine, because "Diwali (Deepavali)" reads the same in both.
+
+    Three CI runs went into finding that. This asserts the fix directly: the same eight
+    festivals, with dates, under any locale the environment can suggest.
+    """
+    from inventory_engine.service.festivals import _subdivision_dates
+
+    for var in ("LANGUAGE", "LC_ALL", "LC_MESSAGES", "LANG"):
+        monkeypatch.setenv(var, locale)
+    _subdivision_dates.cache_clear()
+    festivals.cache_clear()
+    try:
+        known = festivals("IN")
+        for key in SOURCES:
+            assert {f.day.year for f in known if f.key == key}, (
+                f"{key} vanished under locale {locale!r} -- the lookup is reading the "
+                f"ambient locale again rather than LIBRARY_LANGUAGE ({LIBRARY_LANGUAGE})."
+            )
+    finally:
+        _subdivision_dates.cache_clear()
+        festivals.cache_clear()
+
+
+def test_the_islamic_names_are_the_ones_the_pinned_language_produces():
+    """The two strings that differ between en_IN and en_US, pinned to the one we match.
+
+    If this fails, ``LIBRARY_LANGUAGE`` and ``SOURCES`` have drifted apart and Eid is about
+    to disappear from the calendar without anything else looking wrong.
+    """
+    assert "Eid al-Fitr" in library_names(None)
+    assert "Id-ul-Fitr" not in library_names(None)
+    assert SOURCES["eid_al_fitr"].library_name == "Eid al-Fitr"
 
 
 # --------------------------------------------------------------------------- the source
@@ -196,13 +234,11 @@ def test_named_gaps_are_genuinely_absent_from_the_library():
     """A stale "we don't have this" note is misinformation; re-derive it."""
     import holidays
 
-    every_name: set[str] = set()
-    for subdiv in [None, *sorted(holidays.India.subdivisions)]:
-        table = (
-            holidays.India(subdiv=subdiv, years=YEARS) if subdiv else holidays.India(years=YEARS)
-        )
-        for label in table.values():
-            every_name.update(n.lower() for n in label.split("; "))
+    every_name = {
+        n.lower()
+        for subdiv in [None, *sorted(holidays.India.subdivisions)]
+        for n in library_names(subdiv)
+    }
 
     for key, needle in {
         "ganesh_chaturthi": "ganesh",
