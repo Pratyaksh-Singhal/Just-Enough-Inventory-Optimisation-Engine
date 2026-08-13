@@ -35,7 +35,19 @@ service = [
     "posthog>=3.5",
     # Festival dates. Lunar dates typed by hand are a silent-failure risk: a wrong
     # Diwali measures the wrong fortnight and returns a confident ratio for it.
-    "holidays>=0.60",
+    #
+    # Pinned exactly, for the same reason CI pins RUFF_VERSION. This is not an ordinary
+    # library dependency: `festivals.SOURCES` matches the *display strings* the library
+    # emits ("Eid al-Fitr", "Diwali (Deepavali)"), so a release that renames an entry
+    # removes a festival from the calendar rather than changing an API we would notice at
+    # import time. `holidays>=0.60` let CI resolve a version whose Indian Islamic holidays
+    # are named differently; the calendar came back with no Eid at all and four tests in
+    # tests/test_service_festivals.py caught it -- which is the system working, but the
+    # failure belongs at upgrade time and on purpose, not on an unrelated push.
+    #
+    # Upgrading is a deliberate act: raise this pin, run the suite, and read what the
+    # coverage test says before believing the new version.
+    "holidays==0.102",
 ]
 dev = ["pytest>=8.2", "ruff>=0.5", "shap>=0.45", "httpx>=0.27"]
 

@@ -64,6 +64,36 @@ def full_coverage_keys() -> list[str]:
     return [key for key in SOURCES if key not in PARTIAL]
 
 
+def library_names(subdiv: str | None = None) -> set[str]:
+    """Every holiday name the library emits, for one subdivision or nationally."""
+    import holidays
+
+    table = holidays.India(subdiv=subdiv, years=YEARS) if subdiv else holidays.India(years=YEARS)
+    return {n for label in table.values() for n in label.split("; ")}
+
+
+def diagnosis(key: str | None = None) -> str:
+    """What the installed library actually offers, for an assertion message.
+
+    Written after a CI failure that took two wrong guesses and a pasted log to identify.
+    ``SOURCES`` matches the library's *display strings*, so the whole class of failure here
+    is "the name changed" -- and the one thing the failure never said was which names exist
+    now, or which version was answering. Both go in the message, so the next occurrence is
+    diagnosable from the log rather than from a reproduction.
+    """
+    import holidays
+
+    lines = [f"installed holidays=={holidays.__version__}"]
+    if key and key in SOURCES:
+        source = SOURCES[key]
+        lines.append(f"{key} looks for {source.library_name!r} in subdiv={source.subdiv!r}")
+        found = sorted(library_names(source.subdiv))
+        head = source.library_name.split()[0].lower()
+        near = [n for n in found if head in n.lower()] or found[:25]
+        lines.append(f"names available there: {near}")
+    return "\n  ".join(lines)
+
+
 # --------------------------------------------------------------------------- the scope
 
 
@@ -106,7 +136,10 @@ def test_a_dropped_festival_is_still_available_to_re_add():
         "eid_al_adha": "eid al-adha",
     }.items():
         assert key in OUT_OF_SCOPE
-        assert any(needle in n for n in every_name), f"{key} is no longer datable; fix its note"
+        assert any(needle in n for n in every_name), (
+            f"{key} is no longer datable under any subdivision, so its OUT_OF_SCOPE note "
+            f"is now wrong. Most likely the library renamed it.\n  {diagnosis()}"
+        )
 
 
 # --------------------------------------------------------------------------- the source
@@ -124,7 +157,11 @@ def test_every_source_has_complete_year_coverage():
     for key in full_coverage_keys():
         years = {f.day.year for f in known if f.key == key}
         missing = sorted(set(YEARS) - years)
-        assert not missing, f"{key} is missing dates for {missing}; declare it in PARTIAL"
+        assert not missing, (
+            f"{key} is missing dates for {missing}. Either the library renamed it -- fix "
+            f"SOURCES and the pin -- or it genuinely has gaps and belongs in PARTIAL."
+            f"\n  {diagnosis(key)}"
+        )
 
 
 def test_the_partial_festival_has_exactly_the_years_we_say_it_has():
@@ -148,7 +185,10 @@ def test_the_partial_gap_is_reported_with_the_years_it_is_missing():
 def test_the_calendar_is_populated_and_sorted():
     known = festivals("IN")
     expected = len(full_coverage_keys()) * len(YEARS) + sum(len(y) for y in PARTIAL.values())
-    assert len(known) >= expected
+    assert len(known) >= expected, (
+        f"the calendar holds {len(known)} occurrences, short of the {expected} the shipped "
+        f"set implies -- a festival resolved to no dates.\n  {diagnosis()}"
+    )
     assert [f.day for f in known] == sorted(f.day for f in known)
 
 
@@ -222,7 +262,10 @@ def test_every_shipped_festival_is_nationwide():
 def test_estimated_islamic_dates_are_still_collected():
     """The library suffixes projected dates with "(estimated)"; both spellings are wanted."""
     years = {f.day.year for f in festivals("IN") if f.key == "eid_al_fitr"}
-    assert years == set(YEARS)
+    assert years == set(YEARS), (
+        f"Eid al-Fitr resolved to {sorted(years)}. An empty set means the library is not "
+        f"naming it 'Eid al-Fitr' at all.\n  {diagnosis('eid_al_fitr')}"
+    )
 
 
 # --------------------------------------------------------------------------- the US oracle
