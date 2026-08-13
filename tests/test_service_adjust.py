@@ -10,6 +10,7 @@ thing that makes a guess safe is that failing to make it costs nothing at all.
 from __future__ import annotations
 
 from datetime import date, timedelta
+from typing import Final
 
 import numpy as np
 import pandas as pd
@@ -51,6 +52,35 @@ def ending_before(key: str, year: int, days_before: int, length: int = 200) -> p
     day = next(f.day for f in festivals("IN") if f.key == key and f.day.year == year)
     last = day - timedelta(days=days_before)
     return flat((last - timedelta(days=length - 1)).isoformat(), length)
+
+
+#: Short enough that no backtest fold has the 24 total-grain rows a model fit needs, so the
+#: baseline is served by walkover on every platform. See :func:`baseline_only_frame`.
+GATED_DAYS: Final = 105
+
+
+def baseline_only_frame(days: int = GATED_DAYS) -> pd.DataFrame:
+    """A history the model provably cannot be fitted on, ending in Diwali's run-up.
+
+    The on/off comparison below needs the *forecast* to be identical so that the only thing
+    left to move the number is the adjustment. ``region`` also feeds proximity features to
+    the model, so that only holds while the baseline is serving -- which makes "the baseline
+    served" a precondition, and preconditions have to be gates rather than contests.
+
+    An earlier version of this used 140 flat days and asserted the outcome instead. There
+    the model *was* fitted in two of four folds, and on a flat series both methods scored a
+    pinball loss of exactly 0.0; ``choose_method`` divides by ``max(|m|, |b|, 1e-9)``, so
+    the winner turned on whether LightGBM returned 0.0 or 1e-16. It held on this machine and
+    on the Linux runner and broke on the Windows one. Below ~106 days there is no fit to
+    compare, ``choose_method`` takes its "could not be fitted in any fold" branch, and the
+    platform stops mattering.
+
+    The values are noisy rather than constant for the same reason: a flat series makes every
+    loss identically zero, which is a degenerate comparison however it is reached.
+    """
+    index = ending_before("diwali", 2025, 15, length=days).index
+    rng = np.random.default_rng(20260813)
+    return frame_of(pd.Series(np.clip(10 + rng.normal(0, 2, days), 0, None), index=index))
 
 
 def quiet_series(length: int = 200) -> pd.Series:
@@ -234,19 +264,27 @@ def test_an_empty_series_is_survivable():
 def test_an_unmatched_products_order_is_identical_with_the_feature_on_and_off():
     """**The** test. Matching may never cost anything when it fails.
 
-    The history is short enough that both runs are served by the seasonal-naive baseline,
-    which reads no features at all -- so the calendar's only possible influence on the
-    number is the adjustment itself, and the comparison is exact rather than approximate.
-    The assertion is equality to the last bit, not ``approx``: "unchanged" is a promise
-    about the quantity, and a quantity that moved by 1e-9 did move.
+    The history is short enough that the model cannot be fitted in any fold, so both runs
+    are served by the seasonal-naive baseline, which reads no features at all -- the
+    calendar's only possible influence on the number is then the adjustment itself, and the
+    comparison is exact rather than approximate. The assertion is equality to the last bit,
+    not ``approx``: "unchanged" is a promise about the quantity, and a quantity that moved
+    by 1e-9 did move.
+
+    See :func:`baseline_only_frame` for why that precondition is a gate and not an
+    assertion about who won a backtest.
     """
-    series = ending_before("diwali", 2025, 15, length=140)
-    frame = frame_of(series)
+    frame = baseline_only_frame()
 
     off = forecast_sku(UNMATCHED, frame, horizon=28, costs=CostModel(), region=None)
     on = forecast_sku(UNMATCHED, frame, horizon=28, costs=CostModel(), region="IN")
 
-    assert on.method_used == off.method_used == "seasonal_naive"  # the premise, stated
+    # The premise, pinned rather than hoped for: no fold produced a model score at all, so
+    # nothing but the adjustment could move the number between these two runs.
+    assert on.method_used == off.method_used == "seasonal_naive"
+    assert "could not be fitted" in on.method_reason
+    assert not any(np.isfinite(v) for v in on.model.pinball_folds)
+
     assert on.order_qty == off.order_qty
     assert on.expected_cost == off.expected_cost
     assert on.series["order"] == off.series["order"]
@@ -263,7 +301,7 @@ def test_the_same_series_moves_only_because_of_the_product_name():
     not. Any difference in the order quantity is attributable to the match and to nothing
     else, which is what "never silently guess" has to mean in practice.
     """
-    frame = frame_of(ending_before("diwali", 2025, 15, length=140))
+    frame = baseline_only_frame()
 
     matched = forecast_sku(MATCHED, frame, horizon=28, costs=CostModel(), region="IN")
     unmatched = forecast_sku(UNMATCHED, frame, horizon=28, costs=CostModel(), region="IN")
@@ -275,7 +313,7 @@ def test_the_same_series_moves_only_because_of_the_product_name():
 
 def test_both_quantities_are_always_reported_so_the_adjustment_can_be_undone():
     """A buyer who disagrees with the match needs the number it started from."""
-    frame = frame_of(ending_before("diwali", 2025, 15, length=140))
+    frame = baseline_only_frame()
     result = forecast_sku(MATCHED, frame, horizon=28, costs=CostModel(), region="IN")
 
     assert result.order_qty_before_festival > 0
@@ -286,7 +324,7 @@ def test_both_quantities_are_always_reported_so_the_adjustment_can_be_undone():
 
 def test_the_match_reaches_the_response_with_the_keyword_that_caused_it():
     """Visible confirmation, not an invisible background adjustment."""
-    frame = frame_of(ending_before("diwali", 2025, 15, length=140))
+    frame = baseline_only_frame()
     note = forecast_sku(MATCHED, frame, horizon=28, costs=CostModel(), region="IN").festival
 
     assert note["state"] == State.ADJUSTED.value
@@ -298,20 +336,9 @@ def test_the_match_reaches_the_response_with_the_keyword_that_caused_it():
 
 
 def test_the_chart_only_shades_windows_that_actually_moved_the_order():
-    matched = forecast_sku(
-        MATCHED,
-        frame_of(ending_before("diwali", 2025, 15, length=140)),
-        28,
-        CostModel(),
-        region="IN",
-    )
-    unmatched = forecast_sku(
-        UNMATCHED,
-        frame_of(ending_before("diwali", 2025, 15, length=140)),
-        28,
-        CostModel(),
-        region="IN",
-    )
+    frame = baseline_only_frame()
+    matched = forecast_sku(MATCHED, frame, 28, CostModel(), region="IN")
+    unmatched = forecast_sku(UNMATCHED, frame, 28, CostModel(), region="IN")
     assert matched.series["festival_windows"]
     assert unmatched.series["festival_windows"] == []
 
