@@ -12,6 +12,11 @@ newsvendor theory, and reports the cost delta against baseline stocking practice
 >
 > **Live dashboard → https://claude.ai/code/artifact/ab291272-dc60-496b-88cd-fe3f5c57ce2f**
 
+**The strongest evidence of engineering judgment here is the record of what went wrong:**
+[**`docs/what-went-wrong.md`**](docs/what-went-wrong.md) — decisions this project got wrong
+the first time, none of which crashed, and every one of which returned a confident,
+plausible, wrong answer.
+
 ---
 
 ## Headline result
@@ -75,7 +80,9 @@ Work is tracked as ten epics in [`docs/BACKLOG.md`](docs/BACKLOG.md). Phases com
 through named DuckDB tables rather than through code, so each epic states what it consumes
 and produces and can be picked up without reading the one before it. Branching follows
 [`docs/BRANCHING.md`](docs/BRANCHING.md): `dev` for integration, `main` for phase-complete
-work, one tag per phase.
+work, one tag per phase. Decisions that were wrong the first time — and what the wrong
+version actually produced on real data — are recorded in
+[`docs/what-went-wrong.md`](docs/what-went-wrong.md).
 
 | Phase | Epic | Status |
 |---|---|---|

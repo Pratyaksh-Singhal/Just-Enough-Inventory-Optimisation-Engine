@@ -1768,6 +1768,25 @@
         coherence gap asserted to floating-point zero rather than printed and admired.
       </p>
     </div>
+
+    <!-- The five above are tier 1 (warehouse, scorers, precomputed API). The forecast
+         service has its own set -- a festival ratio that read 0.84x because it averaged
+         across a shop being shut, a 974-unit order at a 41% service level, a calendar that
+         depended on the host machine's locale. Same failure class, different tier, so the
+         full record lives in the repo rather than being duplicated here. -->
+    <div class="callout" style="margin-top:14px">
+      <span class="hd">The full record</span>
+      <p style="margin:0">
+        These five are the tier-1 catches. The forecast service produced its own — a festival
+        multiplier that measured demand <em>falling</em> at Christmas because one average
+        spanned a shop being open and shut, a 974-unit order placed at a deliberate 41%
+        service level, and a festival calendar whose contents depended on the locale of the
+        machine running it. All of them, with what the wrong version actually returned on
+        real data, are written up in
+        <a href="https://github.com/Pratyaksh-Singhal/Inventory-Optimization-Engine/blob/dev/docs/what-went-wrong.md"
+           target="_blank" rel="noopener">what-went-wrong.md</a>.
+      </p>
+    </div>
   </section>
 
 </main>
@@ -1775,7 +1794,7 @@
 <footer class="wrap">
   <div>Built on M5 (Walmart) — CA / FOODS, 720 series, 1.4M rows. All costs USD; every cost
     parameter is a stated assumption, not a measurement.</div>
-  <div style="margin-top:6px">DuckDB · LightGBM (Tweedie) · statsforecast · Nixtla hierarchicalforecast · FastAPI · 207
+  <div style="margin-top:6px">DuckDB · LightGBM (Tweedie) · statsforecast · Nixtla hierarchicalforecast · FastAPI · 520
     tests</div>
 </footer>
 
