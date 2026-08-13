@@ -1792,6 +1792,11 @@
     `1 USD = ${FX.symbol}${FX.rate} <span style="color:var(--ink-3)">(${FX.note})</span>`;
   $('#curINR').textContent = `${FX.code} ${FX.symbol}`;
 
+  /* Anything outside the calculator that renders money registers here. setCurrency has no
+     business knowing what those things are, and a tab that forgets to subscribe shows stale
+     currency -- which is exactly what the Full forecast tab did. */
+  const CURRENCY_LISTENERS = [];
+
   function setCurrency(code) {
     CURRENCY = code;
     $('#curUSD').setAttribute('aria-pressed', String(code === 'USD'));
@@ -1802,9 +1807,23 @@
     renderOverviewMoney();
     update();             // simulator readouts + curve labels re-read money()
     runCalculator();      // calculator table + tiles re-read money()
+    CURRENCY_LISTENERS.forEach(fn => { try { fn(); } catch (e) { /* one tab must not break the rest */ } });
   }
   $('#curUSD').addEventListener('click', () => setCurrency('USD'));
   $('#curINR').addEventListener('click', () => setCurrency('INR'));
+
+  /* Results currently blink into existence. Replaying the page's existing .fade keyframe
+     on the blocks that just changed gives the same 350ms settle the tab switch already has,
+     so the eye is led to what appeared instead of having to find it. Honours
+     prefers-reduced-motion for free, because .fade is already inside that media query. */
+  function reveal(...nodes) {
+    nodes.forEach(n => {
+      if (!n) return;
+      n.classList.remove('fade');
+      void n.offsetWidth;   // force reflow, or removing and re-adding in one frame is a no-op
+      n.classList.add('fade');
+    });
+  }
 
   /* ---------------- tabs ----------------
      One tab can own several sections: the M5 cost sensitivity belongs with the proof, and
@@ -1830,7 +1849,26 @@
     });
     window.scrollTo({ top: 0, behavior: 'instant' });
   }
-  tabs.forEach(t => t.addEventListener('click', () => show(t.dataset.t)));
+  /* Remember which tab you were on. A reload used to drop you back on the calculator,
+     which is wrong after you have just run a forecast: the results are still there, you
+     simply cannot see them. The hash is authoritative so a link to #full works and can be
+     shared; localStorage covers a plain reload with no hash. */
+  const TAB_KEY = 'ioe.tab';
+  tabs.forEach(t => t.addEventListener('click', () => {
+    show(t.dataset.t);
+    try { localStorage.setItem(TAB_KEY, t.dataset.t); } catch (e) { /* private mode */ }
+    history.replaceState(null, '', '#' + t.dataset.t);
+  }));
+
+  function restoreTab() {
+    const fromHash = location.hash.replace('#', '');
+    let wanted = TAB_SECTIONS[fromHash] ? fromHash : null;
+    if (!wanted) {
+      try { const saved = localStorage.getItem(TAB_KEY); if (TAB_SECTIONS[saved]) wanted = saved; }
+      catch (e) { /* private mode */ }
+    }
+    if (wanted && wanted !== 'calculator') show(wanted);
+  }
   document.addEventListener('click', e => {
     const g = e.target.closest('[data-goto]');
     if (g) { e.preventDefault(); show(g.dataset.goto); }
@@ -2371,6 +2409,8 @@
       <td class="note-cell">${note}</td></tr>`;
       }).join('') + '</tbody>';
 
+    reveal($('#calcSaving'), tiles, table);
+
     cap.textContent = `Aiming to have enough stock ${Math.round(cr * 100)}% of the time — worked out `
       + `from your ${Math.round(RATES.margin * 100)}% margin and ${Math.round(RATES.spoilage * 100)}% `
       + `write-off, not chosen. That target is shared across products (both costs scale with `
@@ -2451,7 +2491,7 @@
   (function fullForecast() {
     const $$ = s => document.querySelector(s);
     const api = () => $$('#apiBase').value.replace(/\/+$/, '');
-    const S = { file: null, dataset: null, job: null, results: [], sku: null, poll: null };
+    const S = { file: null, dataset: null, job: null, results: [], sku: null, poll: null, lastJob: null };
 
     const esc = t => { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; };
     const msg = (html, cls = 'msg') => { $$('#ffMsg').innerHTML = `<div class="${cls}">${html}</div>`; };
@@ -2512,6 +2552,15 @@
         const d = data.detail && typeof data.detail === 'object' ? data.detail : { detail: data.detail };
         msg(esc(d.detail || 'Upload rejected.'), 'msg');
         renderGate(d.excluded || [], true);
+
+        /* Forget the previous dataset. Without this, a rejected upload left S.dataset
+           pointing at whatever was accepted before it and left Run enabled, so pressing
+           Run forecast the OLD file while the screen showed a rejection for the new one.
+           Results for a file the user believes was refused is the worst possible outcome
+           here -- worse than an error, because it looks like it worked. */
+        S.dataset = null; S.job = null; S.results = []; S.sku = null; S.lastJob = null;
+        clearInterval(S.poll);
+        $$('#ffRun').disabled = true;
         $$('#ffChartWrap').hidden = true;
         $$('#ffTable').innerHTML = '';
         return null;
@@ -2585,6 +2634,7 @@
           msg(`<span class="win">${esc(j.message)}</span>
             ${j.elapsed_seconds ? ` Took ${j.elapsed_seconds.toFixed(1)}s.` : ''}
             ${j.error ? `<br>${esc(j.error)}` : ''}`, 'msg ok');
+          S.lastJob = j;
           S.results = j.results;
           renderResults(j);
         } catch (e) {
@@ -2628,7 +2678,11 @@
       $$('#ffTable').querySelectorAll('.ff-row').forEach(tr =>
         tr.addEventListener('click', () => selectSku(tr.dataset.sku)));
       $$('#ffChartWrap').hidden = false;
-      selectSku(S.results[0].sku);
+      // Keep the row the user was looking at. Re-rendering for a currency switch must not
+      // yank them back to the top of the table.
+      const keep = S.results.some(r => r.sku === S.sku) ? S.sku : S.results[0].sku;
+      selectSku(keep);
+      reveal($$('#ffChartWrap'), $$('#ffTable'));
     }
 
     const methodLabel = m => m === 'seasonal_naive'
@@ -2790,6 +2844,12 @@
       if (await upload(blob, 'example.csv')) $$('#ffRun').disabled = false;
     });
 
+    /* The USD/INR toggle lives in the header and re-renders the calculator; this tab has
+       its own money columns (unit price) and was left showing the old currency until the
+       next forecast run. Registering here keeps that coupling explicit rather than making
+       setCurrency reach into this closure. */
+    CURRENCY_LISTENERS.push(() => { if (S.lastJob) renderResults(S.lastJob); });
+
     // Probe once, the first time the tab is opened -- not on page load, which would fire a
     // failing request at every visitor who never opens this tab.
     let probed = false;
@@ -2801,4 +2861,5 @@
   renderRateInputs();
   runCalculator();
   update();
+  restoreTab();
 </script>
