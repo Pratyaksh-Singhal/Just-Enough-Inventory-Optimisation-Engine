@@ -25,10 +25,33 @@ data/uploads/
 # Agent tooling — installed artefacts, not project source (~1,050 files).
 # .claude/settings.json is deliberately NOT ignored: the permission config is team-wide.
 .claude/skills/
-_bmad/
+# ...but the WDS project config is source, not an installed artefact: it carries the folder
+# convention and project settings a fresh clone needs to reproduce the workspace.
+#
+# Excluded as `_bmad/*` rather than `_bmad/`, because git cannot re-include a file whose
+# parent *directory* is excluded -- it never descends far enough to see the negation. The
+# path has to be re-opened one level at a time. (`data/*.csv` above needs no such dance:
+# it excludes files by pattern, not the directory itself.)
+_bmad/*
+!_bmad/wds/
+_bmad/wds/*
+!_bmad/wds/config.yaml
 _bmad-output/
 design-artifacts/
+wds-0-project-setup/
+wds-1-project-brief/
+wds-2-requirements-analysis/
+.claude/
+.cursor/
 
-# ...but the festival demand reference IS source, not a rebuildable extract. priors.py
-# calls its absence a packaging fault and fails on it, which the rule above would cause.
-!data/india_festival_demand.csv
+# NOT ignored: docs/. It holds reader-facing documentation the README and the dashboard
+# link by path -- BACKLOG.md, BRANCHING.md, backlog/epic-*.md and what-went-wrong.md.
+# Ignoring the directory published those links with no targets behind them, and the two
+# older files only survived because git ignores nothing it already tracks.
+.vscode/
+.pytest_cache/
+.ruff_cache/
+*.pyc
+__pycache__/
+*.egg-info/
+.DS_Store
