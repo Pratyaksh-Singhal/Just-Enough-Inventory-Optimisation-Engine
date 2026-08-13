@@ -31,6 +31,29 @@ SERIES = {
     "order": {"total": 168.0, "daily_rate": 6.0, "label": "Order covers 28 days"},
 }
 
+#: An adjusted festival plan as the worker writes it, verbatim from
+#: ``service.adjust.FestivalPlan.to_dict``.
+FESTIVAL = {
+    "state": "adjusted",
+    "factor": 1.5,
+    "matches": [
+        {
+            "festival_key": "diwali",
+            "festival_name": "Diwali",
+            "source": "prior",
+            "multiplier": 2.0,
+            "category": "sweets, dairy",
+            "keyword": "paneer",
+            "days_in_window": 14,
+            "partial_calendar": False,
+            "detail": "Diwali: suggested 2.00x - a reference figure for this kind of product.",
+        }
+    ],
+    "nearby": ["Diwali"],
+    "unresolved": [],
+    "message": "Diwali: matched 'paneer' as sweets, dairy - 2.00x over 14 days.",
+}
+
 
 @pytest.fixture
 def client(tmp_path):
@@ -59,7 +82,16 @@ def client(tmp_path):
         yield c
 
 
-def seed(factory, *, status=JobStatus.DONE, results=1, excluded=0, error=None, horizon=28):
+def seed(
+    factory,
+    *,
+    status=JobStatus.DONE,
+    results=1,
+    excluded=0,
+    error=None,
+    horizon=28,
+    festival=None,
+):
     """Insert a dataset and a job in the requested state."""
     with factory() as session:
         dataset = Dataset(
@@ -105,6 +137,8 @@ def seed(factory, *, status=JobStatus.DONE, results=1, excluded=0, error=None, h
                     pinball_baseline=55.0,
                     critical_ratio=0.4087,
                     order_qty=100.0 + 10 * i,
+                    order_qty_before_festival=(100.0 + 10 * i) / 1.5 if festival else None,
+                    festival=festival or {},
                     expected_cost=9.5,
                     unit_price=2.5,
                     price_is_fallback=False,
@@ -222,6 +256,65 @@ def test_the_chart_payload_is_complete_and_the_band_is_plain_language(client):
     assert series["band"]["label"] == "Where sales landed 80% of the time"
     for point in series["forecast"]:
         assert point["lo"] <= point["point"] <= point["hi"]
+
+
+# --------------------------------------------------------------------- the festival note
+
+
+def test_the_festival_match_travels_with_the_result(client):
+    """The match has to reach the screen, or the adjustment is an invisible one.
+
+    Everything the buyer needs in order to disagree -- the festival, the keyword, the
+    category, whether it was measured or suggested -- comes back on the result rather than
+    being left in the worker's logs.
+    """
+    job_id = seed(client.factory, results=1, festival=FESTIVAL)
+    result = client.get(f"/forecast/{job_id}").json()["results"][0]
+
+    note = result["festival"]
+    assert note["state"] == "adjusted"
+    assert note["factor"] == 1.5
+    assert note["matches"][0]["keyword"] == "paneer"
+    assert note["matches"][0]["source"] == "prior"
+    assert note["matches"][0]["category"] == "sweets, dairy"
+    assert "paneer" in note["message"]
+
+
+def test_both_quantities_come_back_so_the_adjustment_can_be_undone(client):
+    job_id = seed(client.factory, results=1, festival=FESTIVAL)
+    result = client.get(f"/forecast/{job_id}").json()["results"][0]
+    assert result["order_qty"] == pytest.approx(result["order_qty_before_festival"] * 1.5)
+
+
+def test_an_advisory_result_reports_a_factor_of_exactly_one(client):
+    """The API's half of the promise: awareness never arrives with an adjustment."""
+    advisory = {
+        "state": "advisory",
+        "factor": 1.0,
+        "matches": [],
+        "nearby": ["Diwali"],
+        "unresolved": ["Diwali: no measurement and no reference match"],
+        "message": "Diwali falls in this order window, but no festival pattern was found.",
+    }
+    job_id = seed(client.factory, results=1, festival=advisory)
+    result = client.get(f"/forecast/{job_id}").json()["results"][0]
+
+    assert result["festival"]["state"] == "advisory"
+    assert result["festival"]["factor"] == 1.0
+    assert result["festival"]["matches"] == []
+    assert "no festival pattern" in result["festival"]["message"]
+
+
+def test_a_result_from_before_the_feature_reports_nothing_rather_than_no_festival(client):
+    """ "We did not look" and "we looked and found none" are different claims.
+
+    Rows written before the festival columns existed carry an empty blob, which comes back
+    as null -- not as a ``none`` state, which would assert something those rows cannot know.
+    """
+    job_id = seed(client.factory, results=1, festival=None)
+    result = client.get(f"/forecast/{job_id}").json()["results"][0]
+    assert result["festival"] is None
+    assert result["order_qty_before_festival"] is None
 
 
 def test_results_are_ordered_by_size_so_the_biggest_orders_are_first(client):

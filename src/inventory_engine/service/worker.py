@@ -40,6 +40,7 @@ import logging
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
+from functools import partial
 
 import pandas as pd
 from arq import cron, func
@@ -127,7 +128,7 @@ async def run_forecast_job(ctx: dict, job_id: str, request_id: str) -> dict:
 
     try:
         frames = _load_admitted(settings.upload_dir, storage_uri, admitted)
-        results, failures = await _fit_all(frames, horizon, costs)
+        results, failures = await _fit_all(frames, horizon, costs, settings.festival_region)
     except Exception as exc:  # noqa: BLE001 - recorded on the job, re-raised to Sentry
         with factory() as session:
             failed = session.get(ForecastJob, uuid.UUID(job_id))
@@ -219,16 +220,26 @@ def _load_admitted(upload_dir, storage_uri: str, admitted: list[str]) -> dict[st
 
 
 async def _fit_all(
-    frames: dict[str, pd.DataFrame], horizon: int, costs: CostModel
+    frames: dict[str, pd.DataFrame],
+    horizon: int,
+    costs: CostModel,
+    region: str | None = None,
 ) -> tuple[list[SkuForecast], list[tuple[str, str]]]:
-    """Fit every SKU off the event loop, collecting failures rather than raising them."""
+    """Fit every SKU off the event loop, collecting failures rather than raising them.
+
+    ``region`` reaches the pipeline through a ``partial`` because ``run_in_executor`` takes
+    positional arguments only, and passing a calendar by position four arguments deep is
+    exactly how the wrong one gets passed.
+    """
     loop = asyncio.get_running_loop()
     results: list[SkuForecast] = []
     failures: list[tuple[str, str]] = []
 
     with ThreadPoolExecutor(max_workers=FIT_THREADS) as pool:
         tasks = {
-            sku: loop.run_in_executor(pool, forecast_sku, sku, frame, horizon, costs)
+            sku: loop.run_in_executor(
+                pool, partial(forecast_sku, sku, frame, horizon, costs, region=region)
+            )
             for sku, frame in frames.items()
         }
         for sku, task in tasks.items():
@@ -257,6 +268,8 @@ def _to_rows(job_id: uuid.UUID, results: list[SkuForecast]) -> list[ForecastResu
             pinball_baseline=_finite(r.baseline.pinball_mean),
             critical_ratio=r.critical_ratio,
             order_qty=r.order_qty,
+            order_qty_before_festival=r.order_qty_before_festival,
+            festival=r.festival,
             expected_cost=_finite(r.expected_cost),
             unit_price=r.unit_price,
             price_is_fallback=r.price_is_fallback,

@@ -233,6 +233,16 @@ class ForecastResult(Base):
 
     critical_ratio: Mapped[float] = mapped_column(Float, nullable=False)
     order_qty: Mapped[float] = mapped_column(Float, nullable=False)
+    #: What the newsvendor asked for before any festival adjustment. Nullable because rows
+    #: written before the festival feature existed genuinely do not have it, and a
+    #: back-filled copy of ``order_qty`` would assert that nothing was adjusted -- which is
+    #: unknowable for those rows and would be a lie for any that were.
+    order_qty_before_festival: Mapped[float | None] = mapped_column(Float)
+    #: The festival decision: state, factor, and every match with the keyword and category
+    #: that produced it. A blob rather than columns because it is read whole with the row
+    #: and never filtered on -- and because the shape belongs to
+    #: ``service.adjust.FestivalPlan``, which is where it should be free to change.
+    festival: Mapped[dict] = mapped_column(JsonBlob, nullable=False, default=dict)
     expected_cost: Mapped[float | None] = mapped_column(Float)
     unit_price: Mapped[float | None] = mapped_column(Float)
     price_is_fallback: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)

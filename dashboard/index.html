@@ -634,6 +634,53 @@
     position: relative
   }
 
+  /* Three states, three visual weights. The adjusted tag is the only one that carries a
+     colour, because it is the only one attached to a number that moved -- an advisory that
+     shouted as loudly as an adjustment would train the reader to ignore both. */
+  .fest-tag {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: var(--r);
+    border: 1px solid var(--line);
+    font-family: var(--mono);
+    font-size: 10px;
+    white-space: nowrap
+  }
+
+  .fest-tag.adjusted {
+    border-color: var(--jade);
+    color: var(--jade)
+  }
+
+  .fest-tag.advisory {
+    color: var(--ink-3)
+  }
+
+  .fest-none {
+    color: var(--ink-3)
+  }
+
+  .ff-fest {
+    margin-top: 12px;
+    border-left: 2px solid var(--line);
+    padding: 10px 0 10px 14px;
+    font-size: 13px;
+    color: var(--ink-2);
+    line-height: 1.6
+  }
+
+  .ff-fest.adjusted {
+    border-left-color: var(--jade)
+  }
+
+  .ff-fest .fest-was {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-3);
+    display: block;
+    margin-top: 6px
+  }
+
   /* Bigger than the 2px line it tracks: readers aim at a date, not at a hairline. */
   .ff-hit {
     fill: transparent;
@@ -1230,6 +1277,7 @@
           </div>
           <div id="ffChart" class="ff-chart"></div>
           <figcaption id="ffChartCap" style="margin-top:10px"></figcaption>
+          <div id="ffFestival"></div>
         </div>
         <div class="tw" style="margin-top:18px">
           <table id="ffTable"></table>
@@ -2654,7 +2702,7 @@
         .map(r => `<option value="${esc(r.sku)}">${esc(r.sku)}</option>`).join('');
 
       $$('#ffTable').innerHTML = `<thead><tr>
-          <th>Product</th><th>Order this many</th><th>Method used</th>
+          <th>Product</th><th>Order this many</th><th>Festival</th><th>Method used</th>
           <th>Accuracy (MASE)</th><th>Baseline</th><th>Unit price</th></tr></thead><tbody>` +
         S.results.map(r => {
           const a = r.accuracy;
@@ -2669,6 +2717,7 @@
           return `<tr class="ff-row" data-sku="${esc(r.sku)}">
             <td>${esc(r.sku)}</td>
             <td class="num"><span class="order-qty">${fmt(Math.ceil(r.order_qty))}</span></td>
+            <td>${festTag(r)}</td>
             <td>${methodLabel(r.method_used)}</td>
             <td class="num">${mm}</td>
             <td class="num">${mb}</td>
@@ -2688,6 +2737,44 @@
     const methodLabel = m => m === 'seasonal_naive'
       ? 'Repeat last week'
       : 'Fitted model';
+
+    /* The per-row festival state. Three outcomes and all three are shown, because the
+       interesting one is the middle: "a festival is coming and we could not tell whether
+       this product cares" is a thing the buyer has to decide, and a blank cell would hide
+       the question rather than ask it. Only the adjusted tag names a number, because it is
+       the only state where a number moved. */
+    function festTag(r) {
+      const f = r.festival;
+      if (!f || f.state === 'none') return '<span class="fest-none">—</span>';
+      if (f.state === 'advisory') {
+        return `<span class="fest-tag advisory" title="${esc((f.nearby || []).join(', '))} `
+          + `nearby. No festival pattern found for this item, so the quantity is unchanged.">`
+          + `no pattern found</span>`;
+      }
+      const pct = Math.round((f.factor - 1) * 100);
+      const m = (f.matches || [])[0] || {};
+      const how = m.source === 'measured' ? 'your own sales' : 'reference figure';
+      const why = m.keyword ? `matched "${m.keyword}" as ${m.category}` : `measured at ${m.festival_name}`;
+      return `<span class="fest-tag adjusted" title="${esc(m.festival_name || '')}: ${esc(why)} (${esc(how)})">`
+        + `${esc(m.festival_name || 'festival')} ${pct >= 0 ? '+' : ''}${pct}%</span>`;
+    }
+
+    /* The full explanation for the charted product, under the chart rather than in a
+       tooltip: this is the thing we are asking the user to check, and something you have
+       to hover to discover has not really been shown to you. */
+    function renderFestival(r) {
+      const box = $$('#ffFestival'), f = r.festival;
+      if (!f || f.state === 'none') { box.innerHTML = ''; return; }
+
+      const was = (f.state === 'adjusted' && r.order_qty_before_festival != null)
+        ? `<span class="fest-was">Forecast before this adjustment: `
+          + `${fmt(Math.ceil(r.order_qty_before_festival))} units. `
+          + `Recommended: ${fmt(Math.ceil(r.order_qty))} units. `
+          + `If the match above is wrong for this product, order the first number.</span>`
+        : '';
+      box.innerHTML = `<div class="ff-fest ${esc(f.state)}">${esc(f.message)}${was}</div>`;
+      reveal(box);
+    }
 
     /** Nearest 1/2/5 x 10^n at or above `raw` — the classic clean-axis step. */
     function niceStep(raw) {
@@ -2814,6 +2901,7 @@
 
       const won = r.method_used === 'seasonal_naive';
       $$('#ffMethod').innerHTML = `<span class="m-tag">${methodLabel(r.method_used)}</span><br>${esc(r.method_reason)}`;
+      renderFestival(r);
       $$('#ffChartCap').innerHTML = `
         Solid line is what you actually sold; dashed is the forecast for the next
         ${fc.length} days. The shaded band is

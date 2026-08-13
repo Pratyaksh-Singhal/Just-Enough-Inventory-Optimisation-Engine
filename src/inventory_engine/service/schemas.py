@@ -153,6 +153,59 @@ class SkuAccuracy(BaseModel):
     pinball_baseline: float | None = None
 
 
+class FestivalMatch(BaseModel):
+    """One festival that moved this product, and the evidence that let it.
+
+    ``keyword`` and ``category`` are the whole reason this model exists. A festival
+    adjustment that arrives without them is a number the user cannot check; with them it is
+    a claim they can reject at a glance -- "matched 'milk' as dairy" on a packet of Milk
+    Bikis biscuits is visibly wrong to the person who stocks it and invisible to us.
+    """
+
+    festival_key: str
+    festival_name: str
+    source: Literal["measured", "prior"] = Field(
+        description="'measured' from this shop's own sales, or 'prior' from the reference "
+        "table. Never inferred -- a measured 1.4x and a suggested 2.0x are different claims."
+    )
+    multiplier: float = Field(description="The run-up ratio itself, before it is spread")
+    category: str = Field(description="The demand-table category this product was read as")
+    keyword: str | None = Field(
+        default=None, description="The word in the product name that caused the match"
+    )
+    days_in_window: int = Field(description="Days of this run-up inside the order window")
+    partial_calendar: bool = Field(
+        default=False, description="Our calendar can only date this festival in some years"
+    )
+    detail: str = Field(description="The full sentence, including how many years it rests on")
+
+
+class FestivalNote(BaseModel):
+    """What the festival calendar did to this product's order, in one of three states.
+
+    ``adjusted`` -- matched a category, quantity moved, ``matches`` says what and why.
+    ``advisory`` -- a festival is near, nothing matched, **quantity unchanged**.
+    ``none`` -- nothing near, nothing shown.
+
+    ``factor`` is exactly 1.0 in the last two, which is the invariant the on/off test pins:
+    an unmatched product's order quantity is identical with this feature on or off.
+    """
+
+    state: Literal["adjusted", "advisory", "none"]
+    factor: float = Field(
+        default=1.0, description="Multiplier applied to the order quantity. 1.0 means untouched."
+    )
+    matches: list[FestivalMatch] = Field(default_factory=list)
+    nearby: list[str] = Field(
+        default_factory=list, description="Festivals in or near the order window, by name"
+    )
+    unresolved: list[str] = Field(
+        default_factory=list,
+        description="Festivals in the window we could not resolve for this product, and why",
+    )
+    message: str = Field(default="", description="One paragraph suitable for showing as-is")
+
+
 class SkuResult(BaseModel):
     """The forecast, the order and the evidence, for one SKU."""
 
@@ -161,6 +214,14 @@ class SkuResult(BaseModel):
     method_reason: str = Field(description="Why, in plain language, including the loser's score")
 
     order_qty: float = Field(description="Units to cover the whole horizon")
+    order_qty_before_festival: float | None = Field(
+        default=None,
+        description="The quantity before any festival adjustment. Equal to order_qty when "
+        "nothing was adjusted; null on results produced before the feature existed.",
+    )
+    festival: FestivalNote | None = Field(
+        default=None, description="What the calendar did to this order, and why"
+    )
     order_daily_rate: float = Field(description="order_qty / horizon, for the chart's axis")
     expected_cost: float | None = None
     unit_price: float | None = None

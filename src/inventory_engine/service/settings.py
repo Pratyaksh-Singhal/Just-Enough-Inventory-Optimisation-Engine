@@ -29,6 +29,10 @@ class ServiceSettings(BaseSettings):
         posthog_api_key: Product analytics. Unset disables it.
         posthog_host: PostHog ingestion endpoint, for EU or self-hosted instances.
         environment: Tag attached to Sentry events and PostHog properties.
+        festival_region: Which festival calendar the forecast reads, or ``None`` to run
+            with no calendar at all -- no proximity features, no banners and no order
+            adjustment. One switch for the whole feature, so the model's view of the
+            calendar and the order's cannot disagree.
         job_timeout_seconds: Ceiling on one forecast job in the worker.
         upload_retention_days: Age past which an uploaded CSV and everything derived from
             it is destroyed. Users upload their own sales history; keeping it forever is
@@ -51,6 +55,7 @@ class ServiceSettings(BaseSettings):
     posthog_host: str = "https://us.i.posthog.com"
     environment: str = "development"
 
+    festival_region: str | None = "IN"
     job_timeout_seconds: int = 900
     upload_retention_days: int = 30
 

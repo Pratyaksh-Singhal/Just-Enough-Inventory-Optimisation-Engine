@@ -45,6 +45,7 @@ from inventory_engine.optimize.newsvendor import (
     expected_cost_from_distribution,
     interpolate_quantile,
 )
+from inventory_engine.service.adjust import FestivalPlan, plan_for
 from inventory_engine.service.features import (
     FEATURE_COLUMNS,
     WARMUP_DAYS,
@@ -182,6 +183,13 @@ class SkuForecast:
     unit_price: float
     price_is_fallback: bool
     series: dict = field(default_factory=dict)
+    #: What the newsvendor asked for, before any festival adjustment. Equal to
+    #: ``order_qty`` whenever nothing was adjusted, and kept separately so the user can
+    #: always see both numbers rather than being handed one and told it moved.
+    order_qty_before_festival: float = 0.0
+    #: The festival decision for this SKU: which of the three states, what matched it, and
+    #: the sentence explaining it. See :mod:`inventory_engine.service.adjust`.
+    festival: dict = field(default_factory=dict)
 
 
 def _nanmean(values) -> float:
@@ -313,7 +321,7 @@ def baseline_total(train: pd.Series, horizon: int, levels: tuple[float, ...]) ->
 
 
 def backtest_sku(
-    series: pd.Series, horizon: int, critical_ratio: float
+    series: pd.Series, horizon: int, critical_ratio: float, region: str | None = None
 ) -> tuple[MethodScore, MethodScore, int]:
     """Score the model and the baseline on rolling origins over the user's own history.
 
@@ -366,7 +374,7 @@ def backtest_sku(
             )
         )
 
-        fitted = _fit_fold(train, horizon, scored)
+        fitted = _fit_fold(train, horizon, scored, region)
         if fitted is None:
             model_mase.append(float("nan"))
             model_pin.append(float("nan"))
@@ -416,15 +424,17 @@ def _training_origins(train: pd.Series, horizon: int) -> pd.DatetimeIndex:
 
 
 def _fit_fold(
-    train: pd.Series, horizon: int, levels: tuple[float, ...]
+    train: pd.Series, horizon: int, levels: tuple[float, ...], region: str | None = None
 ) -> tuple[np.ndarray, np.ndarray] | None:
     """Fit both grains on ``train`` and predict from its final origin.
 
     Returns ``None`` when the training window is too short to fit on, which the caller
     records as an unscorable fold rather than as a zero.
     """
-    daily_rows = supervised_frame(train, horizon, origins=_training_origins(train, horizon))
-    total_rows = total_frame(train, horizon)
+    daily_rows = supervised_frame(
+        train, horizon, origins=_training_origins(train, horizon), region=region
+    )
+    total_rows = total_frame(train, horizon, region=region)
     trainable_daily = daily_rows.dropna(subset=["y"])
     trainable_total = total_rows.dropna(subset=["y"])
     if len(trainable_daily) < MIN_TRAIN_ROWS or len(trainable_total) < MIN_TOTAL_ROWS:
@@ -434,7 +444,9 @@ def _fit_fold(
     daily_models = fit_quantile_models(trainable_daily, levels)
     total_models = fit_quantile_models(trainable_total, levels)
 
-    daily_future = supervised_frame(train, horizon, origins=pd.DatetimeIndex([origin]))
+    daily_future = supervised_frame(
+        train, horizon, origins=pd.DatetimeIndex([origin]), region=region
+    )
     total_future = total_rows[total_rows["origin"] == origin]
     if daily_future.empty or total_future.empty:
         return None
@@ -564,7 +576,13 @@ def resolve_price(frame: pd.DataFrame) -> tuple[float, bool]:
 
 
 def forecast_sku(
-    sku: str, frame: pd.DataFrame, horizon: int, costs: CostModel, *, history_days: int = 120
+    sku: str,
+    frame: pd.DataFrame,
+    horizon: int,
+    costs: CostModel,
+    *,
+    history_days: int = 120,
+    region: str | None = None,
 ) -> SkuForecast:
     """Fit, backtest, choose, and price one SKU.
 
@@ -574,6 +592,9 @@ def forecast_sku(
         horizon: Days the order must cover.
         costs: The caller's cost assumptions.
         history_days: How much history to hand back for the chart.
+        region: Festival calendar the model reads proximity from, or ``None`` for none.
+            ``None`` also switches the festival *adjustment* off entirely, so the whole
+            feature has one switch rather than two that can disagree.
 
     Returns:
         A fully populated :class:`SkuForecast`, including the chart series.
@@ -584,10 +605,10 @@ def forecast_sku(
     levels = levels_for(cr)
     price, is_fallback = resolve_price(frame)
 
-    model_score, baseline_score, n_folds = backtest_sku(series, horizon, cr)
+    model_score, baseline_score, n_folds = backtest_sku(series, horizon, cr, region)
     method, reason = choose_method(model_score, baseline_score, n_folds)
 
-    fitted = _fit_fold(series, horizon, levels) if method == MODEL_NAME else None
+    fitted = _fit_fold(series, horizon, levels, region) if method == MODEL_NAME else None
     if fitted is None:
         method = BASELINE_NAME
         daily = baseline_daily(series, horizon, levels)
@@ -595,7 +616,14 @@ def forecast_sku(
     else:
         daily, total = fitted
 
-    qty, cost = order_from_distribution(levels, total, costs, price)
+    forecast_qty, _ = order_from_distribution(levels, total, costs, price)
+    plan = plan_for(sku, series, horizon=horizon, region=region)
+    qty = plan.apply(forecast_qty)
+    # Costed at the quantity actually recommended, not at the one before the adjustment. An
+    # expected cost that describes a different order than the one on the screen is worse
+    # than no expected cost.
+    cost = expected_cost_from_distribution(np.asarray(levels), total[0], qty, costs, price)
+
     return SkuForecast(
         sku=sku,
         method_used=method,
@@ -608,7 +636,9 @@ def forecast_sku(
         expected_cost=cost,
         unit_price=price,
         price_is_fallback=is_fallback,
-        series=_chart_series(series, daily, levels, horizon, qty, history_days),
+        series=_chart_series(series, daily, levels, horizon, qty, history_days, plan),
+        order_qty_before_festival=forecast_qty,
+        festival=plan.to_dict(),
     )
 
 
@@ -619,6 +649,7 @@ def _chart_series(
     horizon: int,
     order_qty: float,
     history_days: int,
+    plan: FestivalPlan | None = None,
 ) -> dict:
     """Assemble the JSON blob the chart draws.
 
@@ -627,6 +658,7 @@ def _chart_series(
     a chart whose values are around 5. The rate is the same decision expressed in the
     chart's own units.
     """
+    plan = plan or FestivalPlan.unchanged()
     tail = series.dropna().tail(history_days)
     last = series.index[-1]
     dates = [last + pd.Timedelta(days=h) for h in range(1, horizon + 1)]
@@ -653,4 +685,18 @@ def _chart_series(
             "daily_rate": round(order_qty / horizon, 3),
             "label": f"Order covers {horizon} days",
         },
+        # The festival run-ups the chart shades, so the days that were adjusted are the days
+        # the reader can see. Empty in the advisory and none states, which is the point:
+        # nothing is highlighted on a chart whose numbers nothing touched.
+        "festival_windows": [
+            {
+                "key": m.festival_key,
+                "name": m.festival_name,
+                "multiplier": round(m.multiplier, 3),
+                "days": m.days_in_window,
+            }
+            for m in plan.matches
+        ]
+        if plan.adjusts
+        else [],
     }

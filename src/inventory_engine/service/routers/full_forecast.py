@@ -38,6 +38,7 @@ from inventory_engine.service.observability import (
 from inventory_engine.service.retention import delete_dataset
 from inventory_engine.service.schemas import (
     DeleteResponse,
+    FestivalNote,
     ForecastRunRequest,
     ForecastRunResponse,
     ForecastStatusResponse,
@@ -453,12 +454,19 @@ def _status_message(job: ForecastJob, n_results: int) -> str:
 
 
 def _result_of(row: ForecastResult, horizon: int) -> SkuResult:
-    """Map a stored result row onto the response model."""
+    """Map a stored result row onto the response model.
+
+    ``festival`` is left null rather than defaulted to a "none" state when the stored blob
+    is empty: rows written before the feature existed have nothing to say about festivals,
+    and "we did not look" is not the same claim as "we looked and there was nothing".
+    """
     return SkuResult(
         sku=row.sku,
         method_used=row.method_used,
         method_reason=row.method_reason,
         order_qty=row.order_qty,
+        order_qty_before_festival=row.order_qty_before_festival,
+        festival=FestivalNote(**row.festival) if row.festival else None,
         order_daily_rate=row.order_qty / horizon if horizon else row.order_qty,
         expected_cost=row.expected_cost,
         unit_price=row.unit_price,
