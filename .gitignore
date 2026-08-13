@@ -28,3 +28,7 @@ data/uploads/
 _bmad/
 _bmad-output/
 design-artifacts/
+
+# ...but the festival demand reference IS source, not a rebuildable extract. priors.py
+# calls its absence a packaging fault and fails on it, which the rule above would cause.
+!data/india_festival_demand.csv
