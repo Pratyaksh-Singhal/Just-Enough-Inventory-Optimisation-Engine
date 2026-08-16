@@ -18,6 +18,13 @@ COPY pyproject.toml README.md ./
 COPY src ./src
 RUN pip install --upgrade pip && pip install ".[api,models,service]"
 
+# Needed by the release command, which runs `alembic upgrade head` in this image before any
+# new Machine starts. Without these two the migration cannot be found and every deploy
+# fails at the release step -- which is the safe direction to fail, but only after wasting
+# a build.
+COPY alembic.ini ./
+COPY migrations ./migrations
+
 RUN mkdir -p /data/uploads
 # 8001, not 8000: tier 1's run-api owns 8000 and the two are meant to run side by side.
 EXPOSE 8001

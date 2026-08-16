@@ -910,3 +910,27 @@ _Pending Phase 10._
 - Currency: M5 is Walmart US data, so all costs are computed and stored in **USD**. The
   dashboard offers a ₹ toggle with the FX rate shown inline rather than baking an
   invented exchange rate into the headline number.
+
+### Limitations of the hosted demo
+
+The Full forecast service is deployed to scale to zero, which costs about $0.32/month
+instead of about $15. Three consequences, none of them hidden:
+
+- **An abandoned forecast never finishes.** The API and the arq worker share one Machine,
+  because a Fly volume attaches to exactly one Machine and `LocalDiskStorage` hands the
+  worker a filesystem path the API wrote. The Machine suspends when traffic stops. While a
+  forecast runs the dashboard polls `/forecast/{job_id}` every couple of seconds, so the
+  app is never idle and the job completes — but if you close the tab mid-run, polling
+  stops, the Machine suspends, and that job's row stays `running` for ever. Nobody is
+  waiting on it, and keeping a Machine awake to protect it costs about $12/month. The fix,
+  if this were a product, is object storage plus a separate worker process group, which is
+  the same conclusion `docker-compose.yml` reaches about running the two on separate hosts.
+- **The first request after an idle period is slow.** The Machine suspends rather than
+  stops, so it restores from memory in a second or two, and the free-tier Postgres wakes on
+  its own schedule after five minutes idle. Expect a few seconds on a cold visit.
+- **Free-tier ceilings apply.** 0.5 GB of Postgres storage and 100 compute-hours a month.
+  Uploads are destroyed after 30 days regardless, so storage is bounded by usage rather
+  than by time, but a burst of traffic would hit the compute ceiling before it hit disk.
+
+Tier 1 is not deployed at all. Every figure it produces is inlined into the dashboard as
+JSON at build time, so the live endpoints would serve a 324 MB DuckDB warehouse to nobody.
