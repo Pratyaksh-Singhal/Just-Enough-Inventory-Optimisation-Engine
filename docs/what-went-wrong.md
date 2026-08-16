@@ -4,16 +4,18 @@ A record of decisions this project got wrong the first time, what the wrong vers
 produced, and what replaced it.
 
 It exists because the interesting part of a forecasting system is not the version that
-worked. Every one of the failures below was **code working exactly as written**, returning a
-confident, plausible, wrong answer. None of them raised an exception. None would have been
-caught by asking whether the tests passed — several were found only by running the thing on
-real data and reading the output.
+worked. Four of the five failures below were **code working exactly as written**, returning a
+confident, plausible, wrong answer without raising anything. The fifth raised loudly and
+still reached production, because the assumption it broke was one every test shared.
+
+None would have been caught by asking whether the tests passed. Several were found only by
+running the thing on real data and reading the output; one was found only by deploying it.
 
 Each entry names where to verify it in the source.
 
 ---
 
-## The Four That Mattered Most
+## The Five That Mattered Most
 
 | # | Symptom | Actual cause | Found by |
 | --- | --- | --- | --- |
@@ -21,6 +23,7 @@ Each entry names where to verify it in the source.
 | 2 | An order of **974 units at a 41% service level** on a series averaging 399 | A daily method used at the wrong grain | Running it on real M5 data |
 | 3 | "The simple baseline beat the model" reported off a **2% gap** | A true number supporting an unsupported conclusion | Reading the response text |
 | 4 | The festival calendar silently lost **Eid in all nine years** | The holiday names depended on the host's locale | CI, on a different OS |
+| 5 | Every forecast in production failed on a **missing data file** | A path resolved from a repo root that does not exist once installed | The first deploy |
 
 ---
 
@@ -154,6 +157,44 @@ environment problem.
 
 ---
 
+## 5. A File That Ships With the Repository, and Not With the Package
+
+**Where:** `src/inventory_engine/service/priors.py`, `DEFAULT_PATH`
+
+The first deployment of the forecast service failed every forecast:
+
+```
+FileNotFoundError: festival demand table not found at
+  /usr/local/lib/python3.11/data/india_festival_demand.csv
+```
+
+The table is read through `DEFAULT_PATH`, which was `PROJECT_ROOT / "data" /
+india_festival_demand.csv`. `PROJECT_ROOT` is `Path(__file__).resolve().parents[2]` of
+`config.py` — the repository root from a source checkout, and `/usr/local/lib/python3.11`
+from `site-packages`. The deployed service was looking for its data one directory above the
+standard library.
+
+Two faults, compounding. The container build also excluded `data/` wholesale, which was
+right for the 740 MB DuckDB warehouse in that directory and wrong for the sixteen-line
+reference table sitting beside it — a file that had been deliberately un-ignored from git a
+few days earlier precisely because it is source.
+
+**What changed.** The table moved into the package, at
+`src/inventory_engine/data/india_festival_demand.csv`, and resolves relative to the package
+rather than to a repository root. Copying it into the image would have hidden the second
+fault: the path would still be wrong for anyone who `pip install`s this project. Verified by
+building a wheel and reading the archive, rather than trusting that the build backend would
+include it.
+
+**Why it is in this document.** `load()` raises on a missing table with the comment *"It
+ships with the repository, so its absence is a packaging fault worth failing on rather than
+degrading past."* The sentence was correct and the packaging did not honour it. The failure
+was loud, immediate and precisely located — which is the design working — but it was
+invisible until the first deploy, because **every test runs from a checkout, where the wrong
+path happened to be right**. A test suite cannot catch an assumption it shares.
+
+---
+
 ## Four More, Briefly
 
 | Where | What happened | What changed |
@@ -186,20 +227,26 @@ byte-identical with the festival feature switched on and off.
 
 ## The Common Thread
 
-None of these were crashes. Every one produced output that looked like an answer:
+Four of the five were not crashes. Each produced output that looked like an answer:
 
 - A ratio below 1.0, which is an ordinary thing for a ratio to be.
 - An order quantity, in units, with a service level attached.
 - A comparison between two methods, with real numbers on both sides.
 - A calendar, fully populated, missing exactly one festival.
 
-The defect in each case was not in the arithmetic but in what the arithmetic was being asked
-to mean: an average across a regime change, a daily method at a total grain, a true
+The defect in those cases was not in the arithmetic but in what the arithmetic was being
+asked to mean: an average across a regime change, a daily method at a total grain, a true
 measurement carrying an unsupported conclusion, a lookup depending on an unstated input.
 
-Three of the four were found by running the system on real data and reading the output.
-One was found by CI on a platform the author does not develop on. None would have been found
-by a passing test suite alone, which is why the suite now pins each of them.
+The fifth is the other kind, and it is worth keeping beside them. It failed loudly and
+immediately, exactly as designed — and still reached production, because the assumption it
+violated was one the entire test suite shared. Tests run from a checkout. So did the bug.
+
+Two of the five were found by running the system on real data and reading the output. One
+was found by reading the response text. One was found by CI on a platform the author does
+not develop on. One was found by deploying. **None** would have been found by a passing test
+suite alone, which is why the suite now pins the four that it can — and why the fifth is a
+standing argument for running the thing somewhere other than where you built it.
 
 ---
 
