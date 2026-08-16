@@ -6,7 +6,8 @@ Two sources, and they are never confused
 history: an annual festival needs roughly 13 months of data before it can be measured at
 all.
 
-**Prior.** The reference table in ``data/india_festival_demand.csv`` (loaded by
+**Prior.** The reference table in ``inventory_engine/data/india_festival_demand.csv``
+(loaded by
 :mod:`inventory_engine.service.priors`) — a suggested multiplier per festival and the item
 keywords it applies to. Used only where measurement is impossible: a shop with 90 days of
 history, or a SKU introduced last month.

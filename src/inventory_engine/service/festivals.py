@@ -192,7 +192,8 @@ OUT_OF_SCOPE: Final[dict[str, str]] = {
     "gudi_padwa": "Maharashtra only (MH).",
 }
 
-#: Wanted by ``data/india_festival_demand.csv``, absent from ``holidays.India`` under every
+#: Wanted by ``inventory_engine/data/india_festival_demand.csv``, absent from
+#: ``holidays.India`` under every
 #: subdivision. Searched for by name substring across all 36 subdivisions -- see the test.
 #: Left out rather than guessed; the value here is the reason, which is what tells a
 #: maintainer what to go and find.

@@ -5,8 +5,8 @@ Where this sits
 :mod:`inventory_engine.service.uplift` measures a festival's effect from a SKU's own history
 and is always preferred. It needs roughly 13 months of data. This module covers the gap for
 everyone else -- a shop that signed up last month, or a product introduced last week -- by
-matching the SKU's name against ``data/india_festival_demand.csv`` and offering that row's
-multiplier as a **suggestion**.
+matching the SKU's name against ``inventory_engine/data/india_festival_demand.csv`` and
+offering that row's multiplier as a **suggestion**.
 
 :func:`resolve` is the only function most callers want. It tries the measurement, falls back
 to the prior, and labels which one it returned. Nothing here ever silently upgrades a
@@ -58,12 +58,24 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Final
 
-from inventory_engine.config import PROJECT_ROOT
 from inventory_engine.service.festivals import SOURCES
 from inventory_engine.service.uplift import Source, Uplift
 
 #: The reference table. Data, not code, so it can be corrected without a release.
-DEFAULT_PATH: Final[Path] = PROJECT_ROOT / "data" / "india_festival_demand.csv"
+#:
+#: Resolved relative to the *package*, not to a repository root. It used to be
+#: ``PROJECT_ROOT / "data" / ...``, where ``PROJECT_ROOT`` is ``parents[2]`` of
+#: ``config.py`` -- the repo root from a source checkout, and ``/usr/local/lib/python3.11``
+#: from site-packages. The deployed service therefore looked for the table one directory
+#: above the standard library and raised ``FileNotFoundError`` on every forecast. Caught by
+#: the first end-to-end run against the deployment, not by any test, because every test
+#: runs from a checkout where the old path happened to be right.
+#:
+#: Living inside the package means it ships with the wheel, which is what the sentence
+#: below has always claimed.
+DEFAULT_PATH: Final[Path] = (
+    Path(__file__).resolve().parents[1] / "data" / "india_festival_demand.csv"
+)
 
 #: Keywords shorter than this are not matched. "og" or "hi" inside a product code would
 #: otherwise match half a catalogue.
