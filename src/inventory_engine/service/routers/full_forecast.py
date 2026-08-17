@@ -215,6 +215,7 @@ def upload(
         excluded=[SkuVerdictOut.of(v) for v in report.rejected],
         column_mapping=report.column_mapping,
         warnings=list(report.warnings()),
+        retention_days=settings.upload_retention_days,
         message=report.summary(),
     )
 

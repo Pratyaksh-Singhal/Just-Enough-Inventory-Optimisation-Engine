@@ -61,6 +61,12 @@ class UploadResponse(BaseModel):
         default_factory=list,
         description="Every transformation applied while reading -- merges, clips, drops",
     )
+    retention_days: int = Field(
+        default=30,
+        description="Days until this upload and everything derived from it are destroyed, "
+        "whether or not the caller asks. Returned so a client can state the date rather "
+        "than hardcode the policy -- the number here is the one the purge job enforces.",
+    )
     message: str
 
 

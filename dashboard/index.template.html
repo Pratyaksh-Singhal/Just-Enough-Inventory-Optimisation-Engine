@@ -1282,6 +1282,7 @@ __FONTS__
           <table id="ffTable"></table>
         </div>
         <div id="ffExcluded" style="margin-top:14px"></div>
+        <div id="ffData" hidden style="margin-top:22px"></div>
       </div>
     </div>
   </section>
@@ -2652,6 +2653,11 @@ __FONTS__
         return null;
       }
       S.dataset = data.dataset_id;
+      // Published for the data-and-deletion panel, which lives in its own script block and
+      // cannot see this closure. The retention window travels from the API rather than
+      // being hardcoded in the page, so the date shown is the one the purge job enforces.
+      window.__ffDataset = { id: data.dataset_id, retentionDays: data.retention_days };
+      window.dispatchEvent(new CustomEvent('ioe:dataset'));
       const warn = (data.warnings || []).map(esc).join('<br>');
       msg(`<span class="win">${data.admitted.length} product(s) ready.</span>
         ${data.excluded.length ? `${data.excluded.length} excluded — see below.` : ''}
@@ -2992,4 +2998,105 @@ __FONTS__
   runCalculator();
   update();
   restoreTab();
+</script>
+<script>
+/* ---------------- your data: what is kept, and getting rid of it ----------------
+   A separate block on purpose. The forecast tab's own script is left alone; this reads
+   only what that block publishes on `window.__ffDataset` and talks to the API itself.
+
+   This closes a real gap rather than restyling one. The service has hard-deleted an upload
+   and everything derived from it since DELETE /datasets/{id} shipped, and destroys uploads
+   after a retention window regardless -- and none of that was ever said on screen, or
+   reachable. The CORS preflight was even fixed to permit DELETE, and still nothing called
+   it. A tool that stores a shopkeeper's sales history owes them both facts and the button.
+
+   Every string the user reads on success comes from the API's own DeleteResponse.message,
+   never from a sentence invented here: the page must not claim a deletion the service did
+   not perform. */
+(function yourData() {
+  const $$ = s => document.querySelector(s);
+  const esc = x => { const d = document.createElement('div'); d.textContent = x; return d.innerHTML; };
+  const box = $$('#ffData');
+  if (!box) return;
+
+  const api = () => (location.protocol === 'https:' || location.protocol === 'http:')
+    ? location.origin : 'https://inventory-optimization-engine.fly.dev';
+
+  let state = 'idle';   // idle -> confirming -> deleting -> deleted | error
+  let error = '';
+  let done = '';
+
+  /* The retention date is computed from the window the API reported, not from a literal.
+     Hardcoding 30 here would put the policy in two places and the copy would be the one
+     that drifts. */
+  const retireDate = days => {
+    const d = new Date(Date.now() + days * 864e5);
+    return d.toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' });
+  };
+
+  function render() {
+    const ds = window.__ffDataset;
+    if (!ds) { box.hidden = true; return; }
+    box.hidden = false;
+    const days = ds.retentionDays;
+
+    const explain = `
+      <p class="prose" style="font-size:14px;margin:0 0 12px;max-width:64ch">
+        Your file is stored on the server so the forecast can run against it, and your daily
+        sales figures are kept with the results the chart draws. It is
+        <strong>deleted ${days} days after upload, whether you ask or not</strong> — that is
+        ${esc(retireDate(days))} for this one. There are no accounts here, so nothing is kept
+        to identify you: only an anonymous per-browser id that travels with the request.
+      </p>`;
+
+    if (state === 'deleted') {
+      box.innerHTML = `<div class="card"><span class="eyebrow">Your data</span>
+        <div class="msg ok" style="margin:0">${esc(done)}</div></div>`;
+      return;
+    }
+    if (state === 'confirming') {
+      box.innerHTML = `<div class="card"><span class="eyebrow">Your data</span>${explain}
+        <div class="msg" style="margin:0 0 12px"><strong>Delete all of it?</strong>
+          The file, its forecasts and the sales history stored with them. This cannot be undone,
+          and any forecast still running is cancelled.</div>
+        <div class="btnrow">
+          <button class="btn" type="button" id="ffDelYes">Yes, delete it</button>
+          <button class="btn ghost" type="button" id="ffDelNo">Keep it</button>
+        </div></div>`;
+      $$('#ffDelYes').addEventListener('click', doDelete);
+      $$('#ffDelNo').addEventListener('click', () => { state = 'idle'; render(); });
+      return;
+    }
+    box.innerHTML = `<div class="card"><span class="eyebrow">Your data</span>${explain}
+      ${error ? `<div class="msg" style="margin:0 0 12px">${esc(error)}</div>` : ''}
+      <div class="btnrow">
+        <button class="btn ghost" type="button" id="ffDel"${state === 'deleting' ? ' disabled' : ''}>
+          ${state === 'deleting' ? 'Deleting…' : 'Delete my file and its forecasts'}</button>
+      </div></div>`;
+    const b = $$('#ffDel');
+    if (b) b.addEventListener('click', () => { error = ''; state = 'confirming'; render(); });
+  }
+
+  async function doDelete() {
+    const ds = window.__ffDataset;
+    if (!ds) return;
+    state = 'deleting'; render();
+    try {
+      const r = await fetch(`${api()}/datasets/${ds.id}`, { method: 'DELETE' });
+      const body = await r.json();
+      if (!r.ok) throw new Error(body.detail || `The service returned ${r.status}.`);
+      /* The service's own words, not ours -- it knows whether jobs were cancelled too. */
+      done = body.message;
+      state = 'deleted';
+      window.__ffDataset = null;
+    } catch (e) {
+      state = 'idle';
+      error = `Not deleted: ${e.message} Your file is still on the server; try again.`;
+    }
+    render();
+  }
+
+  window.addEventListener('ioe:dataset', () => { state = 'idle'; error = ''; render(); });
+  render();
+})();
 </script>

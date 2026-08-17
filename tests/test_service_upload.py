@@ -321,3 +321,20 @@ def test_a_configured_but_missing_dashboard_dir_does_not_break_the_api(tmp_path,
     with TestClient(create_app(configure_observability=False)) as client:
         assert client.get("/health").status_code == 200
         assert client.get("/").status_code == 404
+
+
+def test_the_upload_response_states_the_retention_window(client):
+    """The page tells the user when their file dies, so it must be told the number.
+
+    Hardcoding 30 in the dashboard would put the retention policy in two places, and the
+    one the user reads would be the one that drifts. `upload_retention_days` is the setting
+    the purge job actually enforces; this is that same value, travelling to the UI.
+    """
+    from inventory_engine.service.settings import get_settings
+
+    rows = "sku,date,units_sold\n" + "\n".join(
+        f"WIDGET,2025-{m:02d}-{d:02d},{5 + (d % 7)}" for m in (1, 2, 3, 4) for d in range(1, 29)
+    )
+    response = client.post("/upload", files={"file": ("s.csv", rows, "text/csv")})
+    assert response.status_code == 201, response.text
+    assert response.json()["retention_days"] == get_settings().upload_retention_days
