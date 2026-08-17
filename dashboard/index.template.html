@@ -48,9 +48,9 @@ __FONTS__
   }
 
   .wrap {
-    max-width: 1140px;
+    max-width: 1320px;
     margin: 0 auto;
-    padding: 0 28px
+    padding: 0 32px
   }
 
   /* ---------- header ---------- */
@@ -71,8 +71,9 @@ __FONTS__
   }
 
   .masthead h1 {
-    font-size: 17px;
-    font-weight: 600;
+    font-family: var(--cond);
+    font-size: 21px;
+    font-weight: 700;
     margin: 0;
     letter-spacing: -.01em
   }
@@ -192,24 +193,30 @@ __FONTS__
   .eyebrow {
     font-family: var(--mono);
     font-size: 10.5px;
-    letter-spacing: .13em;
+    letter-spacing: .14em;
     text-transform: uppercase;
     color: var(--ink-3);
     margin: 0 0 10px
   }
 
+  /* Condensed headings are the design's loudest signal: a narrow, tall face set against
+     the wide monospaced figures. Sized from the source rather than nudged -- at 40px a
+     heading reads as a section break without needing a rule under it. */
   h2 {
-    font-size: 23px;
+    font-family: var(--cond);
+    font-size: 40px;
     font-weight: 600;
-    letter-spacing: -.015em;
-    margin: 0 0 8px;
+    line-height: 1.05;
+    letter-spacing: -.02em;
+    margin: 0 0 10px;
     text-wrap: balance
   }
 
   h3 {
-    font-size: 14.5px;
+    font-family: var(--cond);
+    font-size: 20px;
     font-weight: 600;
-    margin: 0 0 4px;
+    margin: 0 0 5px;
     letter-spacing: -.005em
   }
 
