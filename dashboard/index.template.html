@@ -2,6 +2,11 @@
 <title>Inventory Optimization Engine</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
+/* Vendored faces, embedded as data URIs by scripts/build_dashboard.py from
+   dashboard/fonts/*.woff2. Not a CDN link: this page is served both from the forecast
+   service and as a Claude Artifact, and the Artifact CSP blocks font CDNs outright -- a
+   <link> would fall back to system faces there with no error to notice. */
+__FONTS__
   :root {
     --ground: #0C1211;
     --surface: #131A18;
@@ -17,8 +22,13 @@
     --jade-dim: rgba(47, 169, 124, .14);
     --amber-dim: rgba(196, 134, 43, .16);
     --blue-dim: rgba(79, 134, 212, .16);
-    --mono: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Menlo, Consolas, monospace;
-    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    /* Dual-font strategy from the design: Barlow carries the interface, JetBrains Mono
+       carries every number. The mono face is not decoration -- tabular figures are what
+       keep the order-quantity and MASE columns readable down a table. System stacks stay
+       as the fallback for the seconds before the embedded face parses. */
+    --mono: "JetBrains Mono", ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+    --sans: Barlow, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --cond: "Barlow Condensed", "Barlow", system-ui, sans-serif;
     --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
     --r: 3px;
   }
