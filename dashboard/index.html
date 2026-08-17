@@ -898,6 +898,149 @@
     white-space: nowrap
   }
 
+  /* ---------- how much to order: page head, steps, drop zone, derivation ---------- */
+  .page-head {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 26px;
+    align-items: start
+  }
+
+  @media (max-width: 880px) {
+    .page-head { grid-template-columns: 1fr }
+  }
+
+  /* The three facts that decide whether this tab can be trusted with a file. Mono, quiet,
+     and set as a spec plate rather than prose -- it is metadata, not an argument. */
+  .meta-block {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-2);
+    border: 1px solid var(--line);
+    border-radius: var(--r);
+    background: var(--surface);
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    white-space: nowrap
+  }
+
+  .meta-block span {
+    color: var(--ink-3);
+    letter-spacing: .14em;
+    margin-right: 10px
+  }
+
+  .step + .step {
+    margin-top: 28px;
+    padding-top: 24px;
+    border-top: 1px solid var(--line-soft)
+  }
+
+  .step-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px
+  }
+
+  .step-head h3 { margin: 0; flex: 1 1 auto }
+
+  .step-n {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .14em;
+    color: var(--jade)
+  }
+
+  .drop {
+    border: 1px dashed var(--line);
+    border-radius: var(--r);
+    background: var(--ground);
+    padding: 34px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .15s, background .15s
+  }
+
+  .drop:hover, .drop:focus-visible { border-color: var(--jade); background: var(--jade-dim) }
+  .drop.over { border-color: var(--jade); background: var(--jade-dim) }
+  .drop-t { font-family: var(--cond); font-size: 20px; font-weight: 600; margin-top: 8px }
+  .drop-h { font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); margin-top: 5px }
+
+  .drop-meta {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--ink-3);
+    margin-top: 10px
+  }
+
+  .drop-meta span { letter-spacing: .14em; color: var(--ink-2); margin: 0 6px 0 14px }
+  .drop-meta span:first-child { margin-left: 0 }
+
+  .derive {
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--jade);
+    border-radius: var(--r);
+    background: var(--callout-jade);
+    padding: 16px 18px;
+    margin-top: 18px
+  }
+
+  .derive-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink-2)
+  }
+
+  .derive-row b {
+    font-size: 27px;
+    font-weight: 600;
+    color: var(--jade);
+    letter-spacing: -.03em;
+    font-variant-numeric: tabular-nums
+  }
+
+  .derive-bar {
+    position: relative;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--line);
+    margin: 10px 0 5px
+  }
+
+  .derive-bar > div:first-child { height: 100%; border-radius: 2px; background: var(--jade) }
+
+  /* The 95% mark, drawn where the habit sits so the derived number can be read against it. */
+  .derive-bar > div:last-child {
+    position: absolute;
+    top: -3px;
+    left: 95%;
+    width: 1px;
+    height: 10px;
+    background: var(--amber)
+  }
+
+  .derive-scale {
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--ink-3)
+  }
+
+  .derive-formula {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink);
+    margin-top: 10px;
+    font-variant-numeric: tabular-nums
+  }
+
   /* ---------- forms / calculator ---------- */
   .field {
     display: flex;
@@ -1134,67 +1277,101 @@
 
 <main class="wrap">
 
-  <!-- ============ ORDER CALCULATOR ============ -->
+  <!-- ============ HOW MUCH TO ORDER ============ -->
   <section id="calculator" class="stack fade">
-    <div>
-      <p class="eyebrow">Paste your own sales history — nothing leaves your browser</p>
-      <h2>How much should I order?</h2>
-      <p class="lede">
-        Give it your recent sales per product, your profit margin, and how much of a unit you
-        lose when it doesn't sell. It works out how many units to order for each one —
-        including how much spare to carry above your average demand, so you're covered on a
-        busy day without throwing stock away. Because the two settings are percentages, each
-        product is costed off its own price rather than one flat figure for the whole list.
-      </p>
+    <div class="page-head">
+      <div>
+        <p class="eyebrow">Browser only &middot; nothing leaves this page</p>
+        <h2>How much to order</h2>
+        <p class="lede">
+          Your figures are read, calculated and shown here. Nothing is uploaded, and no
+          forecast service is involved. This surface is also what the live service offers
+          anyone whose data it refuses.
+        </p>
+      </div>
+      <!-- The three facts that decide whether this tab can be trusted with a file. RULE and
+           GRAIN are corrected from the mock: the calculator takes one empirical quantile at
+           the critical ratio -- the seven-level grid belongs to the fitted model on the next
+           tab -- and it groups by whatever is in the sku column, not by product and store. -->
+      <div class="meta-block">
+        <div><span>GRAIN</span>product &middot; from your sku column</div>
+        <div><span>RULE</span>newsvendor &middot; empirical quantile at CR</div>
+        <div><span>NETWORK</span>none</div>
+      </div>
     </div>
 
     <div class="calc">
       <div class="card">
-        <div class="field">
-          <label for="csv">Your sales history</label>
-          <span class="hint">One row per product per day. Needs columns for product,
-            date, units sold and unit price — extra columns are ignored.</span>
-          <textarea id="csv" spellcheck="false"
-            placeholder="sku,date,units_sold,unit_price&#10;Milk 1L,2024-05-01,31,1.40&#10;Milk 1L,2024-05-02,27,1.40&#10;Bread,2024-05-01,14,2.20&#10;Yogurt,2024-05-01,9,5.90"></textarea>
-          <div class="btnrow">
-            <button class="btn ghost" type="button" id="loadDemo">Load example data</button>
-            <label class="btn ghost" style="cursor:pointer;margin:0">
-              Upload CSV<input type="file" id="csvFile" accept=".csv,text/csv" style="display:none">
-            </label>
+        <div class="step">
+          <div class="step-head">
+            <span class="step-n">01</span>
+            <h3>Your sales history</h3>
+            <button class="btn ghost" type="button" id="loadDemo">Use example figures</button>
+          </div>
+          <div id="calcDrop" class="drop" tabindex="0" role="button"
+               aria-label="Choose a CSV of your sales history">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--jade)"
+                 stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+            <div class="drop-t" id="calcDropTitle">Drop your sales CSV here</div>
+            <div class="drop-h" id="calcDropHint">or click to choose &middot; it is read in this page and never sent</div>
+          </div>
+          <input type="file" id="csvFile" accept=".csv,text/csv" hidden>
+          <!-- The paste box is gone from the page but stays as the data holder: every reader
+               (drop, file picker, example) writes here and runCalculator() reads it exactly
+               as before, so removing the visible textarea changed no logic. -->
+          <textarea id="csv" hidden aria-hidden="true"></textarea>
+          <div class="drop-meta">
+            <span>NEEDS</span> product &middot; date &middot; units sold
+            <span>OPTIONAL</span> unit price
           </div>
         </div>
 
-        <hr class="rule" style="margin:18px 0">
+        <div class="step">
+          <div class="step-head">
+            <span class="step-n">02</span>
+            <h3>What the two mistakes cost</h3>
+          </div>
+          <p class="hint" style="margin:0 0 16px">Both are percentages of each product&rsquo;s
+            own selling price. These are your assumptions, not our measurements.</p>
 
-        <div class="field">
-          <label for="cover">Order enough to cover</label>
-          <select id="cover">
-            <option value="1">the next 1 day</option>
-            <option value="3">the next 3 days</option>
-            <option value="7" selected>the next 7 days</option>
-            <option value="14">the next 14 days</option>
-          </select>
+          <div class="ctrl">
+            <label for="pMargin"><span>Margin you lose on a missed sale</span><output id="pMarginOut">30%</output></label>
+            <input type="range" id="pMargin" min="1" max="95" step="1" value="30">
+          </div>
+          <div class="ctrl">
+            <label for="pWaste"><span>Share of unsold stock you throw away</span><output id="pWasteOut">60%</output></label>
+            <input type="range" id="pWaste" min="0" max="100" step="1" value="60">
+          </div>
+          <div class="field" style="margin-top:4px">
+            <label for="cover">Order enough to cover</label>
+            <select id="cover">
+              <option value="1">the next 1 day</option>
+              <option value="3">the next 3 days</option>
+              <option value="7" selected>the next 7 days</option>
+              <option value="14">the next 14 days</option>
+            </select>
+          </div>
+
+          <!-- The derived target. Never a dial: it is recomputed from the two sliders above
+               by the same arithmetic as CostModel, and the division is shown so the number
+               can be checked rather than believed. -->
+          <div class="derive">
+            <div class="derive-row"><span>In-stock target this implies</span><b id="calcCr">41%</b></div>
+            <div class="derive-bar"><div id="calcCrFill"></div><div id="calcCrDefault"></div></div>
+            <div class="derive-scale"><span>0%</span><span>95% &larr; the usual default</span></div>
+            <div class="derive-formula" id="calcCrFormula"></div>
+            <p class="hint" style="margin:8px 0 0">Derived from the two figures above &mdash;
+              never chosen, and not a dial you can set directly.</p>
+          </div>
+          <p class="hint" style="font-size:12px;margin:14px 0 0">
+            Prices come from a <code>unit_price</code> column in your file; products without
+            one are priced at <span id="fallbackPrice" class="ccy-tag"></span>, which changes
+            their money figures but not how many units to order.
+          </p>
         </div>
-        <div class="ctrl">
-          <label for="pMargin"><span>Your profit margin</span><output id="pMarginOut">30%</output></label>
-          <span class="hint">Of the shelf price, the share you keep. A sale you miss costs
-            you this much <em>of that product's own price</em>.</span>
-          <input type="range" id="pMargin" min="1" max="95" step="1" value="30">
-        </div>
-        <div class="ctrl">
-          <label for="pWaste"><span>Written off if it doesn't sell</span><output
-              id="pWasteOut">60%</output></label>
-          <span class="hint">Of what you paid for it. 100% if it gets thrown away, less if
-            you can still shift it at a discount.</span>
-          <input type="range" id="pWaste" min="0" max="100" step="1" value="60">
-        </div>
-        <p class="hint" style="font-size:12px;color:var(--ink-3);margin:0">
-          Both are percentages of <strong style="color:var(--ink-2)">each product's own
-            price</strong>, so a $6 item and a $1 item are costed differently from the same
-          two settings. Prices come from a <code>unit_price</code> column in your file;
-          products without one are priced at <span id="fallbackPrice" class="ccy-tag"></span>,
-          which changes their money figures but not how many units to order.
-        </p>
       </div>
 
       <div>
@@ -2621,6 +2798,75 @@
   update();
   restoreTab();
 </script>
+<script>
+/* ---------------- how much to order: drop zone and the derived target ----------------
+   Additive. The calculator's own script is untouched: this writes the CSV text into the
+   hidden #csv holder it already reads, then fires the same 'input' event a paste used to,
+   so runCalculator() runs unchanged.
+
+   The derived target is recomputed here rather than in renderRateInputs so that function
+   stays as it was. The arithmetic is CostModel's, with price cancelled out:
+       Cu = price x margin            Co = price x (1 - margin) x (spoilage + holding)
+       CR = Cu / (Cu + Co) = margin / (margin + (1 - margin)(spoilage + holding))
+   The division is printed because a number you can check beats a number you are told. */
+(function orderTab() {
+  const $ = s => document.querySelector(s);
+  const HOLDING = 0.02;                       // DEFAULT_HOLDING_RATE in costs.py
+  const drop = $('#calcDrop'), file = $('#csvFile'), holder = $('#csv');
+  if (!drop || !file || !holder) return;
+
+  const load = (text, label) => {
+    holder.value = text;
+    $('#calcDropTitle').textContent = label;
+    $('#calcDropHint').textContent = `${text.trim().split(/
+/).length - 1} rows read in this page`;
+    holder.dispatchEvent(new Event('input', { bubbles: true }));
+  };
+
+  drop.addEventListener('click', () => file.click());
+  drop.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); file.click(); }
+  });
+  ['dragenter', 'dragover'].forEach(ev => drop.addEventListener(ev, e => {
+    e.preventDefault(); drop.classList.add('over');
+  }));
+  ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => {
+    e.preventDefault(); drop.classList.remove('over');
+  }));
+  drop.addEventListener('drop', e => {
+    const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) f.text().then(txt => load(txt, f.name));
+  });
+  file.addEventListener('change', e => {
+    const f = e.target.files && e.target.files[0];
+    if (f) f.text().then(txt => load(txt, f.name));
+  });
+  /* The example button already fills the holder; this only relabels the zone after it. */
+  const demo = $('#loadDemo');
+  if (demo) demo.addEventListener('click', () => setTimeout(() => {
+    const rows = (holder.value.trim().match(/
+/g) || []).length;
+    $('#calcDropTitle').textContent = 'Example figures loaded';
+    $('#calcDropHint').textContent = `${rows} rows &middot; real supermarket sales`.replace('&middot;', '·');
+  }, 0));
+
+  function derive() {
+    const m = +$('#pMargin').value / 100, s = +$('#pWaste').value / 100;
+    const cr = m / (m + (1 - m) * (s + HOLDING));
+    $('#calcCr').textContent = `${Math.round(cr * 100)}%`;
+    $('#calcCrFill').style.width = `${(cr * 100).toFixed(1)}%`;
+    $('#calcCrFormula').textContent =
+      `${m.toFixed(2)} ÷ (${m.toFixed(2)} + ${(1 - m).toFixed(2)} × ` +
+      `${(s + HOLDING).toFixed(2)}) = ${cr.toFixed(3)}`;
+  }
+  ['input', 'change'].forEach(ev => {
+    $('#pMargin').addEventListener(ev, derive);
+    $('#pWaste').addEventListener(ev, derive);
+  });
+  derive();
+})();
+</script>
+
 <script>
 /* ---------------- your data: what is kept, and getting rid of it ----------------
    A separate block on purpose. The forecast tab's own script is left alone; this reads

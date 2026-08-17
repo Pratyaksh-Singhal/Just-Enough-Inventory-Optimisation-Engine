@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; padding: 0; background: #0C1211; }
+  * { box-sizing: border-box; }
+  ::selection { background: rgba(47,169,124,0.3); }
+  a { color: #69DBAA; text-decoration: none; }
+  a:hover { color: #86F8C5; }
+  input[type=number]::-webkit-outer-spin-button, input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  input[type=number] { -moz-appearance: textfield; }
+</style>
+</helmet>
+
+<div style="min-height:100vh;background:#0C1211;font-family:Barlow,system-ui,sans-serif;color:#E8EFEC;font-size:15px;line-height:1.55">
+
+  <sc-if value="{{ isDark }}" hint-placeholder-val="{{ true }}">
+  <div style="position:sticky;top:0;z-index:50;background:rgba(12,18,17,0.92);backdrop-filter:blur(8px);border-bottom:1px solid #222E2A">
+    <div style="max-width:1280px;margin:0 auto;padding:0 32px;height:64px;display:flex;align-items:center;gap:32px">
+      <div style="display:flex;align-items:baseline;gap:10px;cursor:pointer" onClick="{{ goLanding }}">
+        <span style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:22px;letter-spacing:-0.01em;color:#E8EFEC">Just Enough</span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.14em;color:#5F6F69;text-transform:uppercase">Newsvendor</span>
+      </div>
+      <nav style="display:flex;align-items:center;gap:4px;margin-left:8px">
+        <a href="#finding" style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:14px;letter-spacing:0.02em;color:#A6B5AF;padding:8px 12px;border-radius:4px" style-hover="{background:'#161D1B',color:'#E8EFEC'}">The finding</a>
+        <a href="#method" style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:14px;letter-spacing:0.02em;color:#A6B5AF;padding:8px 12px;border-radius:4px" style-hover="{background:'#161D1B',color:'#E8EFEC'}">How it works</a>
+        <a href="#results" style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:14px;letter-spacing:0.02em;color:#A6B5AF;padding:8px 12px;border-radius:4px" style-hover="{background:'#161D1B',color:'#E8EFEC'}">Results</a>
+      </nav>
+      <div style="flex:1"></div>
+      <div style="display:flex;align-items:center;border:1px solid #222E2A;border-radius:999px;padding:2px;gap:2px">
+        <button onClick="{{ setUsd }}" style="{{ usdPill }}">$ USD</button>
+        <button onClick="{{ setInr }}" style="{{ inrPill }}">₹ INR</button>
+      </div>
+      <button onClick="{{ goTool }}" style="{{ navCta }}">{{ navCtaLabel }}</button>
+    </div>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ isTool }}" hint-placeholder-val="{{ false }}">
+    <div style="max-width:1280px;margin:0 auto;padding:40px 32px 96px">
+
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:32px;padding-bottom:24px;border-bottom:1px solid #222E2A">
+        <div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:500;letter-spacing:0.14em;color:#2FA97C;text-transform:uppercase;margin-bottom:10px">Order calculator</div>
+          <h1 style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:40px;line-height:1.05;letter-spacing:-0.02em;margin:0 0 8px;color:#E8EFEC">Optimal order quantities</h1>
+          <p style="margin:0;max-width:56ch;color:#A6B5AF;font-size:15px">Upload sales history, set what a stockout and a spoiled unit each cost you, and the newsvendor rule returns the quantity that minimises total cost — not the quantity that maximises service level.</p>
+        </div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.9;color:#5F6F69;text-align:right;white-space:nowrap">
+          <div>MODEL &nbsp;lgbm · q-grid ×7</div>
+          <div>GRAIN &nbsp;item × store</div>
+          <div>HORIZON &nbsp;1 day</div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1.35fr 1fr;gap:24px;margin-top:32px;align-items:start">
+
+        <div style="position:relative;border:1px solid #222E2A;background:#131A18;padding:24px">
+          <span style="position:absolute;top:-5px;left:-5px;width:11px;height:11px;background:linear-gradient(#35443E,#35443E) center/1px 11px no-repeat,linear-gradient(#35443E,#35443E) center/11px 1px no-repeat"></span>
+          <span style="position:absolute;top:-5px;right:-5px;width:11px;height:11px;background:linear-gradient(#35443E,#35443E) center/1px 11px no-repeat,linear-gradient(#35443E,#35443E) center/11px 1px no-repeat"></span>
+          <span style="position:absolute;bottom:-5px;left:-5px;width:11px;height:11px;background:linear-gradient(#35443E,#35443E) center/1px 11px no-repeat,linear-gradient(#35443E,#35443E) center/11px 1px no-repeat"></span>
+          <span style="position:absolute;bottom:-5px;right:-5px;width:11px;height:11px;background:linear-gradient(#35443E,#35443E) center/1px 11px no-repeat,linear-gradient(#35443E,#35443E) center/11px 1px no-repeat"></span>
+
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+            <div style="display:flex;align-items:baseline;gap:10px">
+              <span style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.14em;color:#5F6F69">01</span>
+              <h2 style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:20px;letter-spacing:0;margin:0;color:#E8EFEC">Sales history</h2>
+            </div>
+            <button onClick="{{ loadDemo }}" style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:#69DBAA;background:transparent;border:1px solid #234037;border-radius:4px;padding:7px 12px;cursor:pointer" style-hover="{background:'rgba(47,169,124,0.12)',borderColor:'#2FA97C'}">Load demo dataset</button>
+          </div>
+
+          <div onClick="{{ pickFile }}" onDragOver="{{ onDragOver }}" onDragLeave="{{ onDragLeave }}" onDrop="{{ onDrop }}" style="{{ dropStyle }}">
+            <div style="width:40px;height:40px;border:1px solid #2A3A34;display:flex;align-items:center;justify-content:center;margin-bottom:16px">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2FA97C" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+            </div>
+            <div style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:18px;color:#E8EFEC;margin-bottom:6px">{{ dropTitle }}</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.06em;color:#7A8A84;text-align:center;line-height:1.7">{{ dropHint }}</div>
+          </div>
+          <input type="file" accept=".csv" ref="{{ fileRef }}" onChange="{{ onFile }}" style="display:none">
+
+          <div style="margin-top:20px;padding-top:20px;border-top:1px solid #1B2523;display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:#1B2523">
+            <div style="background:#131A18;padding:12px 0">
+              <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.14em;color:#5F6F69;text-transform:uppercase;margin-bottom:6px">Rows</div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:500;color:#E8EFEC;font-variant-numeric:tabular-nums">{{ statRows }}</div>
+            </div>
+            <div style="background:#131A18;padding:12px 0 12px 16px">
+              <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.14em;color:#5F6F69;text-transform:uppercase;margin-bottom:6px">Series</div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:500;color:#E8EFEC;font-variant-numeric:tabular-nums">{{ statSeries }}</div>
+            </div>
+            <div style="background:#131A18;padding:12px 0 12px 16px">
+              <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.14em;color:#5F6F69;text-transform:uppercase;margin-bottom:6px">Zero-days</div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:500;color:#E8EFEC;font-variant-numeric:tabular-nums">{{ statZero }}</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="position:relative;border:1px solid #222E2A;background:#131A18;padding:24px">
+          <span style="position:absolute;top:-5px;left:-5px;width:11px;height:11px;background:linear-gradient(#35443E,#35443E) center/1px 11px no-repeat,linear-gradient(#35443E,#35443E) center/11px 1px no-repeat"></span>
+          <span style="position:absolute;top:-5px;right:-5px;width:11px;height:11px;background:linear-gradient(#35443E,#35443E) center/1px 11px no-repeat,linear-gradient(#35443E,#35443E) center/11px 1px no-repeat"></span>
+          <span style="position:absolute;bottom:-5px;left:-5px;width:11px;height:11px;background:linear-gradient(#35443E,#35443E) center/1px 11px no-repeat,linear-gradient(#35443E,#35443E) center/11px 1px no-repeat"></span>
+          <span style="position:absolute;bottom:-5px;right:-5px;width:11px;height:11px;background:linear-gradient(#35443E,#35443E) center/1px 11px no-repeat,linear-gradient(#35443E,#35443E) center/11px 1px no-repeat"></span>
+
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:20px">
+            <span style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.14em;color:#5F6F69">02</span>
+            <h2 style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:20px;margin:0;color:#E8EFEC">Cost inputs</h2>
+          </div>
+
+          <div style="margin-bottom:20px">
+            <label style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px">
+              <span style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.1em;color:#4F86D4;text-transform:uppercase">Cu · understock</span>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#5F6F69">per unit</span>
+            </label>
+            <div style="display:flex;align-items:stretch;border:1px solid #222E2A;background:#0C1211">
+              <span style="display:flex;align-items:center;padding:0 12px;font-family:'JetBrains Mono',monospace;font-size:14px;color:#7A8A84;border-right:1px solid #222E2A">{{ sym }}</span>
+              <input type="number" step="0.01" min="0" value="{{ cuField }}" onChange="{{ onCu }}" style="flex:1;background:transparent;border:0;outline:none;color:#E8EFEC;font-family:'JetBrains Mono',monospace;font-size:15px;padding:10px 12px;width:100%">
+            </div>
+            <div style="font-size:13px;color:#7A8A84;margin-top:6px">Margin lost when the shelf is empty.</div>
+          </div>
+
+          <div style="margin-bottom:20px">
+            <label style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px">
+              <span style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.1em;color:#C4862B;text-transform:uppercase">Co · overstock</span>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#5F6F69">per unit</span>
+            </label>
+            <div style="display:flex;align-items:stretch;border:1px solid #222E2A;background:#0C1211">
+              <span style="display:flex;align-items:center;padding:0 12px;font-family:'JetBrains Mono',monospace;font-size:14px;color:#7A8A84;border-right:1px solid #222E2A">{{ sym }}</span>
+              <input type="number" step="0.01" min="0" value="{{ coField }}" onChange="{{ onCo }}" style="flex:1;background:transparent;border:0;outline:none;color:#E8EFEC;font-family:'JetBrains Mono',monospace;font-size:15px;padding:10px 12px;width:100%">
+            </div>
+            <div style="font-size:13px;color:#7A8A84;margin-top:6px">Spoilage plus holding on a unit that doesn't sell.</div>
+          </div>
+
+          <div style="border-top:1px solid #1B2523;padding-top:20px;margin-bottom:20px">
+            <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px">
+              <span style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.1em;color:#A6B5AF;text-transform:uppercase">Critical ratio</span>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:600;color:#69DBAA;font-variant-numeric:tabular-nums">{{ crText }}</span>
+            </div>
+            <div style="position:relative;height:6px;background:#1B2523">
+              <div style="{{ crBar }}"></div>
+              <div style="position:absolute;top:-4px;bottom:-4px;left:95%;width:1px;background:#C4862B"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:10px;color:#5F6F69;margin-top:8px">
+              <span>0%</span>
+              <span style="color:#C4862B">95% ← industry default</span>
+            </div>
+          </div>
+
+          <button onClick="{{ runCalc }}" style="{{ runStyle }}">{{ runLabel }}</button>
+        </div>
+      </div>
+
+      <sc-if value="{{ hasResults }}" hint-placeholder-val="{{ true }}">
+        <div>
+          <div style="display:flex;align-items:baseline;gap:10px;margin:64px 0 20px">
+            <span style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.14em;color:#5F6F69">03</span>
+            <h2 style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:20px;margin:0;color:#E8EFEC">Results</h2>
+            <div style="flex:1;height:1px;background:#222E2A;margin-left:8px"></div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px">
+            <div style="position:relative;border:1px solid #234037;background:#101A17;border-left:3px solid #2FA97C;padding:24px">
+              <span style="position:absolute;top:-5px;right:-5px;width:11px;height:11px;background:linear-gradient(#35443E,#35443E) center/1px 11px no-repeat,linear-gradient(#35443E,#35443E) center/11px 1px no-repeat"></span>
+              <span style="position:absolute;bottom:-5px;right:-5px;width:11px;height:11px;background:linear-gradient(#35443E,#35443E) center/1px 11px no-repeat,linear-gradient(#35443E,#35443E) center/11px 1px no-repeat"></span>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.14em;color:#2FA97C;text-transform:uppercase;margin-bottom:16px">Cost vs current practice</div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:46px;font-weight:600;line-height:1;letter-spacing:-0.03em;color:#69DBAA;font-variant-numeric:tabular-nums">{{ kpiSavePct }}</div>
+              <div style="font-size:14px;color:#A6B5AF;margin-top:12px">{{ kpiSaveMoney }} saved against last-week-sales ordering.</div>
+            </div>
+            <div style="position:relative;border:1px solid #222E2A;background:#131A18;padding:24px">
+              <span style="position:absolute;top:-5px;right:-5px;width:11px;height:11px;background:linear-gradient(#35443E,#35443E) center/1px 11px no-repeat,linear-gradient(#35443E,#35443E) center/11px 1px no-repeat"></span>
+              <span style="position:absolute;bottom:-5px;right:-5px;width:11px;height:11px;background:linear-gradient(#35443E,#35443E) center/1px 11px no-repeat,linear-gradient(#35443E,#35443E) center/11px 1px no-repeat"></span>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.14em;color:#5F6F69;text-transform:uppercase;margin-bottom:16px">Total recommended units</div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:46px;font-weight:600;line-height:1;letter-spacing:-0.03em;color:#E8EFEC;font-variant-numeric:tabular-nums">{{ kpiUnits }}</div>
+              <div style="font-size:14px;color:#A6B5AF;margin-top:12px">Across {{ kpiSeries }} series for the next period.</div>
+            </div>
+            <div style="position:relative;border:1px solid #222E2A;background:#131A18;border-left:3px solid #C4862B;padding:24px">
+              <span style="position:absolute;top:-5px;right:-5px;width:11px;height:11px;background:linear-gradient(#35443E,#35443E) center/1px 11px no-repeat,linear-gradient(#35443E,#35443E) center/11px 1px no-repeat"></span>
+              <span style="position:absolute;bottom:-5px;right:-5px;width:11px;height:11px;background:linear-gradient(#35443E,#35443E) center/1px 11px no-repeat,linear-gradient(#35443E,#35443E) center/11px 1px no-repeat"></span>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.14em;color:#5F6F69;text-transform:uppercase;margin-bottom:16px">Implied service level</div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:46px;font-weight:600;line-height:1;letter-spacing:-0.03em;color:#E8EFEC;font-variant-numeric:tabular-nums">{{ kpiService }}</div>
+              <div style="font-size:14px;color:#C4862B;margin-top:12px">{{ kpiServiceNote }}</div>
+            </div>
+          </div>
+
+          <div style="position:relative;border:1px solid #222E2A;background:#131A18;margin-top:24px">
+            <div style="padding:20px 24px;border-bottom:1px solid #222E2A;display:flex;align-items:baseline;justify-content:space-between">
+              <h3 style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:18px;margin:0;color:#E8EFEC">Policy comparison</h3>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.1em;color:#5F6F69;text-transform:uppercase">Priced on your cost inputs</span>
+            </div>
+            <table style="width:100%;border-collapse:collapse">
+              <thead>
+                <tr style="background:#182120">
+                  <th style="text-align:left;padding:12px 24px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.14em;color:#7A8A84;text-transform:uppercase">Policy</th>
+                  <th style="text-align:right;padding:12px 24px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.14em;color:#7A8A84;text-transform:uppercase">Units ordered</th>
+                  <th style="text-align:right;padding:12px 24px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.14em;color:#7A8A84;text-transform:uppercase">Waste cost</th>
+                  <th style="text-align:right;padding:12px 24px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.14em;color:#7A8A84;text-transform:uppercase">Stockout cost</th>
+                  <th style="text-align:right;padding:12px 24px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.14em;color:#7A8A84;text-transform:uppercase">Total</th>
+                  <th style="text-align:right;padding:12px 24px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.14em;color:#7A8A84;text-transform:uppercase">vs naive</th>
+                </tr>
+              </thead>
+              <tbody>
+                <sc-for list="{{ policies }}" as="p" hint-placeholder-count="3">
+                  <tr style="{{ p.rowStyle }}">
+                    <td style="{{ p.nameStyle }}">{{ p.name }}</td>
+                    <td style="text-align:right;padding:16px 24px;font-family:'JetBrains Mono',monospace;font-size:13px;color:#A6B5AF;font-variant-numeric:tabular-nums">{{ p.units }}</td>
+                    <td style="text-align:right;padding:16px 24px;font-family:'JetBrains Mono',monospace;font-size:13px;color:#C4862B;font-variant-numeric:tabular-nums">{{ p.waste }}</td>
+                    <td style="text-align:right;padding:16px 24px;font-family:'JetBrains Mono',monospace;font-size:13px;color:#4F86D4;font-variant-numeric:tabular-nums">{{ p.stockout }}</td>
+                    <td style="{{ p.totalStyle }}">{{ p.total }}</td>
+                    <td style="{{ p.deltaStyle }}">{{ p.delta }}</td>
+                  </tr>
+                </sc-for>
+              </tbody>
+            </table>
+          </div>
+
+          <div style="position:relative;border:1px solid #222E2A;background:#131A18;margin-top:24px">
+            <div style="padding:20px 24px;border-bottom:1px solid #222E2A;display:flex;align-items:center;justify-content:space-between">
+              <h3 style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:18px;margin:0;color:#E8EFEC">Recommended orders</h3>
+              <button onClick="{{ exportCsv }}" style="display:inline-flex;align-items:center;gap:7px;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:#E8EFEC;background:transparent;border:1px solid #222E2A;border-radius:4px;padding:8px 12px;cursor:pointer" style-hover="{borderColor:'#2FA97C',color:'#69DBAA'}">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                Export CSV
+              </button>
+            </div>
+            <table style="width:100%;border-collapse:collapse">
+              <thead>
+                <tr style="background:#182120">
+                  <th style="text-align:left;padding:12px 24px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.14em;color:#7A8A84;text-transform:uppercase">SKU</th>
+                  <th style="text-align:left;padding:12px 16px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.14em;color:#7A8A84;text-transform:uppercase">Store</th>
+                  <th style="text-align:right;padding:12px 16px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.14em;color:#7A8A84;text-transform:uppercase">Median demand</th>
+                  <th style="text-align:right;padding:12px 16px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.14em;color:#7A8A84;text-transform:uppercase">Order qty</th>
+                  <th style="text-align:right;padding:12px 16px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.14em;color:#7A8A84;text-transform:uppercase">vs median</th>
+                  <th style="text-align:right;padding:12px 16px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.14em;color:#7A8A84;text-transform:uppercase">Exp. cost</th>
+                  <th style="text-align:left;padding:12px 24px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.14em;color:#7A8A84;text-transform:uppercase">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <sc-for list="{{ rows }}" as="r" hint-placeholder-count="8">
+                  <tr style="border-bottom:1px solid #1B2523">
+                    <td style="padding:14px 24px;font-family:'JetBrains Mono',monospace;font-size:13px;color:#E8EFEC">{{ r.sku }}</td>
+                    <td style="padding:14px 16px;font-family:'JetBrains Mono',monospace;font-size:13px;color:#7A8A84">{{ r.store }}</td>
+                    <td style="text-align:right;padding:14px 16px;font-family:'JetBrains Mono',monospace;font-size:13px;color:#A6B5AF;font-variant-numeric:tabular-nums">{{ r.median }}</td>
+                    <td style="text-align:right;padding:14px 16px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;color:#69DBAA;font-variant-numeric:tabular-nums">{{ r.order }}</td>
+                    <td style="{{ r.bufferStyle }}">{{ r.buffer }}</td>
+                    <td style="text-align:right;padding:14px 16px;font-family:'JetBrains Mono',monospace;font-size:13px;color:#A6B5AF;font-variant-numeric:tabular-nums">{{ r.cost }}</td>
+                    <td style="padding:14px 24px"><span style="{{ r.tagStyle }}">{{ r.status }}</span></td>
+                  </tr>
+                </sc-for>
+              </tbody>
+            </table>
+          </div>
+
+          <p style="font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.9;color:#5F6F69;margin:20px 0 0;max-width:80ch">
+            Expected cost is computed from the fitted quantile distribution for a period that has not happened yet — an estimate, not a backtest result. Currency conversion is display-only.
+          </p>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ noResults }}" hint-placeholder-val="{{ false }}">
+        <div style="margin-top:64px;border:1px dashed #222E2A;padding:64px 32px;text-align:center">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.14em;color:#5F6F69;text-transform:uppercase;margin-bottom:12px">Awaiting input</div>
+          <div style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:24px;color:#7A8A84">Load a dataset and run the optimizer</div>
+        </div>
+      </sc-if>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isLandingA }}" hint-placeholder-val="{{ true }}">
+    <div>
+      <div style="max-width:1280px;margin:0 auto;padding:96px 32px 0;display:grid;grid-template-columns:1.15fr 1fr;gap:64px;align-items:center">
+        <div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:500;letter-spacing:0.16em;color:#2FA97C;text-transform:uppercase;margin-bottom:24px">Newsvendor ordering for perishables</div>
+          <h1 style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:76px;line-height:0.98;letter-spacing:-0.025em;margin:0 0 24px;color:#E8EFEC;text-wrap:balance">Order just enough.<br>Not what feels safe.</h1>
+          <p style="font-size:18px;line-height:1.65;color:#A6B5AF;margin:0 0 32px;max-width:52ch;text-wrap:pretty">A 95% service level is not caution — on a thin-margin perishable it is the most expensive policy on the board. Upload your sales history, state what a stockout and a spoiled unit each cost, and get the order quantity that actually minimises cost.</p>
+          <div style="display:flex;align-items:center;gap:16px">
+            <button onClick="{{ goTool }}" style="display:inline-flex;align-items:center;gap:8px;font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:16px;letter-spacing:0.02em;background:#2FA97C;color:#0C1211;border:0;border-radius:4px;padding:14px 24px;cursor:pointer" style-hover="{background:'#69DBAA'}">
+              Open the calculator
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+            </button>
+            <a href="#method" style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:16px;color:#E8EFEC;border:1px solid #222E2A;border-radius:4px;padding:14px 24px" style-hover="{borderColor:'#2FA97C'}">See the method</a>
+          </div>
+        </div>
+
+        <div style="position:relative;border:1px solid #222E2A;background:#131A18;padding:32px">
+          <span style="position:absolute;top:-5px;left:-5px;width:11px;height:11px;background:linear-gradient(#35443E,#35443E) center/1px 11px no-repeat,linear-gradient(#35443E,#35443E) center/11px 1px no-repeat"></span>
+          <span style="position:absolute;top:-5px;right:-5px;width:11px;height:11px;background:linear-gradient(#35443E,#35443E) center/1px 11px no-repeat,linear-gradient(#35443E,#35443E) center/11px 1px no-repeat"></span>
+          <span style="position:absolute;bottom:-5px;left:-5px;width:11px;height:11px;background:linear-gradient(#35443E,#35443E) center/1px 11px no-repeat,linear-gradient(#35443E,#35443E) center/11px 1px no-repeat"></span>
+          <span style="position:absolute;bottom:-5px;right:-5px;width:11px;height:11px;background:linear-gradient(#35443E,#35443E) center/1px 11px no-repeat,linear-gradient(#35443E,#35443E) center/11px 1px no-repeat"></span>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.16em;color:#5F6F69;text-transform:uppercase;margin-bottom:20px">Measured on 100,720 stocking decisions</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:82px;font-weight:600;line-height:0.92;letter-spacing:-0.05em;color:#69DBAA;font-variant-numeric:tabular-nums">28.6%</div>
+          <div style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:22px;color:#E8EFEC;margin-top:12px">lower inventory cost than current practice</div>
+          <div style="height:1px;background:#222E2A;margin:28px 0"></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
+            <div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.14em;color:#5F6F69;text-transform:uppercase;margin-bottom:8px">Waste cut</div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:600;color:#C4862B;font-variant-numeric:tabular-nums">73%</div>
+              <div style="font-size:13px;color:#7A8A84;margin-top:4px">78,106 → 20,714 units</div>
+            </div>
+            <div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.14em;color:#5F6F69;text-transform:uppercase;margin-bottom:8px">Optimal service</div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:600;color:#4F86D4;font-variant-numeric:tabular-nums">41%</div>
+              <div style="font-size:13px;color:#7A8A84;margin-top:4px">not the industry's 95%</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="finding" style="max-width:1280px;margin:0 auto;padding:128px 32px 0">
+        <div style="display:grid;grid-template-columns:1fr 1.1fr;gap:64px;align-items:start">
+          <div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.16em;color:#2FA97C;text-transform:uppercase;margin-bottom:20px">The finding</div>
+            <h2 style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:44px;line-height:1.02;letter-spacing:-0.02em;margin:0 0 20px;color:#E8EFEC">A flat 95% service level costs 2.5× more than doing nothing sophisticated at all.</h2>
+            <p style="font-size:16px;line-height:1.7;color:#A6B5AF;margin:0 0 16px">Understocking costs you the margin. Overstocking a perishable costs close to the whole unit. With a 30% margin and 60% spoilage the critical ratio lands at 0.409 — so the cost-optimal service level is 41%, and every unit you stock past that is spoilage you paid for in advance.</p>
+            <p style="font-size:16px;line-height:1.7;color:#A6B5AF;margin:0">The winning policy accepts a higher stockout rate than doing nothing and still costs 28.6% less, because it cuts waste by 73%. On thin-margin perishables an empty shelf is cheaper than a full bin.</p>
+          </div>
+          <div style="border:1px solid #222E2A;background:#131A18">
+            <div style="padding:20px 24px;border-bottom:1px solid #222E2A;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.14em;color:#7A8A84;text-transform:uppercase">Cost by policy · 100,720 decisions</div>
+            <div style="padding:24px">
+              <div style="margin-bottom:24px">
+                <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
+                  <span style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:17px;color:#A6B5AF">Current practice · last week's sales</span>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:15px;color:#A6B5AF;font-variant-numeric:tabular-nums">{{ mNaive }}</span>
+                </div>
+                <div style="height:10px;background:#1B2523"><div style="height:10px;width:41%;background:#5D6B65"></div></div>
+              </div>
+              <div style="margin-bottom:24px">
+                <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
+                  <span style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:17px;color:#C4862B">Fixed 95% service level</span>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:15px;color:#C4862B;font-variant-numeric:tabular-nums">{{ m95 }}</span>
+                </div>
+                <div style="height:10px;background:#1B2523"><div style="height:10px;width:100%;background:#C4862B"></div></div>
+              </div>
+              <div>
+                <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
+                  <span style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:17px;color:#69DBAA">Newsvendor · this tool</span>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:15px;color:#69DBAA;font-variant-numeric:tabular-nums">{{ mNv }}</span>
+                </div>
+                <div style="height:10px;background:#1B2523"><div style="height:10px;width:29%;background:#2FA97C"></div></div>
+              </div>
+              <div style="height:1px;background:#222E2A;margin:24px 0"></div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.9;color:#5F6F69">
+                The middle bar has the best stockout rate in the table and is by far the most expensive — hitting 95% requires 327k units of stock that spoil.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="method" style="max-width:1280px;margin:0 auto;padding:128px 32px 0">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.16em;color:#2FA97C;text-transform:uppercase;margin-bottom:20px">How it works</div>
+        <h2 style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:44px;line-height:1.05;letter-spacing:-0.02em;margin:0 0 48px;color:#E8EFEC;max-width:20ch">Three steps between a CSV and an order sheet.</h2>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:#222E2A;border:1px solid #222E2A">
+          <div style="background:#0C1211;padding:32px">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.14em;color:#2FA97C;margin-bottom:24px">STEP 01</div>
+            <h3 style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:26px;margin:0 0 12px;color:#E8EFEC">Upload sales history</h3>
+            <p style="font-size:15px;line-height:1.65;color:#A6B5AF;margin:0">Drop a CSV of SKU, store, date and units. A global gradient-boosted model fits the full demand distribution — seven quantile levels, not a single point forecast.</p>
+          </div>
+          <div style="background:#0C1211;padding:32px">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.14em;color:#2FA97C;margin-bottom:24px">STEP 02</div>
+            <h3 style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:26px;margin:0 0 12px;color:#E8EFEC">State your two costs</h3>
+            <p style="font-size:15px;line-height:1.65;color:#A6B5AF;margin:0">What a missed sale costs, and what a spoiled unit costs. Those two numbers set the critical ratio, and the critical ratio is the whole policy.</p>
+          </div>
+          <div style="background:#0C1211;padding:32px">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.14em;color:#2FA97C;margin-bottom:24px">STEP 03</div>
+            <h3 style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:26px;margin:0 0 12px;color:#E8EFEC">Read the order sheet</h3>
+            <p style="font-size:15px;line-height:1.65;color:#A6B5AF;margin:0">Per-SKU quantities, buffer stock and expected cost, priced against the naive and fixed-95% alternatives so the saving is auditable rather than asserted.</p>
+          </div>
+        </div>
+      </div>
+
+      <div id="results" style="max-width:1280px;margin:0 auto;padding:128px 32px 0">
+        <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:32px;margin-bottom:32px">
+          <div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.16em;color:#2FA97C;text-transform:uppercase;margin-bottom:20px">Results</div>
+            <h2 style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:44px;line-height:1.05;letter-spacing:-0.02em;margin:0;color:#E8EFEC">The money table</h2>
+          </div>
+          <p style="font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.9;color:#5F6F69;margin:0;max-width:44ch;text-align:right">100,720 decisions across 5 rolling-origin folds, priced against realised demand — never against the forecast that produced the order.</p>
+        </div>
+        <div style="border:1px solid #222E2A;background:#131A18">
+          <table style="width:100%;border-collapse:collapse">
+            <thead>
+              <tr style="background:#182120">
+                <th style="text-align:left;padding:14px 24px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.14em;color:#7A8A84;text-transform:uppercase">Policy</th>
+                <th style="text-align:right;padding:14px 24px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.14em;color:#7A8A84;text-transform:uppercase">Stockout rate</th>
+                <th style="text-align:right;padding:14px 24px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.14em;color:#7A8A84;text-transform:uppercase">Waste units</th>
+                <th style="text-align:right;padding:14px 24px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.14em;color:#7A8A84;text-transform:uppercase">Total cost</th>
+                <th style="text-align:right;padding:14px 24px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.14em;color:#7A8A84;text-transform:uppercase">vs naive</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="border-bottom:1px solid #1B2523">
+                <td style="padding:18px 24px;font-family:Barlow,sans-serif;font-size:15px;color:#A6B5AF">Current practice (naive)</td>
+                <td style="text-align:right;padding:18px 24px;font-family:'JetBrains Mono',monospace;font-size:14px;color:#A6B5AF;font-variant-numeric:tabular-nums">31.1%</td>
+                <td style="text-align:right;padding:18px 24px;font-family:'JetBrains Mono',monospace;font-size:14px;color:#A6B5AF;font-variant-numeric:tabular-nums">78,106</td>
+                <td style="text-align:right;padding:18px 24px;font-family:'JetBrains Mono',monospace;font-size:14px;color:#A6B5AF;font-variant-numeric:tabular-nums">{{ mNaive }}</td>
+                <td style="text-align:right;padding:18px 24px;font-family:'JetBrains Mono',monospace;font-size:14px;color:#5F6F69;font-variant-numeric:tabular-nums">—</td>
+              </tr>
+              <tr style="border-bottom:1px solid #1B2523">
+                <td style="padding:18px 24px;font-family:Barlow,sans-serif;font-size:15px;color:#A6B5AF">Fixed 95% service level</td>
+                <td style="text-align:right;padding:18px 24px;font-family:'JetBrains Mono',monospace;font-size:14px;color:#A6B5AF;font-variant-numeric:tabular-nums">6.1%</td>
+                <td style="text-align:right;padding:18px 24px;font-family:'JetBrains Mono',monospace;font-size:14px;color:#C4862B;font-variant-numeric:tabular-nums">326,957</td>
+                <td style="text-align:right;padding:18px 24px;font-family:'JetBrains Mono',monospace;font-size:14px;color:#A6B5AF;font-variant-numeric:tabular-nums">{{ m95 }}</td>
+                <td style="text-align:right;padding:18px 24px;font-family:'JetBrains Mono',monospace;font-size:14px;color:#C4862B;font-variant-numeric:tabular-nums">+145.7%</td>
+              </tr>
+              <tr style="background:#101A17;border-left:3px solid #2FA97C">
+                <td style="padding:18px 24px;font-family:Barlow,sans-serif;font-size:15px;font-weight:600;color:#E8EFEC">Newsvendor + our forecast</td>
+                <td style="text-align:right;padding:18px 24px;font-family:'JetBrains Mono',monospace;font-size:14px;color:#A6B5AF;font-variant-numeric:tabular-nums">48.0%</td>
+                <td style="text-align:right;padding:18px 24px;font-family:'JetBrains Mono',monospace;font-size:14px;color:#69DBAA;font-variant-numeric:tabular-nums">20,714</td>
+                <td style="text-align:right;padding:18px 24px;font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:600;color:#69DBAA;font-variant-numeric:tabular-nums">{{ mNv }}</td>
+                <td style="text-align:right;padding:18px 24px;font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:600;color:#69DBAA;font-variant-numeric:tabular-nums">−28.6%</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p style="font-size:14px;line-height:1.7;color:#7A8A84;margin:20px 0 0;max-width:82ch">Every cost figure here is a stated assumption, not a measured fact: a 30% margin, 60% spoilage and 2%/day holding produce the 0.409 critical ratio. Newsvendor wins at every spoilage rate from 0.0 to 1.0, so the conclusion does not depend on those particular numbers.</p>
+      </div>
+
+      <div style="max-width:1280px;margin:0 auto;padding:128px 32px 0">
+        <div style="position:relative;border:1px solid #234037;background:#101A17;padding:64px 48px;text-align:center">
+          <span style="position:absolute;top:-5px;left:-5px;width:11px;height:11px;background:linear-gradient(#35443E,#35443E) center/1px 11px no-repeat,linear-gradient(#35443E,#35443E) center/11px 1px no-repeat"></span>
+          <span style="position:absolute;top:-5px;right:-5px;width:11px;height:11px;background:linear-gradient(#35443E,#35443E) center/1px 11px no-repeat,linear-gradient(#35443E,#35443E) center/11px 1px no-repeat"></span>
+          <span style="position:absolute;bottom:-5px;left:-5px;width:11px;height:11px;background:linear-gradient(#35443E,#35443E) center/1px 11px no-repeat,linear-gradient(#35443E,#35443E) center/11px 1px no-repeat"></span>
+          <span style="position:absolute;bottom:-5px;right:-5px;width:11px;height:11px;background:linear-gradient(#35443E,#35443E) center/1px 11px no-repeat,linear-gradient(#35443E,#35443E) center/11px 1px no-repeat"></span>
+          <h2 style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:44px;line-height:1.05;letter-spacing:-0.02em;margin:0 0 16px;color:#E8EFEC">Run it on your own numbers.</h2>
+          <p style="font-size:17px;color:#A6B5AF;margin:0 auto 32px;max-width:52ch">No account, no setup. A CSV and two cost figures is the whole input.</p>
+          <button onClick="{{ goTool }}" style="display:inline-flex;align-items:center;gap:8px;font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:16px;letter-spacing:0.02em;background:#2FA97C;color:#0C1211;border:0;border-radius:4px;padding:14px 28px;cursor:pointer" style-hover="{background:'#69DBAA'}">
+            Open the calculator
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isLandingB }}" hint-placeholder-val="{{ false }}">
+    <div style="background:#F2F2F3;color:#1D1F20;margin-top:0;min-height:100vh">
+      <div style="position:sticky;top:0;z-index:50;background:rgba(242,242,243,0.92);backdrop-filter:blur(8px);border-bottom:1px solid rgba(29,31,32,0.16)">
+        <div style="max-width:1280px;margin:0 auto;padding:0 32px;height:64px;display:flex;align-items:center;gap:32px">
+          <div style="display:flex;align-items:baseline;gap:10px">
+            <span style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:22px;letter-spacing:-0.01em;color:#1D1F20">Just Enough</span>
+            <span style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.14em;color:#6B7278;text-transform:uppercase">Newsvendor</span>
+          </div>
+          <div style="flex:1"></div>
+          <div style="display:flex;align-items:center;border:1px solid rgba(29,31,32,0.16);border-radius:999px;padding:2px;gap:2px">
+            <button onClick="{{ setUsd }}" style="{{ usdPillPaper }}">$ USD</button>
+            <button onClick="{{ setInr }}" style="{{ inrPillPaper }}">₹ INR</button>
+          </div>
+          <button onClick="{{ goTool }}" style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:14px;letter-spacing:0.02em;padding:9px 16px;border-radius:4px;cursor:pointer;border:0;background:#5980A6;color:#F2F2F3" style-hover="{background:'#416180'}">Open the calculator</button>
+        </div>
+      </div>
+      <div style="max-width:1280px;margin:0 auto;padding:96px 32px 0">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid rgba(29,31,32,0.16)">
+          <div style="padding:56px 48px;border-right:1px solid rgba(29,31,32,0.16)">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.16em;color:#416180;text-transform:uppercase;margin-bottom:24px">Spec sheet · newsvendor ordering</div>
+            <h1 style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:80px;line-height:0.94;letter-spacing:-0.025em;margin:0 0 24px;color:#1D1F20">Order just enough.<br>Not what feels safe.</h1>
+            <p style="font-size:18px;line-height:1.6;color:#42474A;margin:0 0 32px;max-width:46ch">A 95% service level is not caution. On a thin-margin perishable it is the most expensive policy on the board.</p>
+            <button onClick="{{ goTool }}" style="display:inline-flex;align-items:center;gap:8px;font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:16px;background:#5980A6;color:#F2F2F3;border:0;border-radius:4px;padding:14px 24px;cursor:pointer" style-hover="{background:'#416180'}">
+              Open the calculator
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+            </button>
+          </div>
+          <div style="display:grid;grid-template-rows:1fr 1fr">
+            <div style="padding:40px 48px;border-bottom:1px solid rgba(29,31,32,0.16)">
+              <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.16em;color:#6B7278;text-transform:uppercase;margin-bottom:16px">Fig. 01 — cost delta</div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:72px;font-weight:600;line-height:0.92;letter-spacing:-0.05em;color:#5980A6;font-variant-numeric:tabular-nums">28.6%</div>
+              <div style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:20px;margin-top:10px;color:#1D1F20">lower cost than current practice</div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr">
+              <div style="padding:32px 48px;border-right:1px solid rgba(29,31,32,0.16)">
+                <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.14em;color:#6B7278;text-transform:uppercase;margin-bottom:12px">Waste cut</div>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:32px;font-weight:600;color:#1D1F20;font-variant-numeric:tabular-nums">73%</div>
+              </div>
+              <div style="padding:32px 48px">
+                <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.14em;color:#6B7278;text-transform:uppercase;margin-bottom:12px">Optimal service</div>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:32px;font-weight:600;color:#1D1F20;font-variant-numeric:tabular-nums">41%</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="max-width:1280px;margin:0 auto;padding:96px 32px 0">
+        <div style="display:grid;grid-template-columns:1fr 1.1fr;gap:64px;align-items:start">
+          <div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.16em;color:#416180;text-transform:uppercase;margin-bottom:20px">The finding</div>
+            <h2 style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:44px;line-height:1.02;letter-spacing:-0.02em;margin:0 0 20px;color:#1D1F20">A flat 95% service level costs 2.5× more than doing nothing sophisticated at all.</h2>
+            <p style="font-size:16px;line-height:1.7;color:#42474A;margin:0 0 16px">Understocking costs you the margin. Overstocking a perishable costs close to the whole unit. With a 30% margin and 60% spoilage the critical ratio lands at 0.409 — so the cost-optimal service level is 41%.</p>
+            <p style="font-size:16px;line-height:1.7;color:#42474A;margin:0">The winning policy accepts a higher stockout rate than doing nothing and still costs 28.6% less, because it cuts waste by 73%.</p>
+          </div>
+          <div style="border:1px solid rgba(29,31,32,0.16)">
+            <div style="padding:18px 24px;border-bottom:1px solid rgba(29,31,32,0.16);font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.14em;color:#6B7278;text-transform:uppercase">Fig. 02 — cost by policy</div>
+            <div style="padding:24px">
+              <div style="margin-bottom:24px">
+                <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
+                  <span style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:17px;color:#42474A">Current practice</span>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:15px;color:#42474A;font-variant-numeric:tabular-nums">{{ mNaive }}</span>
+                </div>
+                <div style="height:10px;background:#E1E1E3"><div style="height:10px;width:41%;background:#9EA3A8"></div></div>
+              </div>
+              <div style="margin-bottom:24px">
+                <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
+                  <span style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:17px;color:#42474A">Fixed 95% service level</span>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:15px;color:#42474A;font-variant-numeric:tabular-nums">{{ m95 }}</span>
+                </div>
+                <div style="height:10px;background:#E1E1E3"><div style="height:10px;width:100%;background:#1D2D3D"></div></div>
+              </div>
+              <div>
+                <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
+                  <span style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:17px;color:#416180">Newsvendor · this tool</span>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:15px;color:#416180;font-variant-numeric:tabular-nums">{{ mNv }}</span>
+                </div>
+                <div style="height:10px;background:#E1E1E3"><div style="height:10px;width:29%;background:#5980A6"></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="max-width:1280px;margin:0 auto;padding:96px 32px 0">
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:rgba(29,31,32,0.16);border:1px solid rgba(29,31,32,0.16)">
+          <div style="background:#F2F2F3;padding:32px">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.14em;color:#416180;margin-bottom:24px">STEP 01</div>
+            <h3 style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:26px;margin:0 0 12px;color:#1D1F20">Upload sales history</h3>
+            <p style="font-size:15px;line-height:1.65;color:#42474A;margin:0">Drop a CSV of SKU, store, date and units. The model fits the full demand distribution — seven quantile levels, not a point forecast.</p>
+          </div>
+          <div style="background:#F2F2F3;padding:32px">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.14em;color:#416180;margin-bottom:24px">STEP 02</div>
+            <h3 style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:26px;margin:0 0 12px;color:#1D1F20">State your two costs</h3>
+            <p style="font-size:15px;line-height:1.65;color:#42474A;margin:0">What a missed sale costs, and what a spoiled unit costs. Those two numbers set the critical ratio, and that is the whole policy.</p>
+          </div>
+          <div style="background:#F2F2F3;padding:32px">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.14em;color:#416180;margin-bottom:24px">STEP 03</div>
+            <h3 style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:26px;margin:0 0 12px;color:#1D1F20">Read the order sheet</h3>
+            <p style="font-size:15px;line-height:1.65;color:#42474A;margin:0">Per-SKU quantities, buffer stock and expected cost, priced against the naive and fixed-95% alternatives.</p>
+          </div>
+        </div>
+      </div>
+
+      <div style="max-width:1280px;margin:0 auto;padding:96px 32px 0">
+        <div style="border:1px solid rgba(29,31,32,0.16);background:#1D2D3D;padding:64px 48px;text-align:center">
+          <h2 style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:44px;line-height:1.05;letter-spacing:-0.02em;margin:0 0 16px;color:#F2F2F3">Run it on your own numbers.</h2>
+          <p style="font-size:17px;color:#B5C2CE;margin:0 auto 32px;max-width:52ch">No account, no setup. A CSV and two cost figures is the whole input.</p>
+          <button onClick="{{ goTool }}" style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:16px;background:#F2F2F3;color:#1D2D3D;border:0;border-radius:4px;padding:14px 28px;cursor:pointer" style-hover="{background:'#B5C2CE'}">Open the calculator</button>
+        </div>
+      </div>
+      <div style="border-top:1px solid rgba(29,31,32,0.16);margin-top:96px">
+        <div style="max-width:1280px;margin:0 auto;padding:32px;display:flex;align-items:center;justify-content:space-between;gap:24px">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#6B7278;line-height:1.9">
+            Just Enough · newsvendor inventory optimization<br>Figures from 100,720 stocking decisions on M5 retail data.
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.14em;color:#9EA3A8;text-transform:uppercase">Landing direction</span>
+            <button onClick="{{ setA }}" style="{{ dirAPaper }}">A · dark</button>
+            <button onClick="{{ setB }}" style="{{ dirBPaper }}">B · paper</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isDark }}" hint-placeholder-val="{{ true }}">
+  <div style="border-top:1px solid #222E2A;margin-top:96px;background:#0C1211">
+    <div style="max-width:1280px;margin:0 auto;padding:32px;display:flex;align-items:center;justify-content:space-between;gap:24px">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#5F6F69;line-height:1.9">
+        Just Enough · newsvendor inventory optimization<br>Figures from 100,720 stocking decisions on M5 retail data.
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.14em;color:#3E4A46;text-transform:uppercase">Landing direction</span>
+        <button onClick="{{ setA }}" style="{{ dirAStyle }}">A · dark</button>
+        <button onClick="{{ setB }}" style="{{ dirBStyle }}">B · paper</button>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:1000}}">
+const LEVELS = [0.10, 0.25, 0.50, 0.75, 0.90, 0.95, 0.99];
+const SHAPES = {
+  dense: [0.55, 0.75, 1, 1.25, 1.55, 1.75, 2.2],
+  mid: [0.30, 0.60, 1, 1.45, 1.90, 2.20, 3.0],
+  sparse: [0.0, 0.20, 1, 2.0, 3.2, 4.0, 6.0]
+};
+const SEED = [
+  ["FOODS_1_012", "CA_1", 420, "dense"], ["FOODS_3_090", "CA_1", 1180, "dense"],
+  ["FOODS_1_047", "CA_2", 265, "mid"], ["FOODS_3_226", "CA_2", 860, "dense"],
+  ["FOODS_2_089", "CA_1", 190, "mid"], ["FOODS_2_155", "CA_3", 96, "sparse"],
+  ["FOODS_3_555", "CA_4", 540, "mid"], ["FOODS_1_198", "CA_3", 72, "sparse"],
+  ["FOODS_2_298", "CA_4", 310, "mid"], ["FOODS_3_694", "CA_2", 1450, "dense"],
+  ["FOODS_1_069", "CA_4", 44, "sparse"], ["FOODS_3_318", "CA_3", 620, "dense"]
+];
+const RATE = 83;
+
+function binProbs(levels) {
+  const edges = [0].concat(levels.slice(0, -1).map((v, i) => (v + levels[i + 1]) / 2)).concat([1]);
+  return levels.map((_, i) => edges[i + 1] - edges[i]);
+}
+const PROBS = binProbs(LEVELS);
+
+function interp(levels, vals, t) {
+  if (t <= levels[0]) return vals[0];
+  if (t >= levels[levels.length - 1]) return vals[vals.length - 1];
+  for (let i = 1; i < levels.length; i++) {
+    if (t <= levels[i]) {
+      const f = (t - levels[i - 1]) / (levels[i] - levels[i - 1]);
+      return vals[i - 1] + f * (vals[i] - vals[i - 1]);
+    }
+  }
+  return vals[vals.length - 1];
+}
+
+class Component extends DCLogic {
+  state = { view: "landing", dir: "a", cur: "USD", cu: 0.30, co: 0.434, ran: false, loaded: false, fileName: null, drag: false, busy: false };
+
+  fileRef = React.createRef();
+
+  fx() { return this.state.cur === "USD" ? 1 : RATE; }
+  sym() { return this.state.cur === "USD" ? "$" : "₹"; }
+
+  money(usd, dec) {
+    const v = usd * this.fx();
+    return this.sym() + v.toLocaleString("en-US", { minimumFractionDigits: dec || 0, maximumFractionDigits: dec || 0 });
+  }
+
+  cr() {
+    const { cu, co } = this.state;
+    if (cu + co <= 0) return 0;
+    return Math.min(0.99, Math.max(0.01, cu / (cu + co)));
+  }
+
+  scenarios(base, stratum) { return SHAPES[stratum].map(m => Math.round(base * m)); }
+
+  policyCost(vals, q) {
+    const { cu, co } = this.state;
+    let waste = 0, short = 0;
+    vals.forEach((d, i) => {
+      short += PROBS[i] * Math.max(d - q, 0);
+      waste += PROBS[i] * Math.max(q - d, 0);
+    });
+    return { waste: waste * co, stockout: short * cu, total: waste * co + short * cu };
+  }
+
+  computed() {
+    const cr = this.cr();
+    const rows = SEED.map(([sku, store, base, stratum]) => {
+      const vals = this.scenarios(base, stratum);
+      const median = vals[2];
+      const order = Math.max(0, Math.round(interp(LEVELS, vals, cr)));
+      const c = this.policyCost(vals, order);
+      return { sku, store, stratum, vals, median, order, delta: order - median, cost: c.total };
+    });
+    const agg = (fn) => rows.reduce((a, r) => a + fn(r), 0);
+    const nv = { units: agg(r => r.order), waste: agg(r => this.policyCost(r.vals, r.order).waste), stockout: agg(r => this.policyCost(r.vals, r.order).stockout) };
+    const naiveQ = r => Math.round(r.median * 1.15);
+    const na = { units: agg(naiveQ), waste: agg(r => this.policyCost(r.vals, naiveQ(r)).waste), stockout: agg(r => this.policyCost(r.vals, naiveQ(r)).stockout) };
+    const f95Q = r => r.vals[5];
+    const f95 = { units: agg(f95Q), waste: agg(r => this.policyCost(r.vals, f95Q(r)).waste), stockout: agg(r => this.policyCost(r.vals, f95Q(r)).stockout) };
+    [nv, na, f95].forEach(p => { p.total = p.waste + p.stockout; });
+    return { cr, rows, nv, na, f95 };
+  }
+
+  setView = (v) => this.setState({ view: v });
+
+  loadDemo = () => this.setState({ loaded: true, fileName: "m5_foods_ca_sample.csv", ran: false });
+
+  onFile = (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (f) this.setState({ loaded: true, fileName: f.name, ran: false });
+  };
+
+  runCalc = () => {
+    if (!this.state.loaded) return;
+    this.setState({ busy: true });
+    setTimeout(() => this.setState({ busy: false, ran: true }), 550);
+  };
+
+  exportCsv = () => {
+    const { rows } = this.computed();
+    const head = "sku,store,median_demand,order_qty,buffer_qty,expected_cost_" + this.state.cur.toLowerCase();
+    const body = rows.map(r => [r.sku, r.store, r.median, r.order, r.buffer, (r.cost * this.fx()).toFixed(2)].join(","));
+    const blob = new Blob([[head].concat(body).join("\n")], { type: "text/csv" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "just-enough-orders.csv";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
+  tag(kind) {
+    const map = {
+      OPTIMAL: ["rgba(47,169,124,0.14)", "#69DBAA"],
+      "HIGH VARIANCE": ["rgba(196,134,43,0.16)", "#E2A94F"],
+      "NO ORDER": ["rgba(122,138,132,0.14)", "#A6B5AF"]
+    };
+    const c = map[kind] || map.OPTIMAL;
+    return "display:inline-block;padding:4px 8px;border-radius:2px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.1em;text-transform:uppercase;background:" + c[0] + ";color:" + c[1];
+  }
+
+  pill(active) {
+    return "font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.06em;padding:6px 12px;border-radius:999px;cursor:pointer;border:0;background:" +
+      (active ? "#2FA97C" : "transparent") + ";color:" + (active ? "#0C1211" : "#7A8A84");
+  }
+
+  pillPaper(active) {
+    return "font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.06em;padding:6px 12px;border-radius:999px;cursor:pointer;border:0;background:" +
+      (active ? "#5980A6" : "transparent") + ";color:" + (active ? "#F2F2F3" : "#6B7278");
+  }
+
+  dirBtnPaper(active) {
+    return "font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.08em;text-transform:uppercase;padding:6px 10px;border-radius:4px;cursor:pointer;border:1px solid " +
+      (active ? "#5980A6" : "rgba(29,31,32,0.16)") + ";background:transparent;color:" + (active ? "#416180" : "#6B7278");
+  }
+
+  dirBtn(active) {
+    return "font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.08em;text-transform:uppercase;padding:6px 10px;border-radius:4px;cursor:pointer;border:1px solid " +
+      (active ? "#2FA97C" : "#222E2A") + ";background:transparent;color:" + (active ? "#69DBAA" : "#5F6F69");
+  }
+
+  renderVals() {
+    const s = this.state;
+    const { cr, rows, nv, na, f95 } = this.computed();
+    const isTool = s.view === "tool";
+    const savePct = na.total > 0 ? (1 - nv.total / na.total) * 100 : 0;
+
+    const pol = [
+      { key: "naive", name: "Current practice (naive)", p: na, best: false },
+      { key: "f95", name: "Fixed 95% service level", p: f95, best: false },
+      { key: "nv", name: "Newsvendor (this tool)", p: nv, best: true }
+    ].map(o => {
+      const d = na.total > 0 ? (o.p.total / na.total - 1) * 100 : 0;
+      return {
+        name: o.name,
+        units: o.p.units.toLocaleString("en-US"),
+        waste: this.money(o.p.waste),
+        stockout: this.money(o.p.stockout),
+        total: this.money(o.p.total),
+        delta: o.key === "naive" ? "—" : (d > 0 ? "+" : "−") + Math.abs(d).toFixed(1) + "%",
+        rowStyle: o.best ? "background:#101A17;border-left:3px solid #2FA97C;border-bottom:1px solid #1B2523" : "border-bottom:1px solid #1B2523",
+        nameStyle: "padding:16px 24px;font-size:15px;color:" + (o.best ? "#E8EFEC" : "#A6B5AF") + ";font-weight:" + (o.best ? "600" : "400"),
+        totalStyle: "text-align:right;padding:16px 24px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;color:" + (o.best ? "#69DBAA" : "#E8EFEC") + ";font-variant-numeric:tabular-nums",
+        deltaStyle: "text-align:right;padding:16px 24px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;color:" + (o.key === "naive" ? "#5F6F69" : d > 0 ? "#C4862B" : "#69DBAA") + ";font-variant-numeric:tabular-nums"
+      };
+    });
+
+    return {
+      isTool,
+      isLandingA: !isTool && s.dir === "a",
+      isLandingB: !isTool && s.dir === "b",
+      isDark: isTool || s.dir === "a",
+      usdPillPaper: this.pillPaper(s.cur === "USD"),
+      inrPillPaper: this.pillPaper(s.cur === "INR"),
+      dirAPaper: this.dirBtnPaper(s.dir === "a"),
+      dirBPaper: this.dirBtnPaper(s.dir === "b"),
+      hasResults: isTool && s.ran,
+      noResults: isTool && !s.ran,
+
+      goTool: () => { this.setView("tool"); window.scrollTo(0, 0); },
+      goLanding: () => { this.setView("landing"); window.scrollTo(0, 0); },
+      navCtaLabel: isTool ? "About the tool" : "Open the calculator",
+      navCta: "font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:14px;letter-spacing:0.02em;padding:9px 16px;border-radius:4px;cursor:pointer;border:" +
+        (isTool ? "1px solid #222E2A;background:transparent;color:#E8EFEC" : "0;background:#2FA97C;color:#0C1211"),
+
+      setUsd: () => this.setState({ cur: "USD" }),
+      setInr: () => this.setState({ cur: "INR" }),
+      usdPill: this.pill(s.cur === "USD"),
+      inrPill: this.pill(s.cur === "INR"),
+      sym: this.sym(),
+
+      setA: () => this.setState({ dir: "a", view: "landing" }),
+      setB: () => this.setState({ dir: "b", view: "landing" }),
+      dirAStyle: this.dirBtn(s.dir === "a"),
+      dirBStyle: this.dirBtn(s.dir === "b"),
+
+      mNaive: this.money(169172),
+      m95: this.money(415644),
+      mNv: this.money(120797),
+
+      fileRef: this.fileRef,
+      pickFile: () => this.fileRef.current && this.fileRef.current.click(),
+      onDragOver: (e) => { e.preventDefault(); if (!s.drag) this.setState({ drag: true }); },
+      onDragLeave: () => this.setState({ drag: false }),
+      onDrop: (e) => {
+        e.preventDefault();
+        const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+        this.setState({ drag: false, loaded: true, ran: false, fileName: f ? f.name : "dropped.csv" });
+      },
+      onFile: this.onFile,
+      loadDemo: this.loadDemo,
+      dropStyle: "display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 24px;cursor:pointer;border:1px dashed " +
+        (s.drag ? "#2FA97C" : s.loaded ? "#234037" : "#2A3A34") + ";background:" + (s.drag ? "rgba(47,169,124,0.06)" : "#0C1211"),
+      dropTitle: s.loaded ? s.fileName : "Drop a CSV here",
+      dropHint: s.loaded ? "Parsed · click to replace" : "or click to browse · sku, store, date, units",
+
+      statRows: s.loaded ? "1,397,520" : "—",
+      statSeries: s.loaded ? "720" : "—",
+      statZero: s.loaded ? "61.6%" : "—",
+
+      cuField: (s.cu * this.fx()).toFixed(2),
+      coField: (s.co * this.fx()).toFixed(2),
+      onCu: (e) => { const v = parseFloat(e.target.value); if (!isNaN(v) && v >= 0) this.setState({ cu: v / this.fx() }); },
+      onCo: (e) => { const v = parseFloat(e.target.value); if (!isNaN(v) && v >= 0) this.setState({ co: v / this.fx() }); },
+      crText: (cr * 100).toFixed(1) + "%",
+      crBar: "position:absolute;left:0;top:0;bottom:0;background:#2FA97C;width:" + (cr * 100).toFixed(1) + "%",
+
+      runCalc: this.runCalc,
+      runLabel: s.busy ? "Optimizing…" : s.ran ? "Recalculate" : "Calculate optimal order",
+      runStyle: "width:100%;font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:16px;letter-spacing:0.02em;border:0;border-radius:4px;padding:14px 20px;cursor:" +
+        (s.loaded ? "pointer" : "not-allowed") + ";background:" + (s.loaded ? "#2FA97C" : "#1B2523") + ";color:" + (s.loaded ? "#0C1211" : "#5F6F69"),
+
+      kpiSavePct: (savePct >= 0 ? "−" : "+") + Math.abs(savePct).toFixed(1) + "%",
+      kpiSaveMoney: this.money(Math.max(0, na.total - nv.total)),
+      kpiUnits: nv.units.toLocaleString("en-US"),
+      kpiSeries: rows.length,
+      kpiService: (cr * 100).toFixed(0) + "%",
+      kpiServiceNote: cr < 0.6 ? "Below the 95% default — spoilage outweighs the missed sale." : "Above the perishable range; check your overstock cost.",
+
+      policies: pol,
+      exportCsv: this.exportCsv,
+      rows: rows.map(r => {
+        const status = r.order === 0 ? "NO ORDER" : r.stratum === "sparse" ? "HIGH VARIANCE" : "OPTIMAL";
+        return {
+          sku: r.sku, store: r.store,
+          median: r.median.toLocaleString("en-US"),
+          order: r.order.toLocaleString("en-US"),
+          buffer: (r.delta > 0 ? "+" : r.delta < 0 ? "−" : "") + Math.abs(r.delta).toLocaleString("en-US"),
+          bufferStyle: "text-align:right;padding:14px 16px;font-family:'JetBrains Mono',monospace;font-size:13px;font-variant-numeric:tabular-nums;color:" + (r.delta > 0 ? "#E2A94F" : r.delta < 0 ? "#4F86D4" : "#7A8A84"),
+          cost: this.money(r.cost),
+          status, tagStyle: this.tag(status)
+        };
+      })
+    };
+  }
+}
+</script>
+</body>
+</html>

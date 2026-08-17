@@ -1,0 +1,1398 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; padding: 0; background: #0C1211; overflow-x: hidden; }
+  * { box-sizing: border-box; }
+  ::selection { background: rgba(47,169,124,0.3); }
+  a { color: #69DBAA; text-decoration: none; }
+  a:hover { color: #86F8C5; }
+  :focus-visible { outline: 2px solid #2FA97C; outline-offset: 2px; }
+  input[type=range] { accent-color: #2FA97C; height: 4px; }
+  input[type=number]::-webkit-outer-spin-button, input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  @keyframes omPulse { 0%,100% { opacity: 1 } 50% { opacity: 0.35 } }
+  @keyframes omSweep { 0% { transform: translateX(-100%) } 100% { transform: translateX(400%) } }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important } }
+</style>
+</helmet>
+
+<div style="min-height:100vh;background:#0C1211;font-family:Barlow,system-ui,sans-serif;color:#E8EFEC;font-size:15px;line-height:1.55">
+
+  <div ref="{{ navRef }}" style="position:sticky;top:0;z-index:60;background:rgba(12,18,17,0.94);backdrop-filter:blur(10px);border-bottom:1px solid #222E2A">
+    <div style="max-width:1320px;margin:0 auto;padding:0 32px;height:60px;display:flex;align-items:center;gap:20px">
+      <div style="display:flex;align-items:baseline;gap:12px">
+        <span style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:21px;letter-spacing:-0.01em">Inventory Optimization Engine</span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.14em;color:#5F6F69;text-transform:uppercase">Forecasting · newsvendor</span>
+      </div>
+      <div style="flex:1"></div>
+      <div style="display:flex;align-items:center;border:1px solid #222E2A;border-radius:999px;padding:2px;gap:2px">
+        <button onClick="{{ setUsd }}" style="{{ usdPill }}">$ USD</button>
+        <button onClick="{{ setInr }}" style="{{ inrPill }}">₹ INR</button>
+      </div>
+    </div>
+    <div style="max-width:1320px;margin:0 auto;padding:0 32px;display:flex;align-items:stretch;gap:2px;overflow-x:auto">
+      <button onClick="{{ tab1 }}" style="{{ s1 }}">How much to order</button>
+      <button onClick="{{ tab2 }}" style="{{ s2 }}">Full forecast<span style="{{ liveTag }}">live</span></button>
+      <div style="width:20px"></div>
+      <button onClick="{{ tab3 }}" style="{{ s3 }}">Why these numbers</button>
+      <button onClick="{{ tab4 }}" style="{{ s4 }}">Proof it works</button>
+    </div>
+  </div>
+
+  <sc-if value="{{ isCalc }}" hint-placeholder-val="{{ true }}">
+    <div style="max-width:1320px;margin:0 auto;padding:40px 32px 96px">
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:40px;padding-bottom:24px;border-bottom:1px solid #222E2A">
+        <div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:500;letter-spacing:0.14em;color:#2FA97C;text-transform:uppercase;margin-bottom:10px">Browser only · nothing leaves this page</div>
+          <h1 style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:40px;line-height:1.05;letter-spacing:-0.02em;margin:0 0 10px">How much to order</h1>
+          <p style="margin:0;max-width:62ch;color:#A6B5AF">Your figures are read, calculated and shown here. Nothing is uploaded, and no forecast service is involved. This surface is also what the live service offers anyone whose data it refuses.</p>
+        </div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.9;color:#5F6F69;text-align:right;white-space:nowrap">
+          <div>GRAIN &nbsp;product × store</div>
+          <div>RULE &nbsp;newsvendor, q-grid ×7</div>
+          <div>NETWORK &nbsp;none</div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:24px;margin-top:32px;align-items:start">
+        <div style="position:relative;border:1px solid #222E2A;background:#131A18;padding:24px">
+          <span style="position:absolute;top:-4px;left:-4px;width:9px;height:9px;border-top:1px solid #35443E;border-left:1px solid #35443E"></span>
+          <span style="position:absolute;top:-4px;right:-4px;width:9px;height:9px;border-top:1px solid #35443E;border-right:1px solid #35443E"></span>
+          <span style="position:absolute;bottom:-4px;left:-4px;width:9px;height:9px;border-bottom:1px solid #35443E;border-left:1px solid #35443E"></span>
+          <span style="position:absolute;bottom:-4px;right:-4px;width:9px;height:9px;border-bottom:1px solid #35443E;border-right:1px solid #35443E"></span>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+            <div style="display:flex;align-items:baseline;gap:10px">
+              <span style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.14em;color:#5F6F69">01</span>
+              <h2 style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:20px;margin:0">Your sales history</h2>
+            </div>
+            <button onClick="{{ calcDemo }}" style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:#69DBAA;background:transparent;border:1px solid #234037;border-radius:3px;padding:7px 12px;cursor:pointer" style-hover="{background:'rgba(47,169,124,0.12)',borderColor:'#2FA97C'}">Use example figures</button>
+          </div>
+          <div onClick="{{ calcPick }}" onDragOver="{{ onDragOver }}" onDragLeave="{{ onDragLeave }}" onDrop="{{ onCalcDrop }}" style="{{ calcDropStyle }}">
+            <div style="width:38px;height:38px;border:1px solid #2A3A34;display:flex;align-items:center;justify-content:center;margin-bottom:14px">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2FA97C" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+            </div>
+            <div style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:18px;margin-bottom:5px">{{ calcDropTitle }}</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.05em;color:#7A8A84;text-align:center">{{ calcDropHint }}</div>
+          </div>
+          <input type="file" accept=".csv" ref="{{ calcFileRef }}" onChange="{{ onCalcFile }}" style="display:none">
+          <div style="margin-top:20px;padding-top:20px;border-top:1px solid #1B2523;display:grid;grid-template-columns:repeat(3,1fr);gap:20px">
+            <div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.14em;color:#5F6F69;text-transform:uppercase;margin-bottom:6px">Rows read</div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:500;font-variant-numeric:tabular-nums">{{ cRows }}</div>
+            </div>
+            <div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.14em;color:#5F6F69;text-transform:uppercase;margin-bottom:6px">Products</div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:500;font-variant-numeric:tabular-nums">{{ cSeries }}</div>
+            </div>
+            <div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.14em;color:#5F6F69;text-transform:uppercase;margin-bottom:6px">Days with no sale</div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:500;font-variant-numeric:tabular-nums">{{ cZero }}</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="position:relative;border:1px solid #222E2A;background:#131A18;padding:24px">
+          <span style="position:absolute;top:-4px;left:-4px;width:9px;height:9px;border-top:1px solid #35443E;border-left:1px solid #35443E"></span>
+          <span style="position:absolute;top:-4px;right:-4px;width:9px;height:9px;border-top:1px solid #35443E;border-right:1px solid #35443E"></span>
+          <span style="position:absolute;bottom:-4px;left:-4px;width:9px;height:9px;border-bottom:1px solid #35443E;border-left:1px solid #35443E"></span>
+          <span style="position:absolute;bottom:-4px;right:-4px;width:9px;height:9px;border-bottom:1px solid #35443E;border-right:1px solid #35443E"></span>
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:6px">
+            <span style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.14em;color:#5F6F69">02</span>
+            <h2 style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:20px;margin:0">What the two mistakes cost</h2>
+          </div>
+          <p style="font-size:13px;color:#7A8A84;margin:0 0 22px">Both are percentages of each product's own selling price. These are your assumptions, not our measurements.</p>
+
+          <div style="margin-bottom:22px">
+            <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px">
+              <span style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.1em;color:#4F86D4;text-transform:uppercase">Margin you lose on a missed sale</span>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:600;color:#E8EFEC;font-variant-numeric:tabular-nums">{{ marginPct }}</span>
+            </div>
+            <input type="range" min="1" max="90" step="1" value="{{ marginRaw }}" onChange="{{ onMargin }}" onInput="{{ onMargin }}" style="width:100%">
+          </div>
+          <div style="margin-bottom:22px">
+            <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px">
+              <span style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.1em;color:#C4862B;text-transform:uppercase">Share of unsold stock you throw away</span>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:600;color:#E8EFEC;font-variant-numeric:tabular-nums">{{ wastePct }}</span>
+            </div>
+            <input type="range" min="0" max="100" step="1" value="{{ wasteRaw }}" onChange="{{ onWaste }}" onInput="{{ onWaste }}" style="width:100%">
+          </div>
+
+          <div style="border-top:1px solid #1B2523;padding-top:20px;margin-bottom:20px">
+            <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px">
+              <span style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.1em;color:#A6B5AF;text-transform:uppercase">In-stock target this implies</span>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:600;color:#69DBAA;font-variant-numeric:tabular-nums">{{ crText }}</span>
+            </div>
+            <div style="position:relative;height:6px;background:#1B2523">
+              <div style="{{ crBar }}"></div>
+              <div style="position:absolute;top:-4px;bottom:-4px;left:95%;width:1px;background:#C4862B"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:10px;color:#5F6F69;margin-top:8px">
+              <span>0%</span><span style="color:#C4862B">95% ← the usual default</span>
+            </div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.85;color:#5F6F69;margin-top:14px;padding:10px 12px;background:#0C1211;border:1px solid #1B2523">{{ crFormula }}</div>
+            <p style="font-size:13px;color:#7A8A84;margin:10px 0 0">Derived from the two figures above — never chosen, and not a dial you can set directly.</p>
+          </div>
+          <button onClick="{{ runCalc }}" style="{{ runStyle }}">{{ runLabel }}</button>
+        </div>
+      </div>
+
+      <sc-if value="{{ calcRan }}" hint-placeholder-val="{{ true }}">
+        <div>
+          <div style="display:flex;align-items:baseline;gap:10px;margin:56px 0 20px">
+            <span style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.14em;color:#5F6F69">03</span>
+            <h2 style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:20px;margin:0">What to order</h2>
+            <div style="flex:1;height:1px;background:#222E2A;margin-left:8px"></div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px">
+            <div style="position:relative;border:1px solid #234037;background:#101A17;border-left:3px solid #2FA97C;padding:24px">
+              <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.14em;color:#2FA97C;text-transform:uppercase;margin-bottom:14px">Cost against ordering last week's sales</div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:44px;font-weight:600;line-height:1;letter-spacing:-0.03em;color:#69DBAA;font-variant-numeric:tabular-nums">{{ kSavePct }}</div>
+              <div style="font-size:14px;color:#A6B5AF;margin-top:12px">{{ kSaveMoney }} lower, on your two cost figures.</div>
+            </div>
+            <div style="position:relative;border:1px solid #222E2A;background:#131A18;padding:24px">
+              <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.14em;color:#5F6F69;text-transform:uppercase;margin-bottom:14px">Units to order in total</div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:44px;font-weight:600;line-height:1;letter-spacing:-0.03em;font-variant-numeric:tabular-nums">{{ kUnits }}</div>
+              <div style="font-size:14px;color:#A6B5AF;margin-top:12px">Across {{ kSeries }} products for the next period.</div>
+            </div>
+            <div style="position:relative;border:1px solid #222E2A;background:#131A18;border-left:3px solid #C4862B;padding:24px">
+              <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.14em;color:#5F6F69;text-transform:uppercase;margin-bottom:14px">In-stock target you are buying</div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:44px;font-weight:600;line-height:1;letter-spacing:-0.03em;font-variant-numeric:tabular-nums">{{ kService }}</div>
+              <div style="font-size:14px;color:#C4862B;margin-top:12px">{{ kServiceNote }}</div>
+            </div>
+          </div>
+
+          <div style="border:1px solid #222E2A;background:#131A18;margin-top:24px">
+            <div style="padding:18px 24px;border-bottom:1px solid #222E2A;display:flex;align-items:baseline;justify-content:space-between;gap:20px">
+              <h3 style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:18px;margin:0">Three ways to decide, priced on your figures</h3>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.1em;color:#5F6F69;text-transform:uppercase">Costs are assumptions, not measurements</span>
+            </div>
+            <div style="overflow-x:auto">
+              <table style="width:100%;border-collapse:collapse;min-width:760px">
+                <thead><tr style="background:#182120">
+                  <th style="text-align:left;padding:11px 24px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.14em;color:#7A8A84;text-transform:uppercase">Way of deciding</th>
+                  <th style="text-align:right;padding:11px 20px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.14em;color:#7A8A84;text-transform:uppercase">Units</th>
+                  <th style="text-align:right;padding:11px 20px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.14em;color:#7A8A84;text-transform:uppercase">Thrown away</th>
+                  <th style="text-align:right;padding:11px 20px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.14em;color:#7A8A84;text-transform:uppercase">Sales missed</th>
+                  <th style="text-align:right;padding:11px 20px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.14em;color:#7A8A84;text-transform:uppercase">Total</th>
+                  <th style="text-align:right;padding:11px 24px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.14em;color:#7A8A84;text-transform:uppercase">Against row one</th>
+                </tr></thead>
+                <tbody>
+                  <sc-for list="{{ policies }}" as="p" hint-placeholder-count="3">
+                    <tr style="{{ p.rowStyle }}">
+                      <td style="{{ p.nameStyle }}">{{ p.name }}</td>
+                      <td style="text-align:right;padding:15px 20px;font-family:'JetBrains Mono',monospace;font-size:13px;color:#A6B5AF;font-variant-numeric:tabular-nums">{{ p.units }}</td>
+                      <td style="text-align:right;padding:15px 20px;font-family:'JetBrains Mono',monospace;font-size:13px;color:#C4862B;font-variant-numeric:tabular-nums">{{ p.waste }}</td>
+                      <td style="text-align:right;padding:15px 20px;font-family:'JetBrains Mono',monospace;font-size:13px;color:#4F86D4;font-variant-numeric:tabular-nums">{{ p.stockout }}</td>
+                      <td style="{{ p.totalStyle }}">{{ p.total }}</td>
+                      <td style="{{ p.deltaStyle }}">{{ p.delta }}</td>
+                    </tr>
+                  </sc-for>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div style="border:1px solid #222E2A;background:#131A18;margin-top:24px">
+            <div style="padding:18px 24px;border-bottom:1px solid #222E2A;display:flex;align-items:center;justify-content:space-between;gap:20px">
+              <h3 style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:18px;margin:0">Your order list</h3>
+              <button onClick="{{ exportCsv }}" style="display:inline-flex;align-items:center;gap:7px;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:#E8EFEC;background:transparent;border:1px solid #222E2A;border-radius:3px;padding:8px 12px;cursor:pointer" style-hover="{borderColor:'#2FA97C',color:'#69DBAA'}">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                Download
+              </button>
+            </div>
+            <div style="overflow-x:auto">
+              <table style="width:100%;border-collapse:collapse;min-width:820px">
+                <thead><tr style="background:#182120">
+                  <th style="text-align:left;padding:11px 24px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.14em;color:#7A8A84;text-transform:uppercase">Product</th>
+                  <th style="text-align:left;padding:11px 16px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.14em;color:#7A8A84;text-transform:uppercase">Store</th>
+                  <th style="text-align:right;padding:11px 16px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.14em;color:#7A8A84;text-transform:uppercase">Typical demand</th>
+                  <th style="text-align:right;padding:11px 16px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.14em;color:#7A8A84;text-transform:uppercase">Order this many</th>
+                  <th style="text-align:right;padding:11px 16px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.14em;color:#7A8A84;text-transform:uppercase">Against typical</th>
+                  <th style="text-align:right;padding:11px 16px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.14em;color:#7A8A84;text-transform:uppercase">Expected cost</th>
+                  <th style="text-align:left;padding:11px 24px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.14em;color:#7A8A84;text-transform:uppercase">Note</th>
+                </tr></thead>
+                <tbody>
+                  <sc-for list="{{ rows }}" as="r" hint-placeholder-count="8">
+                    <tr style="border-bottom:1px solid #1B2523">
+                      <td style="padding:13px 24px;font-family:'JetBrains Mono',monospace;font-size:13px">{{ r.sku }}</td>
+                      <td style="padding:13px 16px;font-family:'JetBrains Mono',monospace;font-size:13px;color:#7A8A84">{{ r.store }}</td>
+                      <td style="text-align:right;padding:13px 16px;font-family:'JetBrains Mono',monospace;font-size:13px;color:#A6B5AF;font-variant-numeric:tabular-nums">{{ r.median }}</td>
+                      <td style="text-align:right;padding:13px 16px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;color:#69DBAA;font-variant-numeric:tabular-nums">{{ r.order }}</td>
+                      <td style="{{ r.deltaStyle }}">{{ r.deltaText }}</td>
+                      <td style="text-align:right;padding:13px 16px;font-family:'JetBrains Mono',monospace;font-size:13px;color:#A6B5AF;font-variant-numeric:tabular-nums">{{ r.cost }}</td>
+                      <td style="padding:13px 24px"><span style="{{ r.tagStyle }}">{{ r.status }}</span></td>
+                    </tr>
+                  </sc-for>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <p style="font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.9;color:#5F6F69;margin:18px 0 0;max-width:86ch">Expected cost is worked out from the spread of demand this product has actually shown, for a period that has not happened yet. It is an estimate. Currency conversion is display only — the arithmetic is done once, in one currency.</p>
+        </div>
+      </sc-if>
+      <sc-if value="{{ calcIdle }}" hint-placeholder-val="{{ false }}">
+        <div style="margin-top:56px;border:1px dashed #222E2A;padding:56px 32px;text-align:center">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.14em;color:#5F6F69;text-transform:uppercase;margin-bottom:12px">Waiting for figures</div>
+          <div style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:23px;color:#7A8A84">Load your sales history, then work out the order</div>
+        </div>
+      </sc-if>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isFull }}" hint-placeholder-val="{{ false }}">
+    <div style="max-width:1320px;margin:0 auto;padding:40px 32px 96px">
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:40px;padding-bottom:24px;border-bottom:1px solid #222E2A">
+        <div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:500;letter-spacing:0.14em;color:#4F86D4;text-transform:uppercase;margin-bottom:10px">Live service · your data leaves this page</div>
+          <h1 style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:40px;line-height:1.05;letter-spacing:-0.02em;margin:0 0 10px">Full forecast on your own sales</h1>
+          <p style="margin:0;max-width:64ch;color:#A6B5AF">A model is fitted per product on your history, backtested against a simple method, and only served if it earns the comparison. Files are kept 30 days and you can delete everything at any point.</p>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:stretch;gap:1px;background:#222E2A;border:1px solid #222E2A;margin-top:28px;overflow-x:auto">
+        <sc-for list="{{ steps }}" as="st" hint-placeholder-count="5">
+          <div style="{{ st.style }}">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.14em;margin-bottom:7px;color:{{ st.numColor }}">{{ st.num }}</div>
+            <div style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:16px;line-height:1.2">{{ st.label }}</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#5F6F69;margin-top:5px">{{ st.note }}</div>
+          </div>
+        </sc-for>
+      </div>
+
+      <div ref="{{ uploadRef }}" style="border:1px solid #222E2A;background:#131A18;margin-top:24px">
+        <div style="padding:18px 24px;border-bottom:1px solid #222E2A;display:flex;align-items:center;justify-content:space-between;gap:16px">
+          <div style="display:flex;align-items:baseline;gap:10px">
+            <span style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.14em;color:#5F6F69">01</span>
+            <h2 style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:19px;margin:0">Your file</h2>
+          </div>
+          <button onClick="{{ loadExample }}" style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:#69DBAA;background:transparent;border:1px solid #234037;border-radius:3px;padding:7px 12px;cursor:pointer" style-hover="{background:'rgba(47,169,124,0.12)',borderColor:'#2FA97C'}">Use the example file</button>
+        </div>
+        <sc-if value="{{ justDeleted }}" hint-placeholder-val="{{ false }}">
+          <div style="margin:24px 24px 0;border:1px solid #234037;border-left:3px solid #2FA97C;background:#101A17;padding:14px 16px">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.14em;color:#2FA97C;text-transform:uppercase;margin-bottom:6px">Deleted</div>
+            <div style="font-size:14px;color:#E8EFEC">Deleted: the uploaded file, its forecasts and its stored history are gone. Upload again whenever you want a new forecast.</div>
+          </div>
+        </sc-if>
+        <div style="padding:24px">
+          <div onClick="{{ pickUpload }}" onDragOver="{{ onDragOver }}" onDragLeave="{{ onDragLeave }}" onDrop="{{ onUploadDrop }}" style="{{ upDropStyle }}">
+            <div style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:19px;margin-bottom:6px">{{ upTitle }}</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#7A8A84;text-align:center;line-height:1.8">{{ upHint }}</div>
+          </div>
+          <input type="file" accept=".csv" ref="{{ upFileRef }}" onChange="{{ onUploadFile }}" style="display:none">
+          <div style="display:flex;flex-wrap:wrap;gap:24px;margin-top:16px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#5F6F69">
+            <span>NEEDS &nbsp;product · date · units sold</span>
+            <span>OPTIONAL &nbsp;unit price</span>
+            <span>LIMIT &nbsp;50 MB</span>
+          </div>
+        </div>
+      </div>
+
+      <sc-if value="{{ hasDataset }}" hint-placeholder-val="{{ false }}">
+        <div>
+          <div style="border:1px solid #222E2A;background:#131A18;margin-top:24px">
+            <div style="padding:18px 24px;border-bottom:1px solid #222E2A;display:flex;align-items:baseline;justify-content:space-between;gap:16px">
+              <div style="display:flex;align-items:baseline;gap:10px">
+                <span style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.14em;color:#5F6F69">02</span>
+                <h2 style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:19px;margin:0">What we can and cannot forecast</h2>
+              </div>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#7A8A84">{{ gateSummary }}</span>
+            </div>
+
+            <sc-if value="{{ previewOnly }}" hint-placeholder-val="{{ false }}">
+              <div style="margin:24px 24px 0;border:1px solid #4A3A20;border-left:3px solid #C4862B;background:#150F06;padding:16px">
+                <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.14em;color:#E2A94F;text-transform:uppercase;margin-bottom:7px">This is a design preview, not the live service</div>
+                <div style="font-size:14px;line-height:1.7;color:#E8EFEC">Nothing below was read from <strong style="font-weight:600">{{ upFileName }}</strong>. The column names, product lists and quantities are the example dataset, shown so the layout can be judged. The live service reads your own columns and your own products, and refuses the ones it cannot serve.</div>
+              </div>
+            </sc-if>
+            <div style="padding:24px;border-bottom:1px solid #1B2523">
+              <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.1em;color:#7A8A84;text-transform:uppercase;margin-bottom:14px">The columns we read, and what we read them as</div>
+              <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:#1B2523;border:1px solid #1B2523">
+                <sc-for list="{{ mapping }}" as="m" hint-placeholder-count="4">
+                  <div style="background:#0C1211;padding:14px 16px">
+                    <div style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#E8EFEC;margin-bottom:6px">{{ m.yours }}</div>
+                    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#4F86D4">read as {{ m.ours }}</div>
+                  </div>
+                </sc-for>
+              </div>
+              <p style="font-size:13px;color:#7A8A84;margin:12px 0 0">If any of those is wrong, the numbers below are wrong. Rename the column in your file and upload it again.</p>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:#1B2523">
+              <div style="background:#131A18;padding:24px">
+                <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:16px">
+                  <span style="width:8px;height:8px;border-radius:50%;background:#2FA97C;display:inline-block"></span>
+                  <h3 style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:17px;margin:0">{{ admittedTitle }}</h3>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:1px;background:#1B2523;border:1px solid #1B2523">
+                  <sc-for list="{{ admitted }}" as="a" hint-placeholder-count="7">
+                    <div style="background:#0C1211;padding:12px 14px;display:flex;align-items:baseline;gap:12px">
+                      <span style="font-family:Barlow,sans-serif;font-size:14px;color:#E8EFEC;flex:1">{{ a.name }}</span>
+                      <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#5F6F69;white-space:nowrap">{{ a.meta }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+              <div style="background:#131A18;padding:24px">
+                <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:16px">
+                  <span style="width:8px;height:8px;border-radius:50%;background:#C4862B;display:inline-block"></span>
+                  <h3 style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:17px;margin:0">{{ excludedTitle }}</h3>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:12px">
+                  <sc-for list="{{ excluded }}" as="x" hint-placeholder-count="2">
+                    <div style="background:#0C1211;border:1px solid #1B2523;border-left:3px solid #C4862B;padding:14px">
+                      <div style="font-family:Barlow,sans-serif;font-size:14px;color:#E8EFEC;margin-bottom:6px">{{ x.name }}</div>
+                      <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#E2A94F">{{ x.shortfall }}</div>
+                      <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#5F6F69;margin-top:6px">{{ x.meta }}</div>
+                    </div>
+                  </sc-for>
+                </div>
+                <p style="font-size:13px;color:#7A8A84;margin:16px 0 0">These are left out of the forecast, not silently guessed at. You can still work out quantities for them with <a href="#" onClick="{{ tab1 }}">How much to order</a>.</p>
+              </div>
+            </div>
+          </div>
+
+          <div style="border:1px solid #222E2A;background:#131A18;margin-top:24px">
+            <div style="padding:18px 24px;border-bottom:1px solid #222E2A;display:flex;align-items:baseline;gap:10px">
+              <span style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.14em;color:#5F6F69">03</span>
+              <h2 style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:19px;margin:0">Your costs, and how long ahead</h2>
+            </div>
+            <div style="padding:24px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:32px;align-items:start">
+              <div>
+                <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:8px">
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.1em;color:#4F86D4;text-transform:uppercase;flex:1;min-width:0">Margin lost on a missed sale</span>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:600;font-variant-numeric:tabular-nums;flex:none">{{ marginPct }}</span>
+                </div>
+                <input type="range" min="1" max="90" step="1" value="{{ marginRaw }}" onChange="{{ onMargin }}" onInput="{{ onMargin }}" style="width:100%">
+              </div>
+              <div>
+                <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:8px">
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.1em;color:#C4862B;text-transform:uppercase;flex:1;min-width:0">Unsold stock thrown away</span>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:600;font-variant-numeric:tabular-nums;flex:none">{{ wastePct }}</span>
+                </div>
+                <input type="range" min="0" max="100" step="1" value="{{ wasteRaw }}" onChange="{{ onWaste }}" onInput="{{ onWaste }}" style="width:100%">
+              </div>
+              <div>
+                <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:8px">
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.1em;color:#A6B5AF;text-transform:uppercase;flex:1;min-width:0">Days to cover</span>
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:600;font-variant-numeric:tabular-nums;flex:none">{{ horizonText }}</span>
+                </div>
+                <input type="range" min="1" max="28" step="1" value="{{ horizon }}" onChange="{{ onHorizon }}" onInput="{{ onHorizon }}" style="width:100%">
+              </div>
+            </div>
+            <div style="padding:0 24px 24px;display:flex;align-items:center;gap:20px;flex-wrap:wrap">
+              <div style="display:flex;align-items:baseline;gap:12px;border:1px solid #234037;background:#101A17;padding:12px 16px">
+                <span style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.1em;color:#7A8A84;text-transform:uppercase">In-stock target these imply</span>
+                <span style="font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:600;color:#69DBAA;font-variant-numeric:tabular-nums">{{ crText }}</span>
+              </div>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#5F6F69">{{ crFormula }}</span>
+            </div>
+            <div style="padding:0 24px 24px">
+              <button onClick="{{ runJob }}" style="{{ runJobStyle }}">{{ runJobLabel }}</button>
+            </div>
+          </div>
+
+          <sc-if value="{{ hasJob }}" hint-placeholder-val="{{ false }}">
+            <div style="border:1px solid #222E2A;background:#131A18;margin-top:24px">
+              <div style="padding:18px 24px;border-bottom:1px solid #222E2A;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+                <div style="display:flex;align-items:baseline;gap:10px">
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.14em;color:#5F6F69">04</span>
+                  <h2 style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:19px;margin:0">The run</h2>
+                  <span style="{{ jobPill }}">{{ jobStatus }}</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.12em;color:#3E4A46;text-transform:uppercase">Preview state</span>
+                  <sc-for list="{{ stateBtns }}" as="b" hint-placeholder-count="4">
+                    <button onClick="{{ b.go }}" style="{{ b.style }}">{{ b.label }}</button>
+                  </sc-for>
+                </div>
+              </div>
+
+              <sc-if value="{{ jobQueued }}" hint-placeholder-val="{{ false }}">
+                <div style="padding:32px 24px">
+                  <div style="display:grid;grid-template-columns:1fr 1.2fr;gap:40px;align-items:start">
+                    <div>
+                      <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.14em;color:#C4862B;text-transform:uppercase;margin-bottom:14px">Waiting for a worker</div>
+                      <div style="font-family:'JetBrains Mono',monospace;font-size:40px;font-weight:600;line-height:1;color:#E8EFEC;font-variant-numeric:tabular-nums">{{ queuePos }}</div>
+                      <div style="font-size:14px;color:#A6B5AF;margin-top:10px">ahead of you in the queue.</div>
+                      <div style="height:1px;background:#1B2523;margin:20px 0"></div>
+                      <div style="font-family:'JetBrains Mono',monospace;font-size:11px;line-height:2;color:#5F6F69">
+                        <div>JOB &nbsp;{{ jobId }}</div>
+                        <div>PRODUCTS &nbsp;{{ admittedCount }}</div>
+                        <div>WAITING &nbsp;{{ elapsed }}</div>
+                      </div>
+                    </div>
+                    <div>
+                      <p style="font-size:15px;line-height:1.7;color:#A6B5AF;margin:0 0 14px">Nothing is happening to your data yet. It is on disk and queued.</p>
+                      <p style="font-size:15px;line-height:1.7;color:#A6B5AF;margin:0 0 14px">Fitting runs one product at a time on a single thread. That is a correctness constraint, not a shortage of hardware — concurrent fits in the underlying library can deadlock, so we do not run them concurrently. Expect roughly {{ etaText }} once a worker picks this up.</p>
+                      <p style="font-size:15px;line-height:1.7;color:#A6B5AF;margin:0">You can leave this page. The job keeps its own address and the result is still there when you come back.</p>
+                      <div style="margin-top:20px;display:flex;flex-direction:column;gap:1px;background:#1B2523;border:1px solid #1B2523">
+                        <sc-for list="{{ fitRows }}" as="f" hint-placeholder-count="7">
+                          <div style="background:#0C1211;padding:10px 14px;display:flex;align-items:center;gap:12px">
+                            <span style="{{ f.dot }}"></span>
+                            <span style="font-family:Barlow,sans-serif;font-size:14px;color:{{ f.nameColor }};flex:1">{{ f.name }}</span>
+                            <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:{{ f.stateColor }}">{{ f.state }}</span>
+                          </div>
+                        </sc-for>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ jobRunning }}" hint-placeholder-val="{{ false }}">
+                <div style="padding:32px 24px">
+                  <div style="display:grid;grid-template-columns:1fr 1.2fr;gap:40px;align-items:start">
+                    <div>
+                      <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.14em;color:#4F86D4;text-transform:uppercase;margin-bottom:14px">Fitting on your history</div>
+                      <div style="font-family:'JetBrains Mono',monospace;font-size:40px;font-weight:600;line-height:1;color:#E8EFEC;font-variant-numeric:tabular-nums">{{ doneCount }}</div>
+                      <div style="font-size:14px;color:#A6B5AF;margin-top:10px">of {{ admittedCount }} products fitted and backtested.</div>
+                      <div style="position:relative;height:6px;background:#1B2523;margin-top:20px;overflow:hidden">
+                        <div style="{{ progBar }}"></div>
+                      </div>
+                      <div style="height:1px;background:#1B2523;margin:20px 0"></div>
+                      <div style="font-family:'JetBrains Mono',monospace;font-size:11px;line-height:2;color:#5F6F69">
+                        <div>JOB &nbsp;{{ jobId }}</div>
+                        <div>ELAPSED &nbsp;{{ elapsed }}</div>
+                        <div>NOW &nbsp;{{ currentName }}</div>
+                      </div>
+                    </div>
+                    <div>
+                      <p style="font-size:15px;line-height:1.7;color:#A6B5AF;margin:0 0 20px">Each product is fitted, then scored against a simple method on up to five backtest folds. A product that finishes here has already been through that comparison — the result you get is the winner of it, whichever won.</p>
+                      <div style="display:flex;flex-direction:column;gap:1px;background:#1B2523;border:1px solid #1B2523">
+                        <sc-for list="{{ fitRows }}" as="f" hint-placeholder-count="7">
+                          <div style="background:#0C1211;padding:10px 14px;display:flex;align-items:center;gap:12px">
+                            <span style="{{ f.dot }}"></span>
+                            <span style="font-family:Barlow,sans-serif;font-size:14px;color:{{ f.nameColor }};flex:1">{{ f.name }}</span>
+                            <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:{{ f.stateColor }}">{{ f.state }}</span>
+                          </div>
+                        </sc-for>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ jobFailed }}" hint-placeholder-val="{{ false }}">
+                <div style="padding:32px 24px">
+                  <div style="border-left:3px solid #C4862B;background:#0C1211;border:1px solid #1B2523;border-left:3px solid #C4862B;padding:24px;max-width:78ch">
+                    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.14em;color:#E2A94F;text-transform:uppercase;margin-bottom:14px">The run failed</div>
+                    <p style="font-size:16px;line-height:1.7;color:#E8EFEC;margin:0 0 14px">The worker stopped after 3 of 7 products and returned nothing for this job. Your file is still on the service and still passes the gate — this is our fault, not a problem with your data.</p>
+                    <div style="font-family:'JetBrains Mono',monospace;font-size:12px;line-height:2;color:#7A8A84;background:#0F1614;border:1px solid #1B2523;padding:14px;margin-bottom:16px">
+                      <div>JOB &nbsp;{{ jobId }}</div>
+                      <div>REASON &nbsp;worker exceeded the 900s job timeout</div>
+                      <div>FITTED BEFORE STOPPING &nbsp;3 of 7</div>
+                    </div>
+                    <p style="font-size:15px;line-height:1.7;color:#A6B5AF;margin:0 0 18px">Running again is the right first move; the same file does not need uploading twice. If it fails a second time, the products with the longest histories are the likeliest cause and shortening the days to cover will not help — it is the fitting, not the horizon.</p>
+                    <div style="display:flex;gap:12px;flex-wrap:wrap">
+                      <button onClick="{{ runJob }}" style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:15px;background:#2FA97C;color:#0C1211;border:0;border-radius:3px;padding:11px 18px;cursor:pointer" style-hover="{background:'#69DBAA'}">Run it again</button>
+                      <button onClick="{{ tab1 }}" style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:15px;background:transparent;color:#E8EFEC;border:1px solid #222E2A;border-radius:3px;padding:11px 18px;cursor:pointer" style-hover="{borderColor:'#2FA97C'}">Work it out in the browser instead</button>
+                    </div>
+                  </div>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ jobDone }}" hint-placeholder-val="{{ true }}">
+                <div>
+                  <div style="padding:24px;border-bottom:1px solid #1B2523">
+                    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px">
+                      <div style="border:1px solid #234037;background:#101A17;border-left:3px solid #2FA97C;padding:20px">
+                        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.14em;color:#2FA97C;text-transform:uppercase;margin-bottom:12px">Units to order in total</div>
+                        <div style="font-family:'JetBrains Mono',monospace;font-size:36px;font-weight:600;line-height:1;color:#69DBAA;font-variant-numeric:tabular-nums">{{ ffUnits }}</div>
+                        <div style="font-size:13px;color:#A6B5AF;margin-top:10px">Over the next {{ horizonText }}, across {{ admittedCount }} products.</div>
+                      </div>
+                      <div style="border:1px solid #222E2A;background:#131A18;padding:20px">
+                        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.14em;color:#5F6F69;text-transform:uppercase;margin-bottom:12px">Model earned its place on</div>
+                        <div style="font-family:'JetBrains Mono',monospace;font-size:36px;font-weight:600;line-height:1;font-variant-numeric:tabular-nums">{{ modelWins }}</div>
+                        <div style="font-size:13px;color:#A6B5AF;margin-top:10px">of {{ admittedCount }}. The rest are served by the simple method, on purpose.</div>
+                      </div>
+                      <div style="border:1px solid #222E2A;background:#131A18;border-left:3px solid #4F86D4;padding:20px">
+                        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.14em;color:#5F6F69;text-transform:uppercase;margin-bottom:12px">Festival adjustments applied</div>
+                        <div style="font-family:'JetBrains Mono',monospace;font-size:36px;font-weight:600;line-height:1;font-variant-numeric:tabular-nums">{{ festCount }}</div>
+                        <div style="font-size:13px;color:#A6B5AF;margin-top:10px">{{ festNote }}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style="overflow-x:auto;border-bottom:1px solid #1B2523">
+                    <table style="width:100%;border-collapse:collapse;min-width:980px">
+                      <thead><tr style="background:#182120">
+                        <th style="text-align:left;padding:11px 24px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.14em;color:#7A8A84;text-transform:uppercase">Product</th>
+                        <th style="text-align:right;padding:11px 16px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.14em;color:#7A8A84;text-transform:uppercase">Order this many</th>
+                        <th style="text-align:left;padding:11px 16px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.14em;color:#7A8A84;text-transform:uppercase">Festival</th>
+                        <th style="text-align:left;padding:11px 16px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.14em;color:#7A8A84;text-transform:uppercase">Method used</th>
+                        <th style="text-align:right;padding:11px 16px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.14em;color:#7A8A84;text-transform:uppercase">Its error</th>
+                        <th style="text-align:right;padding:11px 16px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.14em;color:#7A8A84;text-transform:uppercase">Simple method</th>
+                        <th style="text-align:right;padding:11px 24px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.14em;color:#7A8A84;text-transform:uppercase">Unit price</th>
+                      </tr></thead>
+                      <tbody>
+                        <sc-for list="{{ ffRows }}" as="r" hint-placeholder-count="7">
+                          <tr onClick="{{ r.select }}" style="{{ r.rowStyle }}">
+                            <td style="padding:13px 24px">
+                              <div style="font-family:Barlow,sans-serif;font-size:14px;color:#E8EFEC">{{ r.name }}</div>
+                              <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#5F6F69;margin-top:3px">{{ r.sku }}</div>
+                            </td>
+                            <td style="text-align:right;padding:13px 16px;font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:600;color:#69DBAA;font-variant-numeric:tabular-nums">{{ r.order }}</td>
+                            <td style="padding:13px 16px"><span style="{{ r.festStyle }}">{{ r.festLabel }}</span></td>
+                            <td style="padding:13px 16px"><span style="{{ r.methodStyle }}">{{ r.methodLabel }}</span></td>
+                            <td style="text-align:right;padding:13px 16px;font-family:'JetBrains Mono',monospace;font-size:13px;color:#A6B5AF;font-variant-numeric:tabular-nums">{{ r.maseModel }}</td>
+                            <td style="text-align:right;padding:13px 16px;font-family:'JetBrains Mono',monospace;font-size:13px;color:#A6B5AF;font-variant-numeric:tabular-nums">{{ r.maseBase }}</td>
+                            <td style="text-align:right;padding:13px 24px;font-family:'JetBrains Mono',monospace;font-size:13px;color:#A6B5AF;font-variant-numeric:tabular-nums">{{ r.price }}</td>
+                          </tr>
+                        </sc-for>
+                      </tbody>
+                    </table>
+                  </div>
+                  <div style="padding:12px 24px;border-bottom:1px solid #1B2523;font-family:'JetBrains Mono',monospace;font-size:11px;color:#5F6F69">Error is MASE — below 1.00 beats a last-value guess. ± is the spread across backtest folds. Click a row for the detail.</div>
+
+                  <div style="padding:24px;border-bottom:1px solid #1B2523;background:#0F1614">
+                    <div style="display:flex;align-items:baseline;justify-content:space-between;gap:20px;margin-bottom:18px;flex-wrap:wrap">
+                      <h3 style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:22px;margin:0">{{ selName }}</h3>
+                      <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#5F6F69">{{ selMeta }}</span>
+                    </div>
+
+                    <div style="border:1px solid #222E2A;background:#0C1211;padding:20px 20px 12px;margin-bottom:20px">
+                      <svg viewBox="0 0 900 240" style="width:100%;height:auto;display:block" role="img" aria-label="Sales history and forecast">
+                        <line x1="60" y1="200" x2="880" y2="200" stroke="#222E2A" stroke-width="1"></line>
+                        <line x1="60" y1="20" x2="60" y2="200" stroke="#222E2A" stroke-width="1"></line>
+                        <polygon points="{{ bandPts }}" fill="rgba(47,169,124,0.14)"></polygon>
+                        <polyline points="{{ histPts }}" fill="none" stroke="#A6B5AF" stroke-width="1.6"></polyline>
+                        <polyline points="{{ fcPts }}" fill="none" stroke="#2FA97C" stroke-width="2"></polyline>
+                        <line x1="{{ divX }}" y1="20" x2="{{ divX }}" y2="200" stroke="#35443E" stroke-width="1" stroke-dasharray="3 3"></line>
+                        <line x1="{{ divX }}" y1="{{ rateY }}" x2="880" y2="{{ rateY }}" stroke="#4F86D4" stroke-width="1.4" stroke-dasharray="6 4"></line>
+                        <text x="64" y="16" fill="#5F6F69" font-family="JetBrains Mono, monospace" font-size="10">units / day</text>
+                        <text x="{{ divLabelX }}" y="216" fill="#5F6F69" font-family="JetBrains Mono, monospace" font-size="10">today</text>
+                        <text x="60" y="216" fill="#5F6F69" font-family="JetBrains Mono, monospace" font-size="10">what actually sold</text>
+                        <text x="10" y="24" fill="#5F6F69" font-family="JetBrains Mono, monospace" font-size="10">{{ yTop }}</text>
+                        <text x="10" y="204" fill="#5F6F69" font-family="JetBrains Mono, monospace" font-size="10">0</text>
+                      </svg>
+                      <div style="display:flex;flex-wrap:wrap;gap:20px;padding-top:12px;border-top:1px solid #1B2523;font-family:'JetBrains Mono',monospace;font-size:11px;color:#7A8A84">
+                        <span style="display:flex;align-items:center;gap:7px"><i style="width:14px;height:2px;background:#A6B5AF;display:inline-block"></i>What actually sold</span>
+                        <span style="display:flex;align-items:center;gap:7px"><i style="width:14px;height:2px;background:#2FA97C;display:inline-block"></i>Our best guess</span>
+                        <span style="display:flex;align-items:center;gap:7px"><i style="width:14px;height:9px;background:rgba(47,169,124,0.14);border:1px solid #2FA97C;display:inline-block"></i>Where sales landed 80% of the time</span>
+                        <span style="display:flex;align-items:center;gap:7px"><i style="width:14px;height:0;border-top:2px dashed #4F86D4;display:inline-block"></i>What your order covers per day</span>
+                      </div>
+                    </div>
+
+                    <div style="display:grid;grid-template-columns:1.25fr 1fr;gap:20px;align-items:start">
+                      <div style="border:1px solid #222E2A;background:#131A18;border-left:3px solid {{ methodAccent }};padding:22px">
+                        <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.14em;color:#7A8A84;text-transform:uppercase;margin-bottom:14px">Why this number, and how well it did</div>
+                        <p style="font-size:16px;line-height:1.75;color:#E8EFEC;margin:0 0 16px">{{ methodProse }}</p>
+                        <sc-if value="{{ hasDisagree }}" hint-placeholder-val="{{ false }}">
+                          <p style="font-size:15px;line-height:1.7;color:#E2A94F;margin:0 0 16px">{{ disagreeProse }}</p>
+                        </sc-if>
+                        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:#1B2523;border:1px solid #1B2523">
+                          <div style="background:#0C1211;padding:14px">
+                            <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.12em;color:#5F6F69;text-transform:uppercase;margin-bottom:7px">Backtest folds</div>
+                            <div style="font-family:'JetBrains Mono',monospace;font-size:17px;font-variant-numeric:tabular-nums">{{ selFolds }}</div>
+                          </div>
+                          <div style="background:#0C1211;padding:14px">
+                            <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.12em;color:#5F6F69;text-transform:uppercase;margin-bottom:7px">Ordering loss</div>
+                            <div style="font-family:'JetBrains Mono',monospace;font-size:17px;font-variant-numeric:tabular-nums">{{ selPinball }}</div>
+                          </div>
+                          <div style="background:#0C1211;padding:14px">
+                            <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.12em;color:#5F6F69;text-transform:uppercase;margin-bottom:7px">History used</div>
+                            <div style="font-family:'JetBrains Mono',monospace;font-size:17px;font-variant-numeric:tabular-nums">{{ selDays }}</div>
+                          </div>
+                        </div>
+                        <p style="font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.9;color:#5F6F69;margin:14px 0 0">Both methods were scored on the loss function of the quantity being ordered, at the same grain as the order. Neither score is a claim about the future.</p>
+                      </div>
+
+                      <div style="{{ festCardStyle }}">
+                        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px">
+                          <span style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.14em;color:#7A8A84;text-transform:uppercase">Festival</span>
+                          <span style="{{ festStateStyle }}">{{ festStateLabel }}</span>
+                        </div>
+                        <sc-if value="{{ festAdjusted }}" hint-placeholder-val="{{ true }}">
+                          <div>
+                            <div style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:24px;margin-bottom:6px">{{ festName }}</div>
+                            <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#7A8A84;margin-bottom:18px">{{ festWhen }}</div>
+                            <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+                              <span style="font-family:'JetBrains Mono',monospace;font-size:22px;color:#7A8A84;text-decoration:line-through;font-variant-numeric:tabular-nums">{{ festBefore }}</span>
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5F6F69" stroke-width="1.5"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+                              <span style="font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:600;color:#69DBAA;font-variant-numeric:tabular-nums">{{ festAfter }}</span>
+                              <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#7A8A84">units</span>
+                            </div>
+                            <div style="display:flex;flex-direction:column;gap:1px;background:#1B2523;border:1px solid #1B2523;margin-bottom:14px">
+                              <div style="background:#0C1211;padding:11px 14px;display:flex;justify-content:space-between;gap:12px">
+                                <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#7A8A84">RATIO</span>
+                                <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#E8EFEC">{{ festRatio }}</span>
+                              </div>
+                              <div style="background:#0C1211;padding:11px 14px;display:flex;justify-content:space-between;gap:12px">
+                                <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#7A8A84">WHERE IT CAME FROM</span>
+                                <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:{{ festSourceColor }}">{{ festSource }}</span>
+                              </div>
+                              <div style="background:#0C1211;padding:11px 14px;display:flex;justify-content:space-between;gap:12px">
+                                <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#7A8A84">MATCHED ON</span>
+                                <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#E8EFEC">{{ festKeyword }}</span>
+                              </div>
+                              <div style="background:#0C1211;padding:11px 14px;display:flex;justify-content:space-between;gap:12px">
+                                <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#7A8A84">RUN-UP DAYS IN WINDOW</span>
+                                <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#E8EFEC">{{ festDays }}</span>
+                              </div>
+                            </div>
+                            <p style="font-size:14px;line-height:1.7;color:#A6B5AF;margin:0">{{ festProse }}</p>
+                          </div>
+                        </sc-if>
+                        <sc-if value="{{ festAdvisory }}" hint-placeholder-val="{{ false }}">
+                          <div>
+                            <div style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:22px;margin-bottom:14px">{{ festNearby }} is close</div>
+                            <p style="font-size:15px;line-height:1.75;color:#E8EFEC;margin:0 0 14px">No festival pattern was found for this item — its name matches none of the categories we have figures for. The order quantity below is unchanged.</p>
+                            <div style="font-family:'JetBrains Mono',monospace;font-size:12px;line-height:2;color:#7A8A84;background:#0C1211;border:1px solid #1B2523;padding:14px">
+                              <div>ORDER &nbsp;{{ festAfter }} units, unadjusted</div>
+                              <div>NEARBY &nbsp;{{ festNearby }}</div>
+                              <div>CHANGE APPLIED &nbsp;none</div>
+                            </div>
+                            <p style="font-size:14px;line-height:1.7;color:#7A8A84;margin:14px 0 0">If you know this product moves at this festival, raise the quantity by hand. We will not guess it for you.</p>
+                          </div>
+                        </sc-if>
+                        <sc-if value="{{ festNone }}" hint-placeholder-val="{{ false }}">
+                          <div>
+                            <p style="font-size:15px;line-height:1.75;color:#A6B5AF;margin:0">No festival falls inside the days you are ordering for, so nothing was adjusted.</p>
+                          </div>
+                        </sc-if>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </sc-if>
+            </div>
+          </sc-if>
+
+          <div style="border:1px solid #222E2A;background:#131A18;margin-top:24px">
+            <div style="padding:18px 24px;border-bottom:1px solid #222E2A;display:flex;align-items:baseline;gap:10px">
+              <span style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.14em;color:#5F6F69">05</span>
+              <h2 style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:19px;margin:0">Your file, and getting rid of it</h2>
+            </div>
+            <div>
+              <div style="padding:24px;display:grid;grid-template-columns:1.3fr 1fr;gap:40px;align-items:start">
+                <div>
+                  <p style="font-size:15px;line-height:1.75;color:#A6B5AF;margin:0 0 14px">Your upload, the forecasts made from it and the sales history stored alongside it are deleted 30 days after upload, whether you ask or not. There are no accounts here, so nothing is kept to identify you — only an anonymous per-browser id that travels with the request.</p>
+                  <p style="font-size:15px;line-height:1.75;color:#A6B5AF;margin:0">You do not have to wait for the 30 days. Deleting now removes the file, every forecast made from it and the stored history in one operation, and it cannot be undone.</p>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:11px;line-height:2;color:#5F6F69;margin-top:18px;background:#0C1211;border:1px solid #1B2523;padding:14px">
+                    <div>FILE &nbsp;{{ upFileName }}</div>
+                    <div>UPLOADED &nbsp;today · deleted automatically on {{ retireDate }}</div>
+                    <div>ANALYTICS &nbsp;counts only — no file names, no product names</div>
+                  </div>
+                </div>
+                <div>
+                  <sc-if value="{{ notConfirming }}" hint-placeholder-val="{{ true }}">
+                    <button onClick="{{ askDelete }}" style="width:100%;font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:15px;background:transparent;color:#E2A94F;border:1px solid #4A3A20;border-radius:3px;padding:13px 18px;cursor:pointer" style-hover="{borderColor:'#C4862B',background:'rgba(196,134,43,0.08)'}">Delete my file and its forecasts</button>
+                  </sc-if>
+                  <sc-if value="{{ confirming }}" hint-placeholder-val="{{ false }}">
+                    <div style="border:1px solid #4A3A20;background:#150F06;padding:20px">
+                      <div style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:19px;margin-bottom:10px">Delete all of it?</div>
+                      <p style="font-size:14px;line-height:1.7;color:#A6B5AF;margin:0 0 18px">The uploaded file, its forecasts and its stored history go. The order quantities on this page stay on screen but cannot be recalculated.</p>
+                      <div style="display:flex;gap:10px">
+                        <button onClick="{{ doDelete }}" style="flex:1;font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:15px;background:#C4862B;color:#150F06;border:0;border-radius:3px;padding:11px 14px;cursor:pointer" style-hover="{background:'#E2A94F'}">Delete</button>
+                        <button onClick="{{ cancelDelete }}" style="flex:1;font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:15px;background:transparent;color:#E8EFEC;border:1px solid #222E2A;border-radius:3px;padding:11px 14px;cursor:pointer" style-hover="{borderColor:'#7A8A84'}">Keep it</button>
+                      </div>
+                    </div>
+                  </sc-if>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isWhy }}" hint-placeholder-val="{{ false }}">
+    <div style="max-width:1000px;margin:0 auto;padding:48px 32px 96px">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.16em;color:#7A8A84;text-transform:uppercase;margin-bottom:16px">Tier 1 · the reasoning</div>
+      <h1 style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:46px;line-height:1.03;letter-spacing:-0.025em;margin:0 0 20px;max-width:26ch">Why a full shelf is the expensive mistake</h1>
+      <p style="font-size:18px;line-height:1.7;color:#A6B5AF;margin:0 0 48px;max-width:66ch">Two mistakes are possible when you order. You can order too little and miss a sale, or order too much and throw stock away. They do not cost the same, and the whole method is arithmetic on that difference.</p>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:#222E2A;border:1px solid #222E2A;margin-bottom:48px">
+        <div style="background:#131A18;padding:28px">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.14em;color:#4F86D4;text-transform:uppercase;margin-bottom:16px">Order too little</div>
+          <div style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:30px;margin-bottom:10px">You lose the margin</div>
+          <p style="font-size:15px;line-height:1.7;color:#A6B5AF;margin:0">A customer wanted it, you did not have it. On a 30% margin you are out 30% of the price. The stock itself cost you nothing, because you never bought it.</p>
+        </div>
+        <div style="background:#131A18;padding:28px">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.14em;color:#C4862B;text-transform:uppercase;margin-bottom:16px">Order too much</div>
+          <div style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:30px;margin-bottom:10px">You lose most of the unit</div>
+          <p style="font-size:15px;line-height:1.7;color:#A6B5AF;margin:0">It went unsold and it will not keep. You paid 70% of the price for it and threw away most of that, plus the cost of holding it while it sat there.</p>
+        </div>
+      </div>
+
+      <div style="border-top:1px solid #222E2A;padding-top:32px;margin-bottom:48px">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.16em;color:#7A8A84;text-transform:uppercase;margin-bottom:20px">Fig. 01 — the ratio, worked out once</div>
+        <p style="font-size:17px;line-height:1.75;color:#E8EFEC;margin:0 0 24px;max-width:70ch">Divide the cost of ordering too little by the two costs added together, and you get the fraction of the time it is worth being in stock. That fraction is the in-stock target. You do not choose it; the two costs do.</p>
+        <div style="border:1px solid #222E2A;background:#131A18;padding:28px">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:14px;line-height:2.2;color:#A6B5AF">
+            <div>missed sale &nbsp;= 30% of price &nbsp;<span style="color:#5F6F69">(the margin)</span></div>
+            <div>thrown away &nbsp;= 60% × 70% of price + 2% holding &nbsp;= 44%</div>
+            <div style="height:1px;background:#222E2A;margin:14px 0"></div>
+            <div style="color:#E8EFEC;font-size:16px">in-stock target &nbsp;= 30 ÷ (30 + 44) &nbsp;= <span style="color:#69DBAA;font-weight:600">40.5%</span></div>
+          </div>
+        </div>
+        <p style="font-size:15px;line-height:1.7;color:#7A8A84;margin:20px 0 0;max-width:70ch">Those three percentages are assumptions. They are yours to change, and every figure downstream moves when you do. What is not an assumption is the division.</p>
+      </div>
+
+      <div style="border-top:1px solid #222E2A;padding-top:32px;margin-bottom:48px">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.16em;color:#7A8A84;text-transform:uppercase;margin-bottom:20px">Fig. 02 — what that means on the shelf</div>
+        <p style="font-size:17px;line-height:1.75;color:#E8EFEC;margin:0 0 24px;max-width:70ch">A 40.5% target means you expect to run out on more days than you have stock left over. That reads like a failure and is not. Running out costs you 30%. Being left with it costs you 44%. If you cannot have both, take the cheaper mistake more often.</p>
+        <p style="font-size:17px;line-height:1.75;color:#E8EFEC;margin:0;max-width:70ch">This is the part of the method that survives being explained to the person doing the ordering, which is why it is here and not in a footnote. Nothing after it is more sophisticated than a division.</p>
+      </div>
+
+      <div style="border-top:1px solid #222E2A;padding-top:32px">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.16em;color:#7A8A84;text-transform:uppercase;margin-bottom:20px">Fig. 03 — where the forecast comes in</div>
+        <p style="font-size:17px;line-height:1.75;color:#E8EFEC;margin:0 0 20px;max-width:70ch">The target says which point of the demand spread to order to. The forecast supplies the spread — not one number, but seven, from a quiet day to a very busy one. The order lands where the target falls inside that spread.</p>
+        <p style="font-size:15px;line-height:1.7;color:#A6B5AF;margin:0 0 28px;max-width:70ch">Which is why a better forecast is worth money here in a way it is not worth money in a report: a tighter spread at the same target means less stock for the same protection.</p>
+        <div style="display:flex;gap:12px;flex-wrap:wrap">
+          <button onClick="{{ tab4 }}" style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:15px;background:#2FA97C;color:#0C1211;border:0;border-radius:3px;padding:12px 20px;cursor:pointer" style-hover="{background:'#69DBAA'}">See it measured on 100,720 decisions</button>
+          <button onClick="{{ tab1 }}" style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:15px;background:transparent;color:#E8EFEC;border:1px solid #222E2A;border-radius:3px;padding:12px 20px;cursor:pointer" style-hover="{borderColor:'#2FA97C'}">Try it on your own figures</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isProof }}" hint-placeholder-val="{{ false }}">
+    <div style="max-width:1200px;margin:0 auto;padding:48px 32px 96px">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.16em;color:#7A8A84;text-transform:uppercase;margin-bottom:16px">Tier 1 · precomputed on M5 retail data</div>
+      <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:56px;align-items:end;margin-bottom:48px">
+        <div>
+          <h1 style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:46px;line-height:1.03;letter-spacing:-0.025em;margin:0 0 18px;max-width:24ch">Measured, on decisions that already happened</h1>
+          <p style="font-size:17px;line-height:1.7;color:#A6B5AF;margin:0;max-width:60ch">100,720 stocking decisions across five rolling-origin folds, each priced against the demand that actually arrived — never against the forecast that produced the order.</p>
+        </div>
+        <div style="border:1px solid #222E2A;background:#131A18;padding:28px">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.16em;color:#5F6F69;text-transform:uppercase;margin-bottom:16px">Fig. 01 — cost against current practice</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:64px;font-weight:600;line-height:0.92;letter-spacing:-0.04em;color:#69DBAA;font-variant-numeric:tabular-nums">28.6%</div>
+          <div style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:20px;margin-top:10px">lower total inventory cost</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#5F6F69;margin-top:14px;line-height:1.8">Waste 78,106 → 20,714 units.<br>Stockout rate rose 31.1% → 48.0%.</div>
+        </div>
+      </div>
+
+      <div style="border-top:1px solid #222E2A;padding-top:28px;margin-bottom:48px">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.16em;color:#7A8A84;text-transform:uppercase;margin-bottom:20px">Fig. 02 — the money table</div>
+        <div style="overflow-x:auto;border:1px solid #222E2A;background:#131A18">
+          <table style="width:100%;border-collapse:collapse;min-width:820px">
+            <thead><tr style="background:#182120">
+              <th style="text-align:left;padding:13px 24px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.14em;color:#7A8A84;text-transform:uppercase">Way of deciding</th>
+              <th style="text-align:right;padding:13px 20px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.14em;color:#7A8A84;text-transform:uppercase">Ran out on</th>
+              <th style="text-align:right;padding:13px 20px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.14em;color:#7A8A84;text-transform:uppercase">Units wasted</th>
+              <th style="text-align:right;padding:13px 20px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.14em;color:#7A8A84;text-transform:uppercase">Total cost</th>
+              <th style="text-align:right;padding:13px 24px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.14em;color:#7A8A84;text-transform:uppercase">Against row one</th>
+            </tr></thead>
+            <tbody>
+              <tr style="border-bottom:1px solid #1B2523">
+                <td style="padding:17px 24px;font-size:15px;color:#A6B5AF">Order what sold last week</td>
+                <td style="text-align:right;padding:17px 20px;font-family:'JetBrains Mono',monospace;font-size:14px;color:#A6B5AF;font-variant-numeric:tabular-nums">31.1%</td>
+                <td style="text-align:right;padding:17px 20px;font-family:'JetBrains Mono',monospace;font-size:14px;color:#A6B5AF;font-variant-numeric:tabular-nums">78,106</td>
+                <td style="text-align:right;padding:17px 20px;font-family:'JetBrains Mono',monospace;font-size:14px;color:#A6B5AF;font-variant-numeric:tabular-nums">{{ mNaive }}</td>
+                <td style="text-align:right;padding:17px 24px;font-family:'JetBrains Mono',monospace;font-size:14px;color:#5F6F69">—</td>
+              </tr>
+              <tr style="border-bottom:1px solid #1B2523">
+                <td style="padding:17px 24px;font-size:15px;color:#A6B5AF">Always be 95% in stock</td>
+                <td style="text-align:right;padding:17px 20px;font-family:'JetBrains Mono',monospace;font-size:14px;color:#A6B5AF;font-variant-numeric:tabular-nums">6.1%</td>
+                <td style="text-align:right;padding:17px 20px;font-family:'JetBrains Mono',monospace;font-size:14px;color:#C4862B;font-variant-numeric:tabular-nums">326,957</td>
+                <td style="text-align:right;padding:17px 20px;font-family:'JetBrains Mono',monospace;font-size:14px;color:#A6B5AF;font-variant-numeric:tabular-nums">{{ m95 }}</td>
+                <td style="text-align:right;padding:17px 24px;font-family:'JetBrains Mono',monospace;font-size:14px;color:#C4862B;font-variant-numeric:tabular-nums">+145.7%</td>
+              </tr>
+              <tr style="background:#101A17;border-left:3px solid #2FA97C">
+                <td style="padding:17px 24px;font-size:15px;font-weight:600;color:#E8EFEC">Order to the cost-optimal target</td>
+                <td style="text-align:right;padding:17px 20px;font-family:'JetBrains Mono',monospace;font-size:14px;color:#A6B5AF;font-variant-numeric:tabular-nums">48.0%</td>
+                <td style="text-align:right;padding:17px 20px;font-family:'JetBrains Mono',monospace;font-size:14px;color:#69DBAA;font-variant-numeric:tabular-nums">20,714</td>
+                <td style="text-align:right;padding:17px 20px;font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:600;color:#69DBAA;font-variant-numeric:tabular-nums">{{ mNv }}</td>
+                <td style="text-align:right;padding:17px 24px;font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:600;color:#69DBAA;font-variant-numeric:tabular-nums">−28.6%</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p style="font-size:15px;line-height:1.7;color:#7A8A84;margin:18px 0 0;max-width:84ch">The middle row has the best in-stock rate on the table and is the most expensive on it by a wide margin. Reaching 95% took 326,957 units of stock that spoiled. Cost figures rest on stated assumptions — a 30% margin, 60% spoilage, 2% a day holding — and the ordering rule wins at every spoilage rate from 0.0 to 1.0, so the conclusion does not depend on them.</p>
+      </div>
+
+      <div style="border-top:1px solid #222E2A;padding-top:28px;margin-bottom:48px">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.16em;color:#7A8A84;text-transform:uppercase;margin-bottom:20px">Fig. 03 — move the assumptions yourself</div>
+        <div style="display:grid;grid-template-columns:340px 1fr;gap:40px;align-items:start">
+          <div>
+            <div style="margin-bottom:24px">
+              <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px">
+                <span style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.1em;color:#C4862B;text-transform:uppercase">Spoilage rate</span>
+                <span style="font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:600;font-variant-numeric:tabular-nums">{{ simSpoilText }}</span>
+              </div>
+              <input type="range" min="0" max="100" step="1" value="{{ simSpoilRaw }}" onChange="{{ onSimSpoil }}" onInput="{{ onSimSpoil }}" style="width:100%">
+            </div>
+            <div style="margin-bottom:24px">
+              <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px">
+                <span style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.1em;color:#4F86D4;text-transform:uppercase">In-stock target you pick</span>
+                <span style="font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:600;font-variant-numeric:tabular-nums">{{ simSlText }}</span>
+              </div>
+              <input type="range" min="5" max="99" step="1" value="{{ simSlRaw }}" onChange="{{ onSimSl }}" onInput="{{ onSimSl }}" style="width:100%">
+            </div>
+            <div style="border:1px solid #234037;background:#101A17;padding:18px">
+              <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.14em;color:#2FA97C;text-transform:uppercase;margin-bottom:10px">Cheapest target at this spoilage</div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:32px;font-weight:600;color:#69DBAA;font-variant-numeric:tabular-nums">{{ simOptText }}</div>
+              <div style="font-size:14px;color:#A6B5AF;margin-top:10px">{{ simVerdict }}</div>
+            </div>
+          </div>
+          <div style="border:1px solid #222E2A;background:#131A18;padding:20px">
+            <svg viewBox="0 0 880 300" style="width:100%;height:auto;display:block" role="img" aria-label="Cost against in-stock target">
+              <line x1="70" y1="250" x2="860" y2="250" stroke="#222E2A" stroke-width="1"></line>
+              <line x1="70" y1="20" x2="70" y2="250" stroke="#222E2A" stroke-width="1"></line>
+              <polyline points="{{ curvePts }}" fill="none" stroke="#2FA97C" stroke-width="2.4"></polyline>
+              <line x1="{{ optX }}" y1="20" x2="{{ optX }}" y2="250" stroke="#2FA97C" stroke-width="1" stroke-dasharray="4 4"></line>
+              <line x1="{{ pickX }}" y1="20" x2="{{ pickX }}" y2="250" stroke="#4F86D4" stroke-width="1.4"></line>
+              <circle cx="{{ pickX }}" cy="{{ pickY }}" r="4.5" fill="#4F86D4"></circle>
+              <text x="{{ optLabelX }}" y="36" fill="#69DBAA" font-family="JetBrains Mono, monospace" font-size="11">cheapest</text>
+              <text x="70" y="270" fill="#5F6F69" font-family="JetBrains Mono, monospace" font-size="10">5% in stock</text>
+              <text x="860" y="270" text-anchor="end" fill="#5F6F69" font-family="JetBrains Mono, monospace" font-size="10">99% in stock</text>
+              <text x="14" y="26" fill="#5F6F69" font-family="JetBrains Mono, monospace" font-size="10">cost</text>
+              <text x="14" y="254" fill="#5F6F69" font-family="JetBrains Mono, monospace" font-size="10">low</text>
+            </svg>
+            <p style="font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.9;color:#5F6F69;margin:14px 0 0;padding-top:14px;border-top:1px solid #1B2523">Cost is indexed, not currency — the shape of the curve is the finding, not its height. The right-hand climb is spoilage; the left-hand climb is lost margin.</p>
+          </div>
+        </div>
+      </div>
+
+      <div style="border-top:1px solid #222E2A;padding-top:28px">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.16em;color:#7A8A84;text-transform:uppercase;margin-bottom:20px">Fig. 04 — what would make this wrong</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:#222E2A;border:1px solid #222E2A">
+          <div style="background:#131A18;padding:24px">
+            <div style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:19px;margin-bottom:10px">Overlapping windows</div>
+            <p style="font-size:14px;line-height:1.7;color:#A6B5AF;margin:0">The 28-day totals share days, so they are correlated and the tails are slightly tighter than independent sampling would give. Both tiers have this property.</p>
+          </div>
+          <div style="background:#131A18;padding:24px">
+            <div style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:19px;margin-bottom:10px">One dataset, one category</div>
+            <p style="font-size:14px;line-height:1.7;color:#A6B5AF;margin:0">This is M5 food sales in California. The method is general; this evidence is not. Your own data is the only test that counts for you.</p>
+          </div>
+          <div style="background:#131A18;padding:24px">
+            <div style="font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:19px;margin-bottom:10px">Costs are assumed</div>
+            <p style="font-size:14px;line-height:1.7;color:#A6B5AF;margin:0">Margin, spoilage and holding were chosen, not measured. They set the size of the saving. They do not set its sign.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <div style="border-top:1px solid #222E2A;background:#0C1211">
+    <div style="max-width:1320px;margin:0 auto;padding:28px 32px;display:flex;align-items:baseline;justify-content:space-between;gap:24px;flex-wrap:wrap">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#5F6F69;line-height:1.9">
+        Inventory Optimization Engine · tier 1 proof on M5 retail data, tier 2 live on your own<br>Cost figures are stated assumptions. Both tiers label them as such.
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:1000}}">
+const LEVELS = [0.10, 0.25, 0.50, 0.75, 0.90, 0.95, 0.99];
+const SHAPES = {
+  dense: [0.55, 0.75, 1, 1.25, 1.55, 1.75, 2.2],
+  mid: [0.30, 0.60, 1, 1.45, 1.90, 2.20, 3.0],
+  sparse: [0.0, 0.20, 1, 2.0, 3.2, 4.0, 6.0]
+};
+const RATE = 83;
+const TABS = ["calc", "full", "why", "proof"];
+
+const SEED = [
+  ["FOODS_1_012", "CA_1", 420, "dense"], ["FOODS_3_090", "CA_1", 1180, "dense"],
+  ["FOODS_1_047", "CA_2", 265, "mid"], ["FOODS_3_226", "CA_2", 860, "dense"],
+  ["FOODS_2_089", "CA_1", 190, "mid"], ["FOODS_2_155", "CA_3", 96, "sparse"],
+  ["FOODS_3_555", "CA_4", 540, "mid"], ["FOODS_1_198", "CA_3", 72, "sparse"],
+  ["FOODS_2_298", "CA_4", 310, "mid"], ["FOODS_3_694", "CA_2", 1450, "dense"],
+  ["FOODS_1_069", "CA_4", 44, "sparse"], ["FOODS_3_318", "CA_3", 620, "dense"]
+];
+
+const PRODUCTS = [
+  { name: "Sweet Box 500g", sku: "SWEETS-500", base: 470, shape: "mid", days: 412, obs: 398, gap: 3, price: 2.89,
+    method: "model", mase: [0.812, 0.041], baseMase: [1.104, 0.066], folds: 5, pinball: [28.104, 34.887],
+    fest: { state: "adjusted", name: "Raksha Bandhan", ratio: 1.40, source: "measured", keyword: "sweet", category: "sweets / gifting", runup: 5,
+      prose: "Your own sales at Raksha Bandhan last year ran 1.40x the surrounding weeks. Five of those run-up days fall inside the period you are ordering for, so the quantity is raised for those days only." } },
+  { name: "Gift Hamper Medium", sku: "GIFT-HMP-M", base: 80, shape: "sparse", days: 366, obs: 210, gap: 9, price: 10.83,
+    method: "model", mase: [0.939, 0.128], baseMase: [1.022, 0.140], folds: 4, pinball: [12.885, 13.902],
+    fest: { state: "adjusted", name: "Diwali", ratio: 2.00, source: "prior", keyword: "gift", category: "gifting", runup: 7,
+      prose: "This is a reference figure, not your history — your sales do not cover a Diwali. A measured 1.4x and a reference 2.0x are different kinds of claim, and this is the weaker one. Treat it as a suggestion to check, not a quantity to trust." } },
+  { name: "Toned Milk 1L", sku: "MILK-TND-1L", base: 1380, shape: "dense", days: 730, obs: 728, gap: 1, price: 0.67,
+    method: "model", mase: [0.604, 0.019], baseMase: [0.883, 0.024], folds: 5, pinball: [61.220, 88.401], fest: { state: "none" } },
+  { name: "Paneer 200g", sku: "PANEER-200", base: 225, shape: "dense", days: 118, obs: 112, gap: 4, price: 1.11,
+    method: "draw", mase: [0.971, 0.210], baseMase: [0.964, 0.198], folds: 1, pinball: [35.194, 34.515], fest: { state: "none" } },
+  { name: "Bread Loaf 400g", sku: "BREAD-400", base: 312, shape: "dense", days: 690, obs: 688, gap: 2, price: 0.54,
+    method: "model", mase: [0.688, 0.031], baseMase: [0.902, 0.037], folds: 5, pinball: [19.440, 25.118],
+    fest: { state: "advisory", nearby: "Independence Day" } },
+  { name: "Curd 400g", sku: "CURD-400", base: 410, shape: "mid", days: 621, obs: 604, gap: 5, price: 0.46,
+    method: "baseline", mase: [1.188, 0.180], baseMase: [0.994, 0.121], folds: 5, pinball: [41.902, 33.115], fest: { state: "none" } },
+  { name: "Banana 1kg", sku: "FRUIT-BAN-1", base: 655, shape: "mid", days: 455, obs: 441, gap: 6, price: 0.75,
+    method: "model", mase: [0.742, 0.052], baseMase: [0.870, 0.049], folds: 5, pinball: [33.618, 39.902], fest: { state: "none" } }
+];
+
+const EXCLUDED = [
+  { name: "Cold Coffee 250ml", sku: "BEV-CC-250", shortfall: "90 days of history needed, 21 found", meta: "21 days · 19 recorded figures · longest gap 2 days" },
+  { name: "Seasonal Mango Pulp", sku: "MANGO-PULP", shortfall: "gaps of 14 days or less needed, longest gap 61 days", meta: "388 days · 96 recorded figures · longest gap 61 days" }
+];
+
+const MAPPING = [
+  { yours: "Item Code", ours: "product" }, { yours: "Bill Date", ours: "date" },
+  { yours: "QTY", ours: "units sold" }, { yours: "MRP", ours: "unit price" }
+];
+
+function binProbs(levels) {
+  const edges = [0].concat(levels.slice(0, -1).map((v, i) => (v + levels[i + 1]) / 2)).concat([1]);
+  return levels.map((_, i) => edges[i + 1] - edges[i]);
+}
+const PROBS = binProbs(LEVELS);
+
+function interp(levels, vals, t) {
+  if (t <= levels[0]) return vals[0];
+  if (t >= levels[levels.length - 1]) return vals[vals.length - 1];
+  for (let i = 1; i < levels.length; i++) {
+    if (t <= levels[i]) {
+      const f = (t - levels[i - 1]) / (levels[i] - levels[i - 1]);
+      return vals[i - 1] + f * (vals[i] - vals[i - 1]);
+    }
+  }
+  return vals[vals.length - 1];
+}
+
+class Component extends DCLogic {
+  state = {
+    tab: "calc", cur: "USD", margin: 0.30, waste: 0.60, horizon: 28,
+    calcLoaded: false, calcRan: false, calcFile: null, drag: false, busy: false,
+    upFile: null, dataset: false, usingExample: true, justDeleted: false, job: null, tick: 0, sel: 0,
+    confirming: false, simSpoil: 0.60, simSl: 0.41
+  };
+
+  calcFileRef = React.createRef();
+  upFileRef = React.createRef();
+  uploadRef = React.createRef();
+  navRef = React.createRef();
+
+  componentDidMount() {
+    let t = null;
+    try {
+      const h = (window.location.hash || "").replace("#", "");
+      if (TABS.indexOf(h) >= 0) t = h;
+      if (!t) {
+        const s = window.localStorage.getItem("ioe.tab");
+        if (TABS.indexOf(s) >= 0) t = s;
+      }
+    } catch (e) { t = null; }
+    if (t && t !== this.state.tab) this.setState({ tab: t });
+    this.timer = setInterval(() => {
+      if (this.state.job && (this.state.job === "queued" || this.state.job === "running")) {
+        this.setState(s => ({ tick: s.tick + 1 }));
+      }
+    }, 1000);
+  }
+  componentWillUnmount() { if (this.timer) clearInterval(this.timer); }
+
+  go = (tab) => (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    try { window.localStorage.setItem("ioe.tab", tab); window.history.replaceState(null, "", "#" + tab); } catch (err) {}
+    this.setState({ tab });
+    window.scrollTo(0, 0);
+  };
+
+  fx() { return this.state.cur === "USD" ? 1 : RATE; }
+  sym() { return this.state.cur === "USD" ? "$" : "₹"; }
+  money(usd, dec) {
+    const v = usd * this.fx();
+    return this.sym() + v.toLocaleString("en-US", { minimumFractionDigits: dec || 0, maximumFractionDigits: dec || 0 });
+  }
+  cu() { return this.state.margin; }
+  co() { return this.state.waste * (1 - this.state.margin) + 0.02; }
+  cr() {
+    const c = this.cu() + this.co();
+    return c <= 0 ? 0.5 : Math.min(0.99, Math.max(0.01, this.cu() / c));
+  }
+
+  policyCost(vals, q) {
+    let waste = 0, short = 0;
+    vals.forEach((d, i) => { short += PROBS[i] * Math.max(d - q, 0); waste += PROBS[i] * Math.max(q - d, 0); });
+    return { waste: waste * this.co(), stockout: short * this.cu(), total: waste * this.co() + short * this.cu() };
+  }
+
+  calcComputed() {
+    const cr = this.cr();
+    const rows = SEED.map(([sku, store, base, stratum]) => {
+      const vals = SHAPES[stratum].map(m => Math.round(base * m));
+      const order = Math.max(0, Math.round(interp(LEVELS, vals, cr)));
+      return { sku, store, stratum, vals, median: vals[2], order, delta: order - vals[2], cost: this.policyCost(vals, order).total };
+    });
+    const agg = fn => rows.reduce((a, r) => a + fn(r), 0);
+    const mk = qf => {
+      const p = { units: agg(qf), waste: agg(r => this.policyCost(r.vals, qf(r)).waste), stockout: agg(r => this.policyCost(r.vals, qf(r)).stockout) };
+      p.total = p.waste + p.stockout; return p;
+    };
+    return { cr, rows, nv: mk(r => r.order), na: mk(r => Math.round(r.median * 1.15)), f95: mk(r => r.vals[5]) };
+  }
+
+  ffProducts() {
+    const cr = this.cr(), h = this.state.horizon, scale = h / 28;
+    return PRODUCTS.map(p => {
+      const vals = SHAPES[p.shape].map(m => Math.round(p.base * scale * m));
+      const before = Math.max(0, Math.ceil(interp(LEVELS, vals, cr)));
+      let eff = 1, order = before;
+      if (p.fest.state === "adjusted") {
+        const days = Math.min(p.fest.runup, h);
+        eff = 1 + (p.fest.ratio - 1) * (days / h);
+        order = Math.ceil(before * eff);
+      }
+      return { p, vals, before, order, eff, festDays: p.fest.state === "adjusted" ? Math.min(p.fest.runup, h) : 0 };
+    });
+  }
+
+  pill(active) {
+    return "font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.06em;padding:6px 12px;border-radius:999px;cursor:pointer;border:0;background:" +
+      (active ? "#2FA97C" : "transparent") + ";color:" + (active ? "#0C1211" : "#7A8A84");
+  }
+  tabStyle(active) {
+    return "font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:15px;letter-spacing:0.01em;padding:12px 16px;background:transparent;border:0;border-bottom:2px solid " +
+      (active ? "#2FA97C" : "transparent") + ";color:" + (active ? "#E8EFEC" : "#7A8A84") + ";cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:8px";
+  }
+  dot(color, pulse) {
+    return "width:8px;height:8px;border-radius:50%;flex:none;display:inline-block;background:" + color + (pulse ? ";animation:omPulse 1.4s ease-in-out infinite" : "");
+  }
+  tag(bg, fg) {
+    return "display:inline-block;padding:4px 8px;border-radius:2px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;letter-spacing:0.09em;text-transform:uppercase;white-space:nowrap;background:" + bg + ";color:" + fg;
+  }
+
+  calcDemo = () => this.setState({ calcLoaded: true, calcFile: "example_figures.csv", calcRan: false });
+  onCalcFile = (e) => { const f = e.target.files && e.target.files[0]; if (f) this.setState({ calcLoaded: true, calcFile: f.name, calcRan: false }); };
+  runCalc = () => {
+    if (!this.state.calcLoaded) return;
+    this.setState({ busy: true });
+    setTimeout(() => this.setState({ busy: false, calcRan: true }), 450);
+  };
+  exportCsv = () => {
+    const { rows } = this.calcComputed();
+    const head = "product,store,typical_demand,order_qty,vs_typical,expected_cost_" + this.state.cur.toLowerCase();
+    const body = rows.map(r => [r.sku, r.store, r.median, r.order, r.delta, (r.cost * this.fx()).toFixed(2)].join(","));
+    const blob = new Blob([[head].concat(body).join("\n")], { type: "text/csv" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "order-list.csv";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
+  loadExample = () => this.setState({ upFile: "example_7_products.csv", dataset: true, usingExample: true, job: null, sel: 0, justDeleted: false, confirming: false });
+  onUploadFile = (e) => { const f = e.target.files && e.target.files[0]; if (f) this.setState({ upFile: f.name, dataset: true, usingExample: false, job: null, sel: 0, justDeleted: false, confirming: false }); };
+  scrollToUpload = () => {
+    setTimeout(() => {
+      const el = this.uploadRef.current;
+      if (!el) return;
+      const nav = this.navRef.current;
+      const off = (nav ? nav.getBoundingClientRect().height : 108) + 24;
+      const top = el.getBoundingClientRect().top + window.pageYOffset - off;
+      window.scrollTo({ top: top, behavior: "smooth" });
+    }, 60);
+  };
+  runJob = () => {
+    this.setState({ job: "queued", tick: 0 });
+    setTimeout(() => this.setState({ job: "running", tick: 0 }), 3000);
+    setTimeout(() => this.setState({ job: "done", tick: 0 }), 12000);
+  };
+  setJob = (j) => () => this.setState({ job: j, tick: 0 });
+
+  renderVals() {
+    const s = this.state, cr = this.cr(), h = s.horizon;
+    const tab = s.tab;
+    const { rows, nv, na, f95 } = this.calcComputed();
+    const savePct = na.total > 0 ? (1 - nv.total / na.total) * 100 : 0;
+
+    const pol = [
+      { key: "naive", name: "Order what sold last week", p: na, best: false },
+      { key: "f95", name: "Always be 95% in stock", p: f95, best: false },
+      { key: "nv", name: "Order to the target your costs imply", p: nv, best: true }
+    ].map(o => {
+      const d = na.total > 0 ? (o.p.total / na.total - 1) * 100 : 0;
+      return {
+        name: o.name,
+        units: Math.round(o.p.units).toLocaleString("en-US"),
+        waste: this.money(o.p.waste), stockout: this.money(o.p.stockout), total: this.money(o.p.total),
+        delta: o.key === "naive" ? "—" : (d > 0 ? "+" : "−") + Math.abs(d).toFixed(1) + "%",
+        rowStyle: o.best ? "background:#101A17;border-left:3px solid #2FA97C;border-bottom:1px solid #1B2523" : "border-bottom:1px solid #1B2523",
+        nameStyle: "padding:15px 24px;font-size:15px;color:" + (o.best ? "#E8EFEC" : "#A6B5AF") + ";font-weight:" + (o.best ? "600" : "400"),
+        totalStyle: "text-align:right;padding:15px 20px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;color:" + (o.best ? "#69DBAA" : "#E8EFEC") + ";font-variant-numeric:tabular-nums",
+        deltaStyle: "text-align:right;padding:15px 24px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;color:" + (o.key === "naive" ? "#5F6F69" : d > 0 ? "#C4862B" : "#69DBAA") + ";font-variant-numeric:tabular-nums"
+      };
+    });
+
+    const ff = this.ffProducts();
+    const sel = ff[Math.min(s.sel, ff.length - 1)];
+    const selP = sel.p;
+    const stepIdx = !s.dataset ? 0 : (!s.job ? 2 : (s.job === "done" ? 3 : 2));
+    const stepDefs = [
+      { num: "01", label: "Upload", note: s.dataset ? (s.upFile || "loaded") : "no file" },
+      { num: "02", label: "Gate", note: s.dataset ? "7 in · 2 out" : "—" },
+      { num: "03", label: "Costs", note: (cr * 100).toFixed(1) + "% target" },
+      { num: "04", label: "Results", note: s.job === "done" ? "ready" : (s.job || "not run") }
+    ];
+
+    const fitRows = ff.map((r, i) => {
+      let st = "waiting", c = "#5F6F69", dot = this.dot("#35443E", false), nameC = "#7A8A84";
+      if (s.job === "running") {
+        const done = Math.min(ff.length, Math.floor(s.tick / 1.2));
+        if (i < done) { st = "fitted"; c = "#69DBAA"; dot = this.dot("#2FA97C", false); nameC = "#E8EFEC"; }
+        else if (i === done) { st = "fitting…"; c = "#4F86D4"; dot = this.dot("#4F86D4", true); nameC = "#E8EFEC"; }
+      }
+      return { name: r.p.name, state: st, stateColor: c, dot: dot, nameColor: nameC };
+    });
+    const doneCount = s.job === "running" ? Math.min(ff.length, Math.floor(s.tick / 1.2)) : ff.length;
+
+    const methodInfo = (p) => {
+      if (p.method === "model") return {
+        label: "model", style: this.tag("rgba(47,169,124,0.14)", "#69DBAA"), accent: "#2FA97C",
+        prose: "The model beat the simple method on your own data — an error of " + p.mase[0].toFixed(3) + " against " + p.baseMase[0].toFixed(3) + " over " + p.folds + " backtest fold" + (p.folds === 1 ? "" : "s") + ", and an ordering loss of " + p.pinball[0].toFixed(3) + " against " + p.pinball[1].toFixed(3) + ". It is the one used here.",
+        disagree: null
+      };
+      if (p.method === "baseline") return {
+        label: "simple method", style: this.tag("rgba(122,138,132,0.16)", "#A6B5AF"), accent: "#7A8A84",
+        prose: "The simple baseline beat the model on your own data, so the baseline is what is used here — an error of " + p.baseMase[0].toFixed(3) + " against the model's " + p.mase[0].toFixed(3) + ", and an ordering loss of " + p.pinball[1].toFixed(3) + " against " + p.pinball[0].toFixed(3) + " over " + p.folds + " backtest folds.",
+        disagree: "Both metrics agree here, which is the straightforward case. A model that loses on your data is not served on your data, whatever it does elsewhere."
+      };
+      return {
+        label: "too close to call", style: this.tag("rgba(196,134,43,0.16)", "#E2A94F"), accent: "#C4862B",
+        prose: "Too close to call: the model and the simple baseline scored within 5% of each other on your own data (ordering loss " + p.pinball[0].toFixed(3) + " vs " + p.pinball[1].toFixed(3) + " over " + p.folds + " backtest fold" + (p.folds === 1 ? "" : "s") + "), which is not enough to prefer one. The simpler method is used.",
+        disagree: "The two measures also disagree on this product — MASE puts the model slightly ahead at " + p.mase[0].toFixed(3) + " against " + p.baseMase[0].toFixed(3) + ", while the ordering loss puts the baseline ahead. One fold is not enough evidence to break that tie, so it is not broken."
+      };
+    };
+    const mi = methodInfo(selP);
+
+    const ffRows = ff.map((r, i) => {
+      const m = methodInfo(r.p);
+      const f = r.p.fest;
+      let festLabel = "—", festStyle = "font-family:'JetBrains Mono',monospace;font-size:12px;color:#5F6F69";
+      if (f.state === "adjusted") {
+        const pct = Math.round((r.eff - 1) * 100);
+        festLabel = f.name + " +" + pct + "%";
+        festStyle = this.tag(f.source === "measured" ? "rgba(79,134,212,0.16)" : "rgba(196,134,43,0.16)", f.source === "measured" ? "#7FAEEA" : "#E2A94F");
+      } else if (f.state === "advisory") {
+        festLabel = "near, no pattern";
+        festStyle = this.tag("rgba(122,138,132,0.14)", "#A6B5AF");
+      }
+      return {
+        name: r.p.name, sku: r.p.sku, order: r.order.toLocaleString("en-US"),
+        festLabel, festStyle, methodLabel: m.label, methodStyle: m.style,
+        maseModel: r.p.mase[0].toFixed(3) + " ±" + r.p.mase[1].toFixed(3),
+        maseBase: r.p.baseMase[0].toFixed(3) + " ±" + r.p.baseMase[1].toFixed(3),
+        price: this.money(r.p.price, 2),
+        select: () => this.setState({ sel: i }),
+        rowStyle: "cursor:pointer;border-bottom:1px solid #1B2523;" + (i === s.sel ? "background:#101A17;box-shadow:inset 3px 0 0 #2FA97C" : "")
+      };
+    });
+
+    const yMaxDaily = Math.max.apply(null, sel.vals) / h * 1.15;
+    const series = [];
+    for (let i = 0; i < 60; i++) {
+      const b = sel.vals[2] / h;
+      series.push(Math.max(0, b * (1 + 0.22 * Math.sin(i / 3.1) + 0.12 * Math.sin(i / 7.7) + 0.06 * Math.cos(i / 1.9))));
+    }
+    const x0 = 60, x1 = 880, divRatio = 60 / (60 + h);
+    const divX = x0 + (x1 - x0) * divRatio;
+    const yFor = v => 200 - Math.min(1, v / yMaxDaily) * 178;
+    const histPts = series.map((v, i) => (x0 + (divX - x0) * (i / 59)).toFixed(1) + "," + yFor(v).toFixed(1)).join(" ");
+    const fcMid = [], fcHi = [], fcLo = [];
+    for (let i = 0; i <= h; i++) {
+      const x = divX + (x1 - divX) * (i / h);
+      const drift = 1 + 0.10 * Math.sin(i / 4.2);
+      fcMid.push(x.toFixed(1) + "," + yFor(sel.vals[2] / h * drift).toFixed(1));
+      fcHi.push([x, yFor(sel.vals[4] / h * drift)]);
+      fcLo.push([x, yFor(sel.vals[0] / h * drift)]);
+    }
+    const bandPts = fcHi.map(p => p[0].toFixed(1) + "," + p[1].toFixed(1)).concat(fcLo.slice().reverse().map(p => p[0].toFixed(1) + "," + p[1].toFixed(1))).join(" ");
+
+    const spoil = s.simSpoil, mg = 0.30;
+    const cuS = mg, coS = spoil * (1 - mg) + 0.02;
+    const curveCost = sl => {
+      let t = 0;
+      SEED.forEach(([, , base, stratum]) => {
+        const vals = SHAPES[stratum].map(m => base * m);
+        const q = interp(LEVELS, vals, sl);
+        vals.forEach((d, i) => { t += PROBS[i] * (Math.max(d - q, 0) * cuS + Math.max(q - d, 0) * coS); });
+      });
+      return t;
+    };
+    const pts = [];
+    let lo = Infinity, hi = -Infinity, optSl = 0.05;
+    for (let i = 0; i <= 94; i++) {
+      const sl = (5 + i) / 100, c = curveCost(sl);
+      pts.push([sl, c]);
+      if (c < lo) { lo = c; optSl = sl; }
+      if (c > hi) hi = c;
+    }
+    const cx = sl => 70 + (860 - 70) * ((sl - 0.05) / 0.94);
+    const cy = c => 250 - ((c - lo) / (hi - lo || 1)) * 220;
+    const curvePts = pts.map(p => cx(p[0]).toFixed(1) + "," + cy(p[1]).toFixed(1)).join(" ");
+    const pickCost = curveCost(s.simSl);
+    const pickPenalty = (pickCost / lo - 1) * 100;
+
+    const retire = new Date(Date.now() + 30 * 864e5);
+    const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+    return {
+      isCalc: tab === "calc", isFull: tab === "full", isWhy: tab === "why", isProof: tab === "proof",
+      tab1: this.go("calc"), tab2: this.go("full"), tab3: this.go("why"), tab4: this.go("proof"),
+      s1: this.tabStyle(tab === "calc"), s2: this.tabStyle(tab === "full"), s3: this.tabStyle(tab === "why"),
+      s4: this.tabStyle(tab === "proof"),
+      liveTag: this.tag("rgba(79,134,212,0.16)", "#7FAEEA"),
+
+      setUsd: () => this.setState({ cur: "USD" }), setInr: () => this.setState({ cur: "INR" }),
+      usdPill: this.pill(s.cur === "USD"), inrPill: this.pill(s.cur === "INR"),
+
+      marginRaw: Math.round(s.margin * 100), wasteRaw: Math.round(s.waste * 100),
+      marginPct: Math.round(s.margin * 100) + "%", wastePct: Math.round(s.waste * 100) + "%",
+      onMargin: (e) => this.setState({ margin: Math.max(0.01, Number(e.target.value) / 100) }),
+      onWaste: (e) => this.setState({ waste: Number(e.target.value) / 100 }),
+      onHorizon: (e) => this.setState({ horizon: Number(e.target.value) }),
+      horizon: h, horizonText: h + (h === 1 ? " day" : " days"),
+      crText: (cr * 100).toFixed(1) + "%",
+      crBar: "position:absolute;left:0;top:0;bottom:0;background:#2FA97C;width:" + (cr * 100).toFixed(1) + "%",
+      crFormula: "missed sale " + (this.cu() * 100).toFixed(0) + " ÷ (missed sale " + (this.cu() * 100).toFixed(0) + " + thrown away " + (this.co() * 100).toFixed(0) + ") = " + (cr * 100).toFixed(1) + "%",
+
+      calcFileRef: this.calcFileRef,
+      calcPick: () => this.calcFileRef.current && this.calcFileRef.current.click(),
+      onDragOver: (e) => { e.preventDefault(); if (!s.drag) this.setState({ drag: true }); },
+      onDragLeave: () => this.setState({ drag: false }),
+      onCalcDrop: (e) => { e.preventDefault(); const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]; this.setState({ drag: false, calcLoaded: true, calcRan: false, calcFile: f ? f.name : "dropped.csv" }); },
+      onCalcFile: this.onCalcFile, calcDemo: this.calcDemo,
+      calcDropStyle: "display:flex;flex-direction:column;align-items:center;justify-content:center;padding:44px 24px;cursor:pointer;border:1px dashed " +
+        (s.drag ? "#2FA97C" : s.calcLoaded ? "#234037" : "#2A3A34") + ";background:" + (s.drag ? "rgba(47,169,124,0.06)" : "#0C1211"),
+      calcDropTitle: s.calcLoaded ? s.calcFile : "Drop a CSV here",
+      calcDropHint: s.calcLoaded ? "Read in this browser · click to replace" : "or click to choose · product, store, date, units",
+      cRows: s.calcLoaded ? "1,397,520" : "—", cSeries: s.calcLoaded ? "12" : "—", cZero: s.calcLoaded ? "61.6%" : "—",
+
+      runCalc: this.runCalc,
+      runLabel: s.busy ? "Working it out…" : s.calcRan ? "Work it out again" : "Work out what to order",
+      runStyle: "width:100%;font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:16px;border:0;border-radius:3px;padding:14px 20px;cursor:" +
+        (s.calcLoaded ? "pointer" : "not-allowed") + ";background:" + (s.calcLoaded ? "#2FA97C" : "#1B2523") + ";color:" + (s.calcLoaded ? "#0C1211" : "#5F6F69"),
+      calcRan: s.calcRan, calcIdle: !s.calcRan,
+
+      kSavePct: (savePct >= 0 ? "−" : "+") + Math.abs(savePct).toFixed(1) + "%",
+      kSaveMoney: this.money(Math.max(0, na.total - nv.total)),
+      kUnits: Math.round(nv.units).toLocaleString("en-US"), kSeries: rows.length,
+      kService: (cr * 100).toFixed(0) + "%",
+      kServiceNote: cr < 0.6 ? "Below the 95% default, because throwing stock away costs more than the missed sale." : "Above the perishable range — check what you set for thrown-away stock.",
+      policies: pol, exportCsv: this.exportCsv,
+      rows: rows.map(r => ({
+        sku: r.sku, store: r.store, median: r.median.toLocaleString("en-US"), order: r.order.toLocaleString("en-US"),
+        deltaText: (r.delta > 0 ? "+" : r.delta < 0 ? "−" : "") + Math.abs(r.delta).toLocaleString("en-US"),
+        deltaStyle: "text-align:right;padding:13px 16px;font-family:'JetBrains Mono',monospace;font-size:13px;font-variant-numeric:tabular-nums;color:" + (r.delta > 0 ? "#E2A94F" : r.delta < 0 ? "#4F86D4" : "#7A8A84"),
+        cost: this.money(r.cost),
+        status: r.order === 0 ? "no order" : r.stratum === "sparse" ? "demand jumps about" : "steady",
+        tagStyle: r.order === 0 ? this.tag("rgba(122,138,132,0.14)", "#A6B5AF") : r.stratum === "sparse" ? this.tag("rgba(196,134,43,0.16)", "#E2A94F") : this.tag("rgba(47,169,124,0.14)", "#69DBAA")
+      })),
+
+      navRef: this.navRef,
+      uploadRef: this.uploadRef,
+      upFileRef: this.upFileRef,
+      pickUpload: () => this.upFileRef.current && this.upFileRef.current.click(),
+      onUploadDrop: (e) => { e.preventDefault(); const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]; this.setState({ drag: false, dataset: true, usingExample: false, job: null, sel: 0, justDeleted: false, confirming: false, upFile: f ? f.name : "dropped.csv" }); },
+      onUploadFile: this.onUploadFile, loadExample: this.loadExample,
+      upDropStyle: "display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 24px;cursor:pointer;border:1px dashed " +
+        (s.drag ? "#4F86D4" : s.dataset ? "#234037" : "#2A3A34") + ";background:" + (s.drag ? "rgba(79,134,212,0.06)" : "#0C1211"),
+      upTitle: s.dataset ? s.upFile : "Drop your sales CSV here",
+      upHint: s.dataset ? "Uploaded and checked · click to replace" : "or click to choose · it is uploaded to the service above",
+      upFileName: s.upFile || "example_7_products.csv",
+      retireDate: retire.getDate() + " " + MON[retire.getMonth()] + " " + retire.getFullYear(),
+
+      hasDataset: s.dataset,
+      steps: stepDefs.map((d, i) => ({
+        num: d.num, label: d.label, note: d.note,
+        numColor: i === stepIdx ? "#2FA97C" : i < stepIdx ? "#7A8A84" : "#3E4A46",
+        style: "flex:1;min-width:150px;padding:16px 18px;background:" + (i === stepIdx ? "#131A18" : "#0C1211") + ";color:" + (i <= stepIdx ? "#E8EFEC" : "#5F6F69")
+      })),
+      gateSummary: "7 of 9 products can be forecast",
+      mapping: MAPPING,
+      admittedTitle: "7 we can forecast",
+      excludedTitle: "2 we cannot",
+      admitted: PRODUCTS.map(p => ({ name: p.name, meta: p.days + " days · " + p.obs + " figures · gap " + p.gap + "d" })),
+      excluded: EXCLUDED,
+
+      runJob: this.runJob,
+      runJobLabel: s.job === "queued" || s.job === "running" ? "Running…" : s.job === "done" ? "Run it again" : "Forecast the 7 products",
+      runJobStyle: "font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:16px;border:0;border-radius:3px;padding:13px 22px;cursor:pointer;background:#2FA97C;color:#0C1211",
+      hasJob: !!s.job,
+      jobStatus: s.job || "",
+      jobPill: s.job === "done" ? this.tag("rgba(47,169,124,0.14)", "#69DBAA")
+        : s.job === "failed" ? this.tag("rgba(196,134,43,0.16)", "#E2A94F")
+        : s.job === "running" ? this.tag("rgba(79,134,212,0.16)", "#7FAEEA") : this.tag("rgba(196,134,43,0.16)", "#E2A94F"),
+      jobQueued: s.job === "queued", jobRunning: s.job === "running", jobDone: s.job === "done", jobFailed: s.job === "failed",
+      stateBtns: ["queued", "running", "done", "failed"].map(k => ({
+        label: k, go: this.setJob(k),
+        style: "font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.08em;padding:5px 9px;border-radius:3px;cursor:pointer;background:transparent;border:1px solid " +
+          (s.job === k ? "#2FA97C" : "#222E2A") + ";color:" + (s.job === k ? "#69DBAA" : "#5F6F69")
+      })),
+      jobId: "job_8f31c0a4", admittedCount: ff.length,
+      queuePos: "2 jobs", elapsed: s.tick + "s", etaText: "30 seconds",
+      fitRows, doneCount,
+      progBar: "position:absolute;left:0;top:0;bottom:0;background:#4F86D4;width:" + Math.round(doneCount / ff.length * 100) + "%",
+      currentName: fitRows[Math.min(doneCount, ff.length - 1)].name,
+
+      ffUnits: ff.reduce((a, r) => a + r.order, 0).toLocaleString("en-US"),
+      modelWins: PRODUCTS.filter(p => p.method === "model").length,
+      festCount: PRODUCTS.filter(p => p.fest.state === "adjusted").length,
+      festNote: "One measured on your own sales, one from a reference figure. They are not the same claim.",
+      ffRows,
+
+      selName: selP.name,
+      selMeta: selP.sku + " · " + selP.days + " days of history · " + selP.obs + " recorded figures",
+      bandPts, histPts, fcPts: fcMid.join(" "),
+      divX: divX.toFixed(1), divLabelX: (divX - 16).toFixed(1),
+      rateY: yFor(sel.order / h).toFixed(1),
+      yTop: Math.round(yMaxDaily),
+      methodAccent: mi.accent, methodProse: mi.prose,
+      hasDisagree: !!mi.disagree, disagreeProse: mi.disagree || "",
+      selFolds: selP.folds, selPinball: selP.pinball[0].toFixed(3) + " / " + selP.pinball[1].toFixed(3), selDays: selP.days + "d",
+
+      festAdjusted: selP.fest.state === "adjusted",
+      festAdvisory: selP.fest.state === "advisory",
+      festNone: selP.fest.state === "none",
+      festCardStyle: "border:1px solid #222E2A;background:#131A18;padding:22px;border-left:3px solid " +
+        (selP.fest.state === "adjusted" ? (selP.fest.source === "measured" ? "#4F86D4" : "#C4862B") : "#222E2A"),
+      festStateStyle: selP.fest.state === "adjusted"
+        ? this.tag(selP.fest.source === "measured" ? "rgba(79,134,212,0.16)" : "rgba(196,134,43,0.16)", selP.fest.source === "measured" ? "#7FAEEA" : "#E2A94F")
+        : selP.fest.state === "advisory" ? this.tag("rgba(122,138,132,0.14)", "#A6B5AF") : this.tag("rgba(122,138,132,0.10)", "#5F6F69"),
+      festStateLabel: selP.fest.state === "adjusted" ? "quantity changed" : selP.fest.state === "advisory" ? "nothing changed" : "none nearby",
+      festName: selP.fest.name || "",
+      festWhen: selP.fest.category ? selP.fest.category + " · " + sel.festDays + " run-up days inside the " + h + "-day window" : "",
+      festBefore: sel.before.toLocaleString("en-US"),
+      festAfter: sel.order.toLocaleString("en-US"),
+      festRatio: selP.fest.ratio ? selP.fest.ratio.toFixed(2) + "x over " + selP.fest.runup + " run-up days" : "—",
+      festSource: selP.fest.source === "measured" ? "measured from your own sales" : selP.fest.source === "prior" ? "reference figure, not your sales" : "—",
+      festSourceColor: selP.fest.source === "measured" ? "#7FAEEA" : "#E2A94F",
+      festKeyword: selP.fest.keyword ? "\"" + selP.fest.keyword + "\" → " + selP.fest.category : "—",
+      festDays: sel.festDays + " of " + (selP.fest.runup || 0),
+      festProse: selP.fest.prose || "",
+      festNearby: selP.fest.nearby || "",
+
+      confirming: s.confirming, notConfirming: !s.confirming,
+      askDelete: () => this.setState({ confirming: true }),
+      cancelDelete: () => this.setState({ confirming: false }),
+      doDelete: () => {
+        this.setState({ dataset: false, upFile: null, job: null, sel: 0, confirming: false, justDeleted: true, usingExample: true });
+        this.scrollToUpload();
+      },
+      justDeleted: s.justDeleted,
+      previewOnly: s.dataset && !s.usingExample,
+
+      mNaive: this.money(169172), m95: this.money(415644), mNv: this.money(120797),
+
+      simSpoilRaw: Math.round(s.simSpoil * 100), simSlRaw: Math.round(s.simSl * 100),
+      simSpoilText: Math.round(s.simSpoil * 100) + "%", simSlText: Math.round(s.simSl * 100) + "%",
+      onSimSpoil: (e) => this.setState({ simSpoil: Number(e.target.value) / 100 }),
+      onSimSl: (e) => this.setState({ simSl: Number(e.target.value) / 100 }),
+      simOptText: Math.round(optSl * 100) + "%",
+      simVerdict: Math.abs(s.simSl - optSl) < 0.02
+        ? "You are on it. Anything either side of this costs more."
+        : "Your " + Math.round(s.simSl * 100) + "% target costs " + pickPenalty.toFixed(1) + "% more than the cheapest one at this spoilage rate.",
+      curvePts, optX: cx(optSl).toFixed(1), optLabelX: Math.min(790, cx(optSl) + 8).toFixed(1),
+      pickX: cx(s.simSl).toFixed(1), pickY: cy(pickCost).toFixed(1),
+
+    };
+  }
+}
+</script>
+</body>
+</html>

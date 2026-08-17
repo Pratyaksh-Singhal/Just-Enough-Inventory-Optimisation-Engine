@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Order Calculator - OptiScale Inventory</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-secondary-container": "#a1c4ff",
+                        "on-background": "#dde4e0",
+                        "ink-tertiary": "#7A8A84",
+                        "on-tertiary-container": "#432900",
+                        "inverse-primary": "#006c4b",
+                        "jade-dim": "rgba(47, 169, 124, 0.14)",
+                        "primary-fixed-dim": "#69dbaa",
+                        "on-primary-container": "#003624",
+                        "surface-container-highest": "#2f3634",
+                        "on-surface-variant": "#bccac0",
+                        "primary-container": "#2fa97c",
+                        "surface-variant": "#2f3634",
+                        "surface-dim": "#0e1513",
+                        "tertiary-fixed-dim": "#ffb95a",
+                        "on-surface": "#dde4e0",
+                        "on-primary-fixed-variant": "#005138",
+                        "surface-container": "#1a211f",
+                        "surface-container-high": "#242b29",
+                        "inverse-on-surface": "#2b3230",
+                        "blue-dim": "rgba(79, 134, 212, 0.16)",
+                        "inverse-surface": "#dde4e0",
+                        "line-strong": "#222E2A",
+                        "ground": "#0C1211",
+                        "ink-secondary": "#A6B5AF",
+                        "outline": "#87948b",
+                        "error": "#ffb4ab",
+                        "on-error": "#690005",
+                        "on-secondary-fixed-variant": "#004689",
+                        "tertiary-container": "#c8892e",
+                        "background": "#0e1513",
+                        "on-tertiary": "#462a00",
+                        "secondary-container": "#00509a",
+                        "amber-dim": "rgba(196, 134, 43, 0.16)",
+                        "primary": "#69dbaa",
+                        "on-error-container": "#ffdad6",
+                        "secondary-fixed-dim": "#a8c8ff",
+                        "tertiary-fixed": "#ffddb6",
+                        "error-container": "#93000a",
+                        "surface-2": "#182120",
+                        "on-primary": "#003825",
+                        "on-primary-fixed": "#002114",
+                        "on-secondary": "#003061",
+                        "surface-tint": "#69dbaa",
+                        "outline-variant": "#3d4a43",
+                        "ink-primary": "#E8EFEC",
+                        "tertiary": "#ffb95a",
+                        "secondary": "#a8c8ff",
+                        "surface-container-low": "#161d1b",
+                        "surface-container-lowest": "#09100e",
+                        "on-tertiary-fixed": "#2a1800",
+                        "line-soft": "#1B2523",
+                        "surface": "#131A18",
+                        "primary-fixed": "#86f8c5",
+                        "on-secondary-fixed": "#001b3c",
+                        "surface-bright": "#333b38",
+                        "secondary-fixed": "#d5e3ff",
+                        "on-tertiary-fixed-variant": "#643f00"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "sm": "12px",
+                        "xs": "4px",
+                        "lg": "40px",
+                        "md": "24px",
+                        "base": "8px",
+                        "gutter": "24px",
+                        "xl": "64px",
+                        "max-width": "1280px",
+                        "margin-page": "32px"
+                    },
+                    "fontFamily": {
+                        "headline-md": ["Geist"],
+                        "label-caps": ["JetBrains Mono"],
+                        "data-table": ["JetBrains Mono"],
+                        "body-lg": ["Geist"],
+                        "display-hero": ["JetBrains Mono"],
+                        "headline-sm": ["Geist"],
+                        "body-md": ["Geist"],
+                        "headline-lg-mobile": ["Geist"],
+                        "headline-lg": ["Geist"]
+                    },
+                    "fontSize": {
+                        "headline-md": ["20px", { "lineHeight": "1.3", "fontWeight": "600" }],
+                        "label-caps": ["11px", { "lineHeight": "1.2", "letterSpacing": "0.12em", "fontWeight": "500" }],
+                        "data-table": ["13px", { "lineHeight": "1.4", "fontWeight": "400" }],
+                        "body-lg": ["16px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                        "display-hero": ["52px", { "lineHeight": "1.1", "letterSpacing": "-0.04em", "fontWeight": "600" }],
+                        "headline-sm": ["16px", { "lineHeight": "1.4", "fontWeight": "600" }],
+                        "body-md": ["14px", { "lineHeight": "1.55", "fontWeight": "400" }],
+                        "headline-lg-mobile": ["24px", { "lineHeight": "1.2", "fontWeight": "600" }],
+                        "headline-lg": ["28px", { "lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { background-color: theme('colors.ground'); color: theme('colors.on-surface'); }
+    </style>
+</head>
+<body class="flex min-h-screen bg-ground text-on-surface selection:bg-primary selection:text-on-primary">
+<!-- SideNavBar -->
+<nav class="hidden md:flex flex-col h-screen sticky top-0 left-0 w-64 border-r border-line-strong bg-surface">
+<div class="p-md border-b border-line-strong">
+<h1 class="font-headline-sm text-headline-sm text-primary">Inventory Ops</h1>
+<p class="font-label-caps text-label-caps text-ink-secondary mt-base">Expert Terminal v1.0</p>
+</div>
+<ul class="flex-1 overflow-y-auto py-sm">
+<li class="px-base py-xs">
+<a class="flex items-center px-sm py-sm rounded hover:bg-surface-2 hover:text-ink-primary transition-all duration-150 cursor-pointer active:scale-95 text-ink-secondary" href="#">
+<span class="material-symbols-outlined mr-sm text-[20px]">dashboard</span>
+<span class="font-label-caps text-label-caps">Dashboard</span>
+</a>
+</li>
+<li class="px-base py-xs">
+<a class="flex items-center px-sm py-sm rounded hover:bg-surface-2 hover:text-ink-primary transition-all duration-150 cursor-pointer active:scale-95 text-ink-secondary" href="#">
+<span class="material-symbols-outlined mr-sm text-[20px]">upload_file</span>
+<span class="font-label-caps text-label-caps">Data Upload</span>
+</a>
+</li>
+<li class="px-base py-xs">
+<a class="flex items-center px-sm py-sm rounded bg-jade-dim text-primary border-l-[3px] border-primary cursor-pointer active:scale-95" href="#">
+<span class="material-symbols-outlined mr-sm text-[20px]" style="font-variation-settings: 'FILL' 1;">calculate</span>
+<span class="font-label-caps text-label-caps">Order Calculator</span>
+</a>
+</li>
+<li class="px-base py-xs">
+<a class="flex items-center px-sm py-sm rounded hover:bg-surface-2 hover:text-ink-primary transition-all duration-150 cursor-pointer active:scale-95 text-ink-secondary" href="#">
+<span class="material-symbols-outlined mr-sm text-[20px]">settings_applications</span>
+<span class="font-label-caps text-label-caps">Cost Config</span>
+</a>
+</li>
+<li class="px-base py-xs">
+<a class="flex items-center px-sm py-sm rounded hover:bg-surface-2 hover:text-ink-primary transition-all duration-150 cursor-pointer active:scale-95 text-ink-secondary" href="#">
+<span class="material-symbols-outlined mr-sm text-[20px]">inventory_2</span>
+<span class="font-label-caps text-label-caps">Inventory SKU</span>
+</a>
+</li>
+<li class="px-base py-xs">
+<a class="flex items-center px-sm py-sm rounded hover:bg-surface-2 hover:text-ink-primary transition-all duration-150 cursor-pointer active:scale-95 text-ink-secondary" href="#">
+<span class="material-symbols-outlined mr-sm text-[20px]">trending_up</span>
+<span class="font-label-caps text-label-caps">Forecasts</span>
+</a>
+</li>
+</ul>
+<div class="border-t border-line-strong p-sm">
+<a class="flex items-center px-sm py-sm rounded hover:bg-surface-2 hover:text-ink-primary transition-all duration-150 cursor-pointer active:scale-95 text-ink-secondary" href="#">
+<span class="material-symbols-outlined mr-sm text-[20px]">support_agent</span>
+<span class="font-label-caps text-label-caps">Support</span>
+</a>
+<a class="flex items-center px-sm py-sm rounded hover:bg-surface-2 hover:text-ink-primary transition-all duration-150 cursor-pointer active:scale-95 text-ink-secondary" href="#">
+<span class="material-symbols-outlined mr-sm text-[20px]">logout</span>
+<span class="font-label-caps text-label-caps">Sign Out</span>
+</a>
+</div>
+</nav>
+<div class="flex-1 flex flex-col min-w-0">
+<!-- TopNavBar -->
+<header class="flex justify-between items-center px-gutter h-16 w-full border-b border-line-strong bg-ground">
+<div class="flex items-center md:hidden">
+<span class="font-headline-md text-headline-md font-bold text-primary">OptiScale Inventory</span>
+</div>
+<div class="hidden md:flex flex-1 items-center max-w-md">
+<div class="relative w-full">
+<span class="material-symbols-outlined absolute left-sm top-1/2 -translate-y-1/2 text-ink-secondary text-[20px]">search</span>
+<input class="w-full bg-surface border border-line-strong rounded pl-lg pr-sm py-sm font-body-md text-body-md text-on-surface focus:border-primary focus:ring-0 placeholder:text-ink-tertiary transition-colors" placeholder="Search SKUs, reports..." type="text"/>
+</div>
+</div>
+<div class="flex items-center space-x-md ml-auto">
+<button class="text-ink-secondary hover:text-primary transition-colors duration-200 cursor-pointer active:opacity-80">
+<span class="material-symbols-outlined text-[24px]">notifications</span>
+</button>
+<button class="text-ink-secondary hover:text-primary transition-colors duration-200 cursor-pointer active:opacity-80">
+<span class="material-symbols-outlined text-[24px]">settings</span>
+</button>
+<button class="text-ink-secondary hover:text-primary transition-colors duration-200 cursor-pointer active:opacity-80">
+<span class="material-symbols-outlined text-[24px]">help_outline</span>
+</button>
+<div class="w-8 h-8 rounded-full bg-surface-2 border border-line-strong overflow-hidden ml-sm cursor-pointer hover:border-primary transition-colors">
+<img alt="User Profile Avatar" class="w-full h-full object-cover" data-alt="A professional headshot of a corporate analyst against a dark gray background. Soft, dramatic lighting emphasizing focus and expertise, desaturated colors." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAREKec60Iitf4k2cOG9On8Gae2Ri0Ypg3usUU9dVg1JEDmVWlfSBbJu5G7qpokU07y8BiKn4f6S27gf-CNJT_jyACFc-5n2b0xdXRC-rkCa1g0prum-ivOC4ITdQ4GhLNm0JRai-ZHpCcEcq8EWR2h8UVMGWlAHFxSD5c5ml-JJtt8HraAi8RV0Lh3dCAIV6KcEWW0Qe92ZJOQck5UyjWnMaSzUFoQ9n8WSdr3ghW7X6FC-EB0W9cT"/>
+</div>
+</div>
+</header>
+<!-- Main Content -->
+<main class="flex-1 overflow-y-auto p-margin-page">
+<div class="max-w-[1280px] mx-auto space-y-xl">
+<!-- Header Section -->
+<header>
+<h2 class="font-headline-lg text-headline-lg md:font-display-hero md:text-display-hero text-ink-primary mb-sm">Order Calculator</h2>
+<p class="font-body-lg text-body-lg text-ink-secondary max-w-2xl">Optimize your purchasing logic by pasting recent sales history. Adjust cost parameters to model risk and calculate optimal buffer stock quantities.</p>
+</header>
+<!-- Input Card (Bento-style layout) -->
+<section class="grid grid-cols-1 lg:grid-cols-12 gap-gutter">
+<!-- Left Column: Data Input -->
+<div class="lg:col-span-8 bg-surface border border-line-strong rounded-lg p-md">
+<div class="flex justify-between items-center mb-md">
+<h3 class="font-headline-sm text-headline-sm text-ink-primary">Sales History (CSV)</h3>
+<button class="font-label-caps text-label-caps text-primary hover:text-primary-fixed transition-colors">Load demo data</button>
+</div>
+<textarea class="w-full h-48 bg-ground border border-line-strong rounded p-sm font-data-table text-data-table text-ink-primary focus:border-primary focus:ring-0 placeholder:text-ink-tertiary mb-md resize-none" placeholder="SKU, Date, Units Sold
+ITEM-A01, 2023-10-01, 45
+ITEM-A01, 2023-10-02, 38
+..."></textarea>
+<div class="flex justify-end gap-sm">
+<button class="px-md py-sm rounded border border-line-strong text-ink-primary font-body-md text-body-md hover:border-ink-tertiary transition-colors">Clear</button>
+<button class="px-md py-sm rounded bg-primary text-ground font-body-md text-body-md font-semibold hover:bg-primary-fixed transition-colors">Calculate Optimal Order</button>
+</div>
+</div>
+<!-- Right Column: Configuration -->
+<div class="lg:col-span-4 bg-surface border border-line-strong rounded-lg p-md space-y-md flex flex-col">
+<h3 class="font-headline-sm text-headline-sm text-ink-primary border-b border-line-strong pb-sm">Risk Configuration</h3>
+<div class="flex-1 space-y-md mt-sm">
+<div>
+<label class="flex justify-between font-label-caps text-label-caps text-ink-secondary mb-xs">
+<span>Missed Sale Cost</span>
+<span class="text-ink-primary">$45.00/unit</span>
+</label>
+<input class="w-full accent-primary h-1 bg-surface-2 rounded-full appearance-none outline-none" max="100" min="0" type="range" value="45"/>
+<p class="text-[11px] text-ink-tertiary mt-xs">Cost of running out of stock.</p>
+</div>
+<div>
+<label class="flex justify-between font-label-caps text-label-caps text-ink-secondary mb-xs">
+<span>Waste Cost</span>
+<span class="text-ink-primary">$5.00/unit</span>
+</label>
+<input class="w-full accent-primary h-1 bg-surface-2 rounded-full appearance-none outline-none" max="100" min="0" type="range" value="5"/>
+<p class="text-[11px] text-ink-tertiary mt-xs">Cost of holding excess inventory.</p>
+</div>
+<div>
+<label class="block font-label-caps text-label-caps text-ink-secondary mb-xs">Coverage Period</label>
+<select class="w-full bg-ground border border-line-strong rounded px-sm py-sm font-body-md text-body-md text-ink-primary focus:border-primary focus:ring-0">
+<option>7 Days (Weekly)</option>
+<option>14 Days (Bi-weekly)</option>
+<option>30 Days (Monthly)</option>
+</select>
+</div>
+</div>
+</div>
+</section>
+<!-- Results Section -->
+<section class="space-y-md pt-lg border-t border-line-strong">
+<!-- Stat Tiles & Hero Banner -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-gutter">
+<!-- Hero Banner -->
+<div class="md:col-span-2 bg-jade-dim border-l-[3px] border-primary rounded-r p-md flex flex-col justify-center">
+<span class="font-label-caps text-label-caps text-primary mb-xs">Expected Optimization Savings</span>
+<div class="flex items-baseline gap-sm">
+<span class="font-display-hero text-display-hero text-primary">18.4%</span>
+<span class="font-body-md text-body-md text-on-surface-variant">vs. historical average</span>
+</div>
+<p class="font-body-md text-body-md text-ink-secondary mt-sm">Model confidence: 94% based on stable demand patterns.</p>
+</div>
+<!-- Stat Tile 1 -->
+<div class="bg-surface border border-line-strong rounded-lg p-md">
+<span class="font-label-caps text-label-caps text-ink-secondary mb-sm block">Total Recommended Units</span>
+<span class="font-headline-lg text-headline-lg text-ink-primary font-data-table">12,450</span>
+</div>
+<!-- Stat Tile 2 -->
+<div class="bg-surface border border-line-strong rounded-lg p-md relative overflow-hidden">
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-tertiary"></div>
+<span class="font-label-caps text-label-caps text-ink-secondary mb-sm block">Total Buffer Stock</span>
+<span class="font-headline-lg text-headline-lg text-ink-primary font-data-table">840</span>
+<span class="text-[12px] text-tertiary mt-xs block">Higher variance detected</span>
+</div>
+</div>
+<!-- Data Table -->
+<div class="bg-surface border border-line-strong rounded-lg overflow-hidden">
+<div class="px-md py-sm bg-surface-2 border-b border-line-strong flex justify-between items-center">
+<h3 class="font-label-caps text-label-caps text-ink-primary">Optimization Output</h3>
+<button class="text-primary font-label-caps text-label-caps flex items-center hover:opacity-80 transition-opacity">
+<span class="material-symbols-outlined text-[16px] mr-xs">download</span> Export
+                            </button>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-2 font-label-caps text-label-caps text-ink-secondary border-b border-line-strong">
+<th class="py-sm px-md font-medium">SKU ID</th>
+<th class="py-sm px-md font-medium text-right">Rec. Order Qty</th>
+<th class="py-sm px-md font-medium text-right">Buffer Qty</th>
+<th class="py-sm px-md font-medium text-right">Typ. Demand (7d)</th>
+<th class="py-sm px-md font-medium">Status / Notes</th>
+</tr>
+</thead>
+<tbody class="font-data-table text-data-table text-ink-primary divide-y divide-line-soft">
+<tr class="hover:bg-surface-2 transition-colors">
+<td class="py-sm px-md">ITEM-A01</td>
+<td class="py-sm px-md text-right text-primary font-semibold">1,200</td>
+<td class="py-sm px-md text-right text-ink-secondary">150</td>
+<td class="py-sm px-md text-right text-ink-tertiary">1,020</td>
+<td class="py-sm px-md">
+<span class="inline-flex items-center px-2 py-1 rounded bg-jade-dim text-primary text-[10px] uppercase font-bold tracking-wide border border-primary/20">Optimal</span>
+</td>
+</tr>
+<tr class="hover:bg-surface-2 transition-colors">
+<td class="py-sm px-md">ITEM-B44</td>
+<td class="py-sm px-md text-right text-primary font-semibold">450</td>
+<td class="py-sm px-md text-right text-ink-secondary">120</td>
+<td class="py-sm px-md text-right text-ink-tertiary">280</td>
+<td class="py-sm px-md">
+<span class="inline-flex items-center px-2 py-1 rounded bg-amber-dim text-tertiary text-[10px] uppercase font-bold tracking-wide border border-tertiary/20">High Variance</span>
+</td>
+</tr>
+<tr class="hover:bg-surface-2 transition-colors">
+<td class="py-sm px-md">ITEM-C12</td>
+<td class="py-sm px-md text-right text-primary font-semibold">0</td>
+<td class="py-sm px-md text-right text-ink-secondary">0</td>
+<td class="py-sm px-md text-right text-ink-tertiary">5</td>
+<td class="py-sm px-md">
+<span class="inline-flex items-center px-2 py-1 rounded bg-surface-3 text-ink-secondary text-[10px] uppercase font-bold tracking-wide border border-line-strong">Discontinued</span>
+</td>
+</tr>
+<tr class="hover:bg-surface-2 transition-colors">
+<td class="py-sm px-md">ITEM-D99</td>
+<td class="py-sm px-md text-right text-primary font-semibold">3,400</td>
+<td class="py-sm px-md text-right text-ink-secondary">200</td>
+<td class="py-sm px-md text-right text-ink-tertiary">3,100</td>
+<td class="py-sm px-md">
+<span class="inline-flex items-center px-2 py-1 rounded bg-jade-dim text-primary text-[10px] uppercase font-bold tracking-wide border border-primary/20">Optimal</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+</div>
+</main>
+</div>
+</body></html>
