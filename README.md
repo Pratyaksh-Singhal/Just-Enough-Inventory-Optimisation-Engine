@@ -10,7 +10,10 @@ newsvendor theory, and reports the cost delta against baseline stocking practice
 > **Build status:** Phases 1–9 complete — data foundation through a live dashboard.
 > Phase 10 (deploy) in progress.
 >
-> **Live dashboard → https://claude.ai/code/artifact/ab291272-dc60-496b-88cd-fe3f5c57ce2f**
+> **Live dashboard → https://inventory-optimization-engine.fly.dev/**
+> Served by the forecast service itself, so the Full forecast tab is live: upload a CSV and
+> it fits and backtests a model per product. Scales to zero, so the first load takes a
+> second or two to wake.
 
 **The strongest evidence of engineering judgment here is the record of what went wrong:**
 [**`docs/what-went-wrong.md`**](docs/what-went-wrong.md) — decisions this project got wrong
@@ -95,7 +98,7 @@ version actually produced on real data — are recorded in
 | 7. Newsvendor optimization layer | [E7](docs/backlog/epic-07-optimization.md) | ✅ Complete |
 | 8. FastAPI service | [E8](docs/backlog/epic-08-api.md) | ✅ Complete |
 | 9. Dashboard | [E9](docs/backlog/epic-09-dashboard.md) | ✅ Complete |
-| 10. Deploy | [E10](docs/backlog/epic-10-ship.md) | 🔜 Next |
+| 10. Deploy | [E10](docs/backlog/epic-10-ship.md) | 🚧 Deployed; README ordering and demo GIF open |
 
 ---
 

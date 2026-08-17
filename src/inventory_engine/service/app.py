@@ -12,6 +12,7 @@ from collections.abc import Callable
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from inventory_engine.service.observability import (
     bind_request_id,
@@ -19,6 +20,7 @@ from inventory_engine.service.observability import (
     init_sentry,
 )
 from inventory_engine.service.routers import full_forecast
+from inventory_engine.service.settings import get_settings
 
 #: Header carrying the id that joins an API log line to the worker log line it caused.
 REQUEST_ID_HEADER = "X-Request-ID"
@@ -73,7 +75,35 @@ def create_app(*, enable_cors: bool = True, configure_observability: bool = True
 
     app.middleware("http")(_request_id_middleware)
     app.include_router(full_forecast.router)
+    _mount_dashboard(app)
     return app
+
+
+def _mount_dashboard(app: FastAPI) -> None:
+    """Serve the built dashboard at ``/``, if one is configured and actually present.
+
+    Why the service hosts its own page
+    ----------------------------------
+    The Full forecast tab fetches this API from the browser. Hosted anywhere else that is a
+    cross-origin request, and a published Artifact page cannot make one at all -- its
+    runtime blocks every external host, with no capability to opt out. Serving the page from
+    the same origin as the API removes the problem instead of working around it.
+
+    **Mounted last, on purpose.** Starlette matches routes in registration order, so every
+    endpoint is already claimed by the time this catch-all is added. Without that ordering a
+    file called ``dashboard/health`` would be served in place of the health check, and the
+    API would look like it had vanished. ``tests/test_service_upload`` pins it.
+
+    A configured directory that does not exist is treated as "no page", not as a fatal
+    error: ``StaticFiles`` raises at construction, which would take the entire API down over
+    a missing static file. That is the same failure shape as resolving the festival demand
+    table from a repository root that does not exist once the package is installed -- once
+    was enough.
+    """
+    configured = get_settings().dashboard_dir
+    if configured is None or not configured.is_dir():
+        return
+    app.mount("/", StaticFiles(directory=configured, html=True), name="dashboard")
 
 
 async def _request_id_middleware(request: Request, call_next: Callable) -> Response:

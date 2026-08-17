@@ -25,6 +25,11 @@ RUN pip install --upgrade pip && pip install ".[api,models,service]"
 COPY alembic.ini ./
 COPY migrations ./migrations
 
+# The built dashboard, served at / by the API so the page and its own endpoints share an
+# origin. The path is passed explicitly rather than derived: see settings.dashboard_dir.
+COPY dashboard/index.html ./dashboard/index.html
+ENV DASHBOARD_DIR=/app/dashboard
+
 RUN mkdir -p /data/uploads
 # 8001, not 8000: tier 1's run-api owns 8000 and the two are meant to run side by side.
 EXPOSE 8001

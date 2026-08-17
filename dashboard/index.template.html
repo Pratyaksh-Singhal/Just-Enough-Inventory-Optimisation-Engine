@@ -1213,8 +1213,9 @@
       <div class="card">
         <div class="field">
           <label for="apiBase">Where the service is running</label>
-          <span class="hint">The backend is not part of this page. Start it with
-            <code>run-service</code>, or point this at a deployed one.</span>
+          <span class="hint">This page is served by the forecast service itself, so it is
+            already pointed at the right place. Change it only to aim at your own instance —
+            <code>run-service</code> locally, for example.</span>
           <input type="text" id="apiBase" value="https://inventory-optimization-engine.fly.dev" spellcheck="false">
           <div class="btnrow">
             <button class="btn ghost" type="button" id="ffPing">Check connection</button>

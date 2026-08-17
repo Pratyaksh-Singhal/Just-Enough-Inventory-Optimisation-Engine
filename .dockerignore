@@ -65,8 +65,11 @@ wds-2-requirements-analysis/
 # The suite does not run inside the image; CI runs it on the runner. Remove this line if
 # that ever changes.
 tests/
-# The dashboard is a static page deployed separately; the service mounts no static files.
-dashboard/
+# NOT ignored: dashboard/. The service now serves the built page at / so that the Full
+# forecast tab and the API share an origin -- see app.py::_mount_dashboard. Only the built
+# artefact is needed, not the template.
+dashboard/*
+!dashboard/index.html
 node_modules/
 # Documentation is read on GitHub, not served by the container.
 docs/

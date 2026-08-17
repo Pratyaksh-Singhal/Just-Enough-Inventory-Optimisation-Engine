@@ -1,4 +1,4 @@
-# E10 — Ship ⬜
+# E10 — Ship 🚧
 
 **Goal:** deployed, and a README that survives a 90-second recruiter read.
 
@@ -6,12 +6,21 @@
 
 ---
 
-### E10-S1 — Deploy ⬜
+### E10-S1 — Deploy ✅
 
-- [ ] Fly.io or Railway; API + dashboard reachable
-- [ ] DuckDB file shipped with the image or mounted as a volume — decide and document
-      which, because it determines whether the nightly job can write in production
-- [ ] Monthly hosting cost recorded
+- [x] Fly.io; API + dashboard reachable at https://inventory-optimization-engine.fly.dev/
+      — the service serves the built page at `/` so the Full forecast tab shares an origin
+      with its own API. A page hosted anywhere else cannot reach it: the Artifact runtime
+      blocks every external host and offers no capability to opt out.
+- [x] DuckDB file: **neither**. Tier 1 is not deployed. Every figure it produces is inlined
+      into the dashboard as JSON at build time by `scripts/build_dashboard.py`, so the live
+      endpoints would serve a 324 MB warehouse to nobody. Nothing writes it in production,
+      so the nightly-job question does not arise.
+- [x] Monthly hosting cost recorded: **≈ $0.32**. One Machine that suspends when idle (a
+      volume attaches to exactly one Machine, so the API and the arq worker share one),
+      a 1 GB volume at $0.15 which bills whether or not the Machine runs, Postgres on
+      Neon's free tier and Redis on Upstash's. An always-on Machine with Fly Managed
+      Postgres would have been about $50.
 
 ### E10-S2 — README, ordered for 90 seconds ⬜
 

@@ -245,3 +245,79 @@ def test_the_request_id_is_echoed_back(client):
 
 def test_a_request_id_is_generated_when_absent(client):
     assert client.get("/health").headers["X-Request-ID"]
+
+
+# ------------------------------------------------------------------ the dashboard mount
+
+
+def test_the_dashboard_is_served_at_the_root_when_configured(tmp_path, monkeypatch):
+    """The deployed service serves the page as well as the API, from one origin.
+
+    Not a convenience. The dashboard's Full forecast tab fetches this API, and the published
+    Artifact runtime blocks requests to any external host -- so a page hosted anywhere other
+    than beside its own API cannot reach it. Same-origin removes the problem rather than
+    working around it.
+    """
+    from fastapi.testclient import TestClient
+
+    from inventory_engine.service.app import create_app
+
+    page = tmp_path / "dash"
+    page.mkdir()
+    (page / "index.html").write_text("<h1>dashboard</h1>", encoding="utf-8")
+    monkeypatch.setenv("DASHBOARD_DIR", str(page))
+
+    with TestClient(create_app(configure_observability=False)) as client:
+        root = client.get("/")
+        assert root.status_code == 200
+        assert "dashboard" in root.text
+
+
+def test_the_api_routes_win_over_the_static_mount(tmp_path, monkeypatch):
+    """A mount at "/" must not shadow the endpoints.
+
+    An index.html that happened to sit at dashboard/health would otherwise be served in
+    place of the health check, and the failure would look like the API had vanished.
+    """
+    from fastapi.testclient import TestClient
+
+    from inventory_engine.service.app import create_app
+
+    page = tmp_path / "dash"
+    page.mkdir()
+    (page / "index.html").write_text("<h1>dashboard</h1>", encoding="utf-8")
+    (page / "health").write_text("NOT THE API", encoding="utf-8")
+    monkeypatch.setenv("DASHBOARD_DIR", str(page))
+
+    with TestClient(create_app(configure_observability=False)) as client:
+        body = client.get("/health").json()
+        assert set(body) >= {"status", "database", "queue", "storage_writable", "version"}
+
+
+def test_no_dashboard_configured_leaves_the_api_alone(monkeypatch):
+    """Unset is the normal case for a worker or a bare API. It must not raise on startup."""
+    from fastapi.testclient import TestClient
+
+    from inventory_engine.service.app import create_app
+
+    monkeypatch.delenv("DASHBOARD_DIR", raising=False)
+    with TestClient(create_app(configure_observability=False)) as client:
+        assert client.get("/").status_code == 404
+        assert client.get("/health").status_code == 200
+
+
+def test_a_configured_but_missing_dashboard_dir_does_not_break_the_api(tmp_path, monkeypatch):
+    """A wrong path must degrade to "no page", never to a dead service.
+
+    Mounting StaticFiles on a directory that is not there raises at construction time, which
+    would take the whole API down over a static file -- the same class of fault as resolving
+    the festival table from a repository root that does not exist once installed.
+    """
+    from fastapi.testclient import TestClient
+
+    from inventory_engine.service.app import create_app
+
+    monkeypatch.setenv("DASHBOARD_DIR", str(tmp_path / "nope"))
+    with TestClient(create_app(configure_observability=False)) as client:
+        assert client.get("/health").status_code == 200
+        assert client.get("/").status_code == 404

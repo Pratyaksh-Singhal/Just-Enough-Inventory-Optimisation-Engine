@@ -29,6 +29,11 @@ class ServiceSettings(BaseSettings):
         posthog_api_key: Product analytics. Unset disables it.
         posthog_host: PostHog ingestion endpoint, for EU or self-hosted instances.
         environment: Tag attached to Sentry events and PostHog properties.
+        dashboard_dir: Directory holding the built ``index.html``, served at ``/`` so the
+            page and the API share an origin. ``None`` serves no page, which is right for a
+            worker or a bare API. Stated explicitly rather than derived from
+            ``PROJECT_ROOT``: that is meaningless once the package is pip-installed, and it
+            is exactly how the festival demand table went missing in the first deployment.
         festival_region: Which festival calendar the forecast reads, or ``None`` to run
             with no calendar at all -- no proximity features, no banners and no order
             adjustment. One switch for the whole feature, so the model's view of the
@@ -55,6 +60,7 @@ class ServiceSettings(BaseSettings):
     posthog_host: str = "https://us.i.posthog.com"
     environment: str = "development"
 
+    dashboard_dir: Path | None = None
     festival_region: str | None = "IN"
     job_timeout_seconds: int = 900
     upload_retention_days: int = 30
