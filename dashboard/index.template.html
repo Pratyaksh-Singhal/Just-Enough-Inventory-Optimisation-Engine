@@ -1198,7 +1198,7 @@
        path. That is the honest cost of the deviation recorded in dashboard/README.md. -->
   <section id="full" class="stack fade" hidden>
     <div>
-      <p class="eyebrow">Uploads your file to a backend · fits a model · backtests it</p>
+      <p class="eyebrow">Uploads your file to this service · fits a model · backtests it</p>
       <h2>Full forecast</h2>
       <p class="lede">
         The calculator on the first tab reads a quantile straight off your own demand — no
@@ -1211,19 +1211,7 @@
 
     <div class="calc">
       <div class="card">
-        <div class="field">
-          <label for="apiBase">Where the service is running</label>
-          <span class="hint">This page is served by the forecast service itself, so it is
-            already pointed at the right place. Change it only to aim at your own instance —
-            <code>run-service</code> locally, for example.</span>
-          <input type="text" id="apiBase" value="https://inventory-optimization-engine.fly.dev" spellcheck="false">
-          <div class="btnrow">
-            <button class="btn ghost" type="button" id="ffPing">Check connection</button>
-          </div>
-          <div id="ffHealth" class="hint" style="margin-top:8px"></div>
-        </div>
-
-        <hr class="rule" style="margin:18px 0">
+        <div id="ffHealth" class="hint" style="margin-bottom:16px"></div>
 
         <div class="field">
           <label for="ffFile">Your sales history</label>
@@ -1796,7 +1784,7 @@
 <footer class="wrap">
   <div>Built on M5 (Walmart) — CA / FOODS, 720 series, 1.4M rows. All costs USD; every cost
     parameter is a stated assumption, not a measurement.</div>
-  <div style="margin-top:6px">DuckDB · LightGBM (Tweedie) · statsforecast · Nixtla hierarchicalforecast · FastAPI · 520
+  <div style="margin-top:6px">DuckDB · LightGBM (Tweedie) · statsforecast · Nixtla hierarchicalforecast · FastAPI · 524
     tests</div>
 </footer>
 
@@ -1917,6 +1905,7 @@
       if (wanted.includes(id)) { el.classList.remove('fade'); void el.offsetWidth; el.classList.add('fade'); }
     });
     window.scrollTo({ top: 0, behavior: 'instant' });
+    if (name === 'full') window.__ffProbe?.();
   }
   /* Remember which tab you were on. A reload used to drop you back on the calculator,
      which is wrong after you have just run a forecast: the results are still there, you
@@ -2559,7 +2548,18 @@
      any form of colour vision gets the past/future split for free. */
   (function fullForecast() {
     const $$ = s => document.querySelector(s);
-    const api = () => $$('#apiBase').value.replace(/\/+$/, '');
+    /* The service that answers these calls is the one that served this page, so the origin
+       is not a thing to ask the reader for -- there used to be a text field here, which
+       made sense only while the page was hosted apart from its own API.
+
+       The literal fallback covers the one case where there is no origin to inherit: opening
+       the built index.html straight off disk, where location.origin is "null". Anywhere the
+       page is genuinely served, same-origin is both correct and immune to the CORS and CSP
+       problems that hosting it elsewhere creates. */
+    const HOSTED = location.protocol === 'https:' || location.protocol === 'http:';
+    const API_BASE = (HOSTED ? location.origin : 'https://inventory-optimization-engine.fly.dev')
+      .replace(/\/+$/, '');
+    const api = () => API_BASE;
     const S = { file: null, dataset: null, job: null, results: [], sku: null, poll: null, lastJob: null };
 
     const esc = t => { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; };
@@ -2577,11 +2577,18 @@
           : `<span class="lose">Degraded</span> — ${bits.join(', ')}. A forecast needs both.`;
         return h.status === 'ok';
       } catch (e) {
-        // A file:// page reaching a service that isn't up is the normal first experience,
-        // so this explains rather than blames, and names the offline path.
-        $$('#ffHealth').innerHTML = `<span class="lose">No service at that address.</span>
-          Start it with <code>run-service</code>, or use the
-          <a href="#" data-goto="calculator">Order calculator</a> tab, which needs no backend.`;
+        /* Two different situations, and telling them apart is the whole value of the
+           message. Served over http(s), the service is the origin this page came from, so a
+           failure means it is asleep or down -- and asleep is the common one, because it
+           suspends when idle to keep hosting near free. Opened off disk there is no service
+           at all yet, which is a different instruction. Either way, name the offline path. */
+        $$('#ffHealth').innerHTML = HOSTED
+          ? `<span class="lose">The service didn't answer.</span> It sleeps when nobody is
+             using it and takes a second or two to wake — try again shortly. The
+             <a href="#" data-goto="calculator">Order calculator</a> tab needs no service at all.`
+          : `<span class="lose">No service running.</span> This page was opened from a file,
+             so start one with <code>run-service</code> — or use the
+             <a href="#" data-goto="calculator">Order calculator</a> tab, which needs none.`;
         return false;
       }
     }
@@ -2935,7 +2942,6 @@
     }
 
     /* ---- wiring ---- */
-    $$('#ffPing').addEventListener('click', ping);
     $$('#ffMargin').addEventListener('input', e => $$('#ffMarginOut').textContent = e.target.value + '%');
     $$('#ffWaste').addEventListener('input', e => $$('#ffWasteOut').textContent = e.target.value + '%');
     $$('#ffSku').addEventListener('change', e => selectSku(e.target.value));
@@ -2959,12 +2965,17 @@
        setCurrency reach into this closure. */
     CURRENCY_LISTENERS.push(() => { if (S.lastJob) renderResults(S.lastJob); });
 
-    // Probe once, the first time the tab is opened -- not on page load, which would fire a
-    // failing request at every visitor who never opens this tab.
+    /* Probe once, the first time this tab is shown -- not on page load, which would fire a
+       failing request at every visitor who never opens it.
+
+       Hung off the tab CLICK it used to be, and that missed every other way of arriving:
+       a #full link, or a reload restoring the tab from localStorage. Nobody noticed while
+       there was a "Check connection" button to fall back on. With the button gone the
+       automatic probe is the only health readout there is, so it has to cover every route
+       in, which is what exposing it as a hook on `show` does. */
     let probed = false;
-    document.querySelector('[data-t="full"]').addEventListener('click', () => {
-      if (!probed) { probed = true; ping(); }
-    });
+    window.__ffProbe = () => { if (!probed) { probed = true; ping(); } };
+    if (!document.querySelector('#full').hidden) window.__ffProbe();
   })();
 
   renderRateInputs();
