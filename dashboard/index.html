@@ -23,6 +23,13 @@
     --amber: #C4862B;
     --blue: #4F86D4;
     --jade-dim: rgba(47, 169, 124, .14);
+    /* Callout grounds. The design tints each callout with its own accent rather than
+       seating them all on one surface, so the semantic colour reads before the text does.
+       Jade and amber are the source's values; the blue is derived on the same logic --
+       the source has no blue callout to copy. */
+    --callout-jade: #101A17;
+    --callout-amber: #150F06;
+    --callout-blue: #0D121D;
     --amber-dim: rgba(196, 134, 43, .16);
     --blue-dim: rgba(79, 134, 212, .16);
     /* Dual-font strategy from the design: Barlow carries the interface, JetBrains Mono
@@ -32,7 +39,6 @@
     --mono: "JetBrains Mono", ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
     --sans: Barlow, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     --cond: "Barlow Condensed", "Barlow", system-ui, sans-serif;
-    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
     --r: 3px;
   }
 
@@ -106,7 +112,7 @@
   .fx-switch {
     display: flex;
     border: 1px solid var(--line);
-    border-radius: 20px;
+    border-radius: 999px;
     padding: 2px;
     background: var(--surface)
   }
@@ -246,7 +252,7 @@
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: var(--r);
-    padding: 20px 22px
+    padding: 24px
   }
 
   .grid {
@@ -373,20 +379,22 @@
     border: 1px solid var(--line);
     border-left: 3px solid var(--jade);
     border-radius: var(--r);
-    background: var(--surface-2);
-    padding: 17px 20px;
-    font-family: var(--serif);
+    background: var(--callout-jade);
+    padding: 24px;
+    font-family: var(--sans);
     font-size: 15.5px;
     line-height: 1.62;
     color: var(--ink-2);
   }
 
   .callout.amber {
-    border-left-color: var(--amber)
+    border-left-color: var(--amber);
+    background: var(--callout-amber)
   }
 
   .callout.blue {
-    border-left-color: var(--blue)
+    border-left-color: var(--blue);
+    background: var(--callout-blue)
   }
 
   .callout .hd {
@@ -809,12 +817,16 @@
   }
 
   /* ---------- prose ---------- */
+  /* Barlow, not the serif this used to set. The design carries exactly three faces --
+     Barlow, Barlow Condensed and JetBrains Mono -- and no serif at all; a fourth family
+     here would be the page disagreeing with its own system. 65ch keeps the measure
+     readable now that the container is 1320px rather than 1140px. */
   .prose {
-    font-family: var(--serif);
+    font-family: var(--sans);
     font-size: 16px;
-    line-height: 1.68;
+    line-height: 1.65;
     color: var(--ink-2);
-    max-width: 68ch
+    max-width: 65ch
   }
 
   .prose p {
