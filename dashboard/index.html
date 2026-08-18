@@ -2818,8 +2818,8 @@
   const load = (text, label) => {
     holder.value = text;
     $('#calcDropTitle').textContent = label;
-    $('#calcDropHint').textContent = `${text.trim().split(/
-/).length - 1} rows read in this page`;
+    $('#calcDropHint').textContent =
+      `${text.trim().split(/\r?\n/).length - 1} rows read in this page`;
     holder.dispatchEvent(new Event('input', { bubbles: true }));
   };
 
@@ -2844,8 +2844,7 @@
   /* The example button already fills the holder; this only relabels the zone after it. */
   const demo = $('#loadDemo');
   if (demo) demo.addEventListener('click', () => setTimeout(() => {
-    const rows = (holder.value.trim().match(/
-/g) || []).length;
+    const rows = (holder.value.trim().match(/\r?\n/g) || []).length;
     $('#calcDropTitle').textContent = 'Example figures loaded';
     $('#calcDropHint').textContent = `${rows} rows &middot; real supermarket sales`.replace('&middot;', '·');
   }, 0));

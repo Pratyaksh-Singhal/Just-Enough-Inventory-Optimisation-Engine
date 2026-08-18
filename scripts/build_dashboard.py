@@ -197,12 +197,53 @@ def _font_css() -> str:
     return "\n".join(rules)
 
 
+def _check_scripts(html: str) -> None:
+    """Parse every inline ``<script>`` and fail the build on a syntax error.
+
+    Added after shipping a broken page. A stray newline inside a regex literal took out a
+    whole script block, and every check in place at the time passed: the build succeeded,
+    the JSON payload parsed, every element id the code queries existed, the tests were
+    green and the deploy went out. None of them execute JavaScript, so none of them could
+    see it. The calculator was simply dead on arrival, and the first thing that noticed was
+    a person clicking a button.
+
+    Uses ``node --check``, which parses without running. Node is not a dependency of this
+    project, so its absence warns rather than fails -- but where it exists, a page that
+    cannot parse never reaches a deploy.
+    """
+    import re
+    import shutil
+    import subprocess
+    import tempfile
+
+    node = shutil.which("node")
+    blocks = re.findall(r"<script>(.*?)</script>", html, re.S)
+    if node is None:
+        print(f"  ! node not found: {len(blocks)} script block(s) not syntax-checked")
+        return
+
+    with tempfile.TemporaryDirectory() as tmp:
+        for i, block in enumerate(blocks):
+            path = pathlib.Path(tmp) / f"block{i}.js"
+            path.write_text(block, encoding="utf-8")
+            done = subprocess.run(
+                [node, "--check", str(path)], capture_output=True, text=True, check=False
+            )
+            if done.returncode != 0:
+                raise SystemExit(
+                    f"script block {i} does not parse -- refusing to write a "
+                    f"dead page: {done.stderr.strip()}"
+                )
+    print(f"  {len(blocks)} script block(s) parse")
+
+
 def main() -> int:
     """Regenerate ``dashboard/index.html`` from the template and the warehouse."""
     template = (ROOT / "dashboard" / "index.template.html").read_text(encoding="utf-8")
     payload = json.dumps(build(), separators=(",", ":"))
     out = ROOT / "dashboard" / "index.html"
     rendered = template.replace("__DATA__", payload).replace("__FONTS__", _font_css())
+    _check_scripts(rendered)
     out.write_text(rendered, encoding="utf-8")
     print(f"wrote {out}  ({out.stat().st_size / 1024:.1f} KB)")
     return 0
