@@ -898,6 +898,50 @@
     white-space: nowrap
   }
 
+  /* Steps 01 and 02 sit side by side, and the order list runs full width beneath them --
+     the results are the widest thing on the page and were previously squeezed into a
+     column beside the inputs. */
+  .steps {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    align-items: start
+  }
+
+  @media (max-width: 900px) {
+    .steps { grid-template-columns: 1fr }
+  }
+
+  .steps .step + .step { margin-top: 0; padding-top: 0; border-top: 0 }
+
+  .results { margin-top: 40px }
+
+  .filestats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid var(--line-soft)
+  }
+
+  .filestats span {
+    display: block;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin-bottom: 6px
+  }
+
+  .filestats b {
+    font-family: var(--mono);
+    font-size: 19px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums
+  }
+
   /* ---------- how much to order: page head, steps, drop zone, derivation ---------- */
   .page-head {
     display: grid;
@@ -1300,7 +1344,7 @@
       </div>
     </div>
 
-    <div class="calc">
+    <div class="steps">
       <div class="card">
         <div class="step">
           <div class="step-head">
@@ -1327,8 +1371,15 @@
             <span>NEEDS</span> product &middot; date &middot; units sold
             <span>OPTIONAL</span> unit price
           </div>
+          <div class="filestats" id="calcStats" hidden>
+            <div><span>ROWS READ</span><b id="csRows">&mdash;</b></div>
+            <div><span>PRODUCTS</span><b id="csSkus">&mdash;</b></div>
+            <div><span>DAYS WITH NO SALE</span><b id="csZero">&mdash;</b></div>
+          </div>
         </div>
+      </div>
 
+      <div class="card">
         <div class="step">
           <div class="step-head">
             <span class="step-n">02</span>
@@ -1373,9 +1424,14 @@
           </p>
         </div>
       </div>
+    </div>
 
-      <div>
-        <div id="calcMsg"></div>
+    <div class="results">
+      <div class="step-head">
+        <span class="step-n">03</span>
+        <h3>What to order</h3>
+      </div>
+      <div id="calcMsg"></div>
         <div id="calcSaving"></div>
         <div class="grid g3" id="calcTiles" style="margin-bottom:18px"></div>
         <div class="tw">
@@ -2805,6 +2861,7 @@
 (function orderTab() {
   const $ = s => document.querySelector(s);
   const HOLDING = 0.02;                       // DEFAULT_HOLDING_RATE in costs.py
+  const NEWLINE = new RegExp(String.fromCharCode(92) + 'r?' + String.fromCharCode(92) + 'n');
   const drop = $('#calcDrop'), file = $('#csvFile'), holder = $('#csv');
   if (!drop || !file || !holder) return;
 
@@ -2814,7 +2871,33 @@
     $('#calcDropHint').textContent =
       `${text.trim().split(/\r?\n/).length - 1} rows read in this page`;
     holder.dispatchEvent(new Event('input', { bubbles: true }));
+    stats(text);
   };
+
+  /* Rows, products and the zero-sale share, read off the same text the calculator parses.
+     Counted here rather than exported from runCalculator so that function stays untouched;
+     the arithmetic is a count, not a second opinion about the data. */
+  function stats(text) {
+    const rows = text.trim().split(NEWLINE).filter(l => l.trim());
+    if (rows.length < 2) return;
+    const head = rows[0].split(',').map(h => h.trim().toLowerCase());
+    const iSku = head.findIndex(h => ['sku', 'product', 'item', 'product_id', 'item_id'].includes(h));
+    const iUnits = head.findIndex(h => ['units_sold', 'units', 'qty', 'quantity', 'sales'].includes(h));
+    const body = rows.slice(1);
+    const skus = new Set();
+    let zero = 0;
+    body.forEach(r => {
+      const c = r.split(',');
+      if (iSku >= 0 && c[iSku] !== undefined) skus.add(c[iSku].trim());
+      if (iUnits >= 0 && Number(c[iUnits]) === 0) zero += 1;
+    });
+    const set = (id, v) => { const el = $(id); if (el) el.textContent = v; };
+    set('#csRows', body.length.toLocaleString('en-US'));
+    set('#csSkus', skus.size ? skus.size.toLocaleString('en-US') : '—');
+    set('#csZero', body.length ? `${(zero / body.length * 100).toFixed(1)}%` : '—');
+    const panel = $('#calcStats');
+    if (panel) panel.hidden = false;
+  }
 
   drop.addEventListener('click', () => file.click());
   drop.addEventListener('keydown', e => {
