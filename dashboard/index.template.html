@@ -1382,16 +1382,6 @@ __FONTS__
         <div class="btnrow" id="dlRow" hidden style="margin-top:14px">
           <button class="btn" type="button" id="dlCsv">Download this order list</button>
         </div>
-        <div id="dlFallback" hidden style="margin-top:14px">
-          <p class="hint" style="font-size:12.5px;color:var(--ink-3);margin:0 0 8px">
-            If the download didn't start — some browsers block it when this page is embedded —
-            copy the list from here instead.
-          </p>
-          <textarea readonly spellcheck="false" style="min-height:120px"></textarea>
-          <div class="btnrow" style="margin-top:8px">
-            <button class="btn ghost" type="button" id="copyCsv">Copy to clipboard</button>
-          </div>
-        </div>
       </div>
     </div>
   </section>
@@ -2154,7 +2144,7 @@ __FONTS__
       $('#calcSaving').innerHTML = ''; CAL.skus = new Map();
       // Nothing to download when there is no order list -- the button would hand back a
       // header row and nothing else, which reads as the download being broken.
-      $('#dlRow').hidden = true; $('#dlFallback').hidden = true;
+      $('#dlRow').hidden = true;
     };
 
     if (!raw.trim()) return clear(`<div class="msg">Paste your sales history on the left, or press
@@ -2346,19 +2336,6 @@ __FONTS__
     // Deferred: revoking synchronously after click() kills the blob before the browser has
     // read it, which is exactly why the first version of this button appeared to do nothing.
     setTimeout(() => URL.revokeObjectURL(url), 10000);
-
-    // This page can be embedded in a sandboxed frame where downloads are blocked outright,
-    // and no amount of correct code changes that -- so always leave a copyable copy behind.
-    const box = $('#dlFallback');
-    box.hidden = false;
-    box.querySelector('textarea').value = orderListCsv();
-  });
-  $('#copyCsv').addEventListener('click', async () => {
-    const ta = $('#dlFallback textarea');
-    ta.select();
-    try { await navigator.clipboard.writeText(ta.value); $('#copyCsv').textContent = 'Copied'; }
-    catch { document.execCommand('copy'); $('#copyCsv').textContent = 'Copied'; }
-    setTimeout(() => $('#copyCsv').textContent = 'Copy to clipboard', 1800);
   });
 
   /* ================= FULL FORECAST (tier 2) =================
