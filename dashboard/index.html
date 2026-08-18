@@ -2031,6 +2031,22 @@
   }
   ['input', 'change'].forEach(ev => { $('#cu').addEventListener(ev, update); $('#co').addEventListener(ev, update); });
 
+  /* ================= ORDER CALCULATOR =================
+     Works entirely on data the user pastes in, in the browser. Nothing is uploaded.
+  
+     Why this doesn't use the trained LightGBM model: that model takes item_id as an input
+     and needs a year of history per series, so it can only score the 180 M5 products it was
+     fitted on -- it has no way to represent a product it has never seen. What transfers is
+     the ordering rule, which is where Phase 7 measured most of the saving coming from
+     (fixing the policy cut cost 71%; improving the forecast cut it 18%).
+  
+     So demand is taken straight from the user's own history as an empirical distribution of
+     H-day totals, and the newsvendor rule picks the quantile. No distributional assumption,
+     which matters for slow movers where most days are zero and a fitted curve would invent
+     fractional daily demand that never occurs. */
+
+  const CAL = { skus: new Map() };
+
   /* ---- the cost model, ported from src/inventory_engine/optimize/costs.py ----
      Two flat cash amounts cannot price a mixed product list: the same missed sale is worth
      far more on a $6 item than on a $1 one. So the inputs are *rates* and each product's
