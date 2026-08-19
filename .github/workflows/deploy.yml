@@ -1,0 +1,69 @@
+# Deploy tier 2 to Fly.io from CI rather than from a laptop.
+#
+# Not a convenience. Windows Smart App Control (VerifiedAndReputablePolicyState = 1) blocks
+# the unsigned flyctl binary outright, and the only local fix -- turning Smart App Control
+# off -- cannot be undone without reinstalling Windows. Deploying from a runner sidesteps
+# the whole question, and is the better arrangement anyway: the image is built from a clean
+# checkout of a known commit instead of whatever happens to be in the working tree.
+#
+# Manual on purpose. `workflow_dispatch` only, no push trigger: the dashboard is rebuilt by
+# hand from the DuckDB warehouse (which is not in the repository), so a push-triggered
+# deploy would ship whatever dashboard/index.html was last committed without anyone having
+# looked at it. Deciding to deploy stays a deliberate act.
+#
+# Setup, once:
+#   1. fly.io/dashboard -> Tokens -> create a deploy token (the web UI, no CLI needed).
+#   2. GitHub repo -> Settings -> Secrets and variables -> Actions -> New repository secret,
+#      named FLY_API_TOKEN.
+
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch, tag or SHA to deploy"
+        required: false
+        default: dev
+
+# Two deploys of the same app at once is one deploy too many.
+concurrency:
+  group: deploy-fly
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: fly deploy
+    runs-on: ubuntu-latest
+    # Named so the deploy shows up in the repo's environment history with its URL, and so a
+    # required reviewer can be added later without touching this file.
+    environment:
+      name: production
+      url: https://inventory-optimization-engine.fly.dev/
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      # The page is committed, not built here: building it needs the M5 warehouse. Fail
+      # loudly if it is missing rather than deploying a service with no dashboard behind it.
+      - name: Check the built dashboard is present
+        run: test -s dashboard/index.html
+
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Deploy
+        run: flyctl deploy --remote-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: Check the service answers
+        run: |
+          for i in $(seq 1 20); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' https://inventory-optimization-engine.fly.dev/health || true)
+            echo "attempt $i: $code"
+            [ "$code" = "200" ] && exit 0
+            sleep 15
+          done
+          echo "health never returned 200"
+          exit 1
