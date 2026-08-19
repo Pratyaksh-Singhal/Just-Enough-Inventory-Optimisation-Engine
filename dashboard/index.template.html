@@ -189,7 +189,7 @@ __FONTS__
 
   /* ---------- structure ---------- */
   main {
-    padding: 38px 0 90px
+    padding: 32px 0 72px
   }
 
   section[hidden] {
@@ -249,7 +249,7 @@ __FONTS__
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: var(--r);
-    padding: 24px
+    padding: 20px
   }
 
   .grid {
@@ -901,7 +901,7 @@ __FONTS__
   .steps {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 24px;
+    gap: 20px;
     align-items: start
   }
 
@@ -909,16 +909,33 @@ __FONTS__
     .steps { grid-template-columns: 1fr }
   }
 
+  /* Below this the page is read on a laptop half-screen or a phone, where every box that
+     was merely generous on a 1500px canvas costs a screenful. Shrink the padding and the
+     display figures together -- trimming only one leaves big numbers in cramped boxes. */
+  @media (max-width: 700px) {
+    .wrap { padding: 0 18px }
+    section { padding: 26px 0 60px }
+    h2 { font-size: 32px }
+    .card { padding: 16px }
+    .drop { padding: 16px 14px }
+    .drop-ico { width: 28px; height: 28px }
+    .drop-t { font-size: 14px; margin-top: 10px }
+    .filestats { gap: 10px }
+    .filestats b { font-size: 15px }
+    .derive-row b { font-size: 21px }
+    .results { margin-top: 22px }
+  }
+
   .steps .step + .step { margin-top: 0; padding-top: 0; border-top: 0 }
 
-  .results { margin-top: 40px }
+  .results { margin-top: 28px }
 
   .filestats {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 14px;
-    margin-top: 18px;
-    padding-top: 16px;
+    margin-top: 14px;
+    padding-top: 14px;
     border-top: 1px solid var(--line-soft)
   }
 
@@ -934,7 +951,7 @@ __FONTS__
 
   .filestats b {
     font-family: var(--mono);
-    font-size: 19px;
+    font-size: 17px;
     font-weight: 600;
     font-variant-numeric: tabular-nums
   }
@@ -983,7 +1000,7 @@ __FONTS__
     display: flex;
     align-items: center;
     gap: 12px;
-    margin-bottom: 14px
+    margin-bottom: 12px
   }
 
   .step-head h3 { margin: 0; flex: 1 1 auto }
@@ -999,16 +1016,34 @@ __FONTS__
     border: 1px dashed var(--line);
     border-radius: var(--r);
     background: var(--ground);
-    padding: 34px 20px;
+    padding: 20px 16px;
     text-align: center;
     cursor: pointer;
     transition: border-color .15s, background .15s
   }
 
+  /* The glyph sits in its own square, as the mock draws it. The stroke is set here rather
+     than as an SVG presentation attribute: a var() that fails to compute in an attribute
+     leaves stroke at its `none` initial value, and the icon renders invisible with no
+     error anywhere -- which is precisely how it shipped. In a stylesheet it is a normal
+     custom-property lookup and cannot fail this way. */
+  .drop-ico {
+    width: 34px;
+    height: 34px;
+    margin: 0 auto;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center
+  }
+
+  .drop-ico svg { stroke: var(--jade); fill: none }
+
   .drop:hover, .drop:focus-visible { border-color: var(--jade); background: var(--jade-dim) }
   .drop.over { border-color: var(--jade); background: var(--jade-dim) }
-  .drop-t { font-family: var(--cond); font-size: 20px; font-weight: 600; margin-top: 8px }
-  .drop-h { font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); margin-top: 5px }
+  .drop-t { font-size: 15px; font-weight: 600; margin-top: 12px; word-break: break-all }
+  .drop-h { font-family: var(--mono); font-size: 11px; color: var(--ink-3); margin-top: 5px }
 
   .drop-meta {
     font-family: var(--mono);
@@ -1025,8 +1060,8 @@ __FONTS__
     border-left: 3px solid var(--jade);
     border-radius: var(--r);
     background: var(--callout-jade);
-    padding: 16px 18px;
-    margin-top: 18px
+    padding: 14px 16px;
+    margin-top: 14px
   }
 
   .derive-row {
@@ -1039,7 +1074,7 @@ __FONTS__
   }
 
   .derive-row b {
-    font-size: 27px;
+    font-size: 24px;
     font-weight: 600;
     color: var(--jade);
     letter-spacing: -.03em;
@@ -1351,11 +1386,13 @@ __FONTS__
           </div>
           <div id="calcDrop" class="drop" tabindex="0" role="button"
                aria-label="Choose a CSV of your sales history">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--jade)"
-                 stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-              <polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line>
-            </svg>
+            <div class="drop-ico">
+              <svg width="16" height="16" viewBox="0 0 24 24"
+                   stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line>
+              </svg>
+            </div>
             <div class="drop-t" id="calcDropTitle">Drop your sales CSV here</div>
             <div class="drop-h" id="calcDropHint">or click to choose &middot; it is read in this page and never sent</div>
           </div>
@@ -2865,8 +2902,7 @@ __FONTS__
   const load = (text, label) => {
     holder.value = text;
     $('#calcDropTitle').textContent = label;
-    $('#calcDropHint').textContent =
-      `${text.trim().split(/\r?\n/).length - 1} rows read in this page`;
+    $('#calcDropHint').textContent = 'Read in this browser \u00b7 click to replace';
     holder.dispatchEvent(new Event('input', { bubbles: true }));
     stats(text);
   };
