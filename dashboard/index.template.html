@@ -19,6 +19,8 @@ __FONTS__
     --jade: #2FA97C;
     --amber: #C4862B;
     --blue: #4F86D4;
+    --jade-hi: #69DBAA;
+    --ink-4: #5F6F69;
     --jade-dim: rgba(47, 169, 124, .14);
     /* Callout grounds. The design tints each callout with its own accent rather than
        seating them all on one surface, so the semantic colour reads before the text does.
@@ -195,6 +197,26 @@ __FONTS__
   section[hidden] {
     display: none
   }
+
+  svg.arrow { stroke: currentColor; fill: none; flex: none }
+
+  .live-tag {
+    font-family: var(--mono);
+    font-size: 9px;
+    font-weight: 500;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--jade);
+    background: var(--jade-dim);
+    border-radius: 2px;
+    padding: 2px 5px;
+    margin-left: 7px;
+    vertical-align: 2px
+  }
+
+  /* The source separates the two tiers with a gap rather than a rule: the first three tabs
+     are the product, the last two are the evidence for it. */
+  .tabs .tab-gap { width: 20px; flex: none }
 
   .eyebrow {
     font-family: var(--mono);
@@ -1344,13 +1366,326 @@ __FONTS__
       }
     }
   }
+  /* ---------- home ----------
+     Transcribed from "Just Enough v2.dc.html". The source sets every rule inline on a
+     1280px canvas; the values here are its values, moved into classes and onto our own
+     tokens. Nothing on this tab is hardcoded arithmetic -- every figure is written by
+     renderHome() from DATA, so the page cannot drift from the warehouse it describes. */
+  .home-block { margin-top: 112px }
+
+  .home-hero {
+    display: grid;
+    grid-template-columns: 1.15fr 1fr;
+    gap: 64px;
+    align-items: center;
+    padding-top: 40px
+  }
+
+  .home-eye {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--jade);
+    margin-bottom: 24px
+  }
+
+  .home-eye.blue { color: var(--blue) }
+
+  h1.home-h1 {
+    font-family: var(--cond);
+    font-weight: 600;
+    font-size: 76px;
+    line-height: .98;
+    letter-spacing: -.025em;
+    margin: 0 0 24px;
+    color: var(--ink);
+    text-wrap: balance
+  }
+
+  .home-lede {
+    font-size: 18px;
+    line-height: 1.65;
+    color: var(--ink-2);
+    margin: 0 0 32px;
+    max-width: 52ch;
+    text-wrap: pretty
+  }
+
+  .home-acts { display: flex; align-items: center; gap: 16px; flex-wrap: wrap }
+
+  .btn-solid, .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--cond);
+    font-weight: 600;
+    font-size: 16px;
+    letter-spacing: .02em;
+    border-radius: 4px;
+    padding: 14px 24px;
+    cursor: pointer
+  }
+
+  .btn-solid { background: var(--jade); color: var(--ground); border: 0 }
+  .btn-solid:hover { background: var(--jade-hi) }
+  .btn-ghost { background: transparent; color: var(--ink); border: 1px solid var(--line) }
+  .btn-ghost:hover { border-color: var(--jade) }
+  .btn-ghost.blue:hover { border-color: var(--blue) }
+
+  /* Corner ticks. The source draws four crossed hairlines just outside the box, which reads
+     as a machined plate rather than a card -- the one piece of ornament in the whole design,
+     so it is worth keeping exactly. */
+  .bracket { position: relative }
+
+  .bracket::before, .bracket::after,
+  .bracket > .bk::before, .bracket > .bk::after {
+    content: "";
+    position: absolute;
+    width: 11px;
+    height: 11px;
+    background:
+      linear-gradient(#35443E, #35443E) center / 1px 11px no-repeat,
+      linear-gradient(#35443E, #35443E) center / 11px 1px no-repeat
+  }
+
+  .bracket::before { top: -5px; left: -5px }
+  .bracket::after { top: -5px; right: -5px }
+  .bracket > .bk::before { bottom: -5px; left: -5px }
+  .bracket > .bk::after { bottom: -5px; right: -5px }
+
+  .home-stat {
+    border: 1px solid var(--line);
+    background: var(--surface);
+    padding: 32px
+  }
+
+  .home-stat-lbl {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .16em;
+    color: var(--ink-4);
+    text-transform: uppercase;
+    margin-bottom: 20px
+  }
+
+  .home-stat-big {
+    font-family: var(--mono);
+    font-size: 82px;
+    font-weight: 600;
+    line-height: .92;
+    letter-spacing: -.05em;
+    color: var(--jade-hi);
+    font-variant-numeric: tabular-nums
+  }
+
+  .home-stat-cap {
+    font-family: var(--cond);
+    font-weight: 600;
+    font-size: 22px;
+    color: var(--ink);
+    margin-top: 12px
+  }
+
+  .home-rule { height: 1px; background: var(--line); margin: 28px 0 }
+  .home-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin: 0 }
+
+  .home-pair dt {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .14em;
+    color: var(--ink-4);
+    text-transform: uppercase;
+    margin-bottom: 8px
+  }
+
+  .home-pair dd {
+    margin: 0;
+    font-family: var(--mono);
+    font-size: 28px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums
+  }
+
+  .home-pair .amber { color: var(--amber) }
+  .home-pair .blue { color: var(--blue) }
+
+  .home-pair small {
+    display: block;
+    font-family: var(--sans);
+    font-size: 13px;
+    color: var(--ink-3);
+    margin-top: 4px;
+    font-weight: 400;
+    letter-spacing: 0
+  }
+
+  .home-split { display: grid; grid-template-columns: 1fr 1.1fr; gap: 64px; align-items: start }
+
+  h2.home-h2 { font-size: 44px; line-height: 1.02; margin: 0 0 20px }
+
+  .home-body { font-size: 16px; line-height: 1.7; color: var(--ink-2); margin: 0 0 16px }
+  .home-body:last-child { margin-bottom: 0 }
+
+  .panel { border: 1px solid var(--line); background: var(--surface) }
+
+  .panel-head {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--line);
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .14em;
+    color: var(--ink-3);
+    text-transform: uppercase
+  }
+
+  .panel-body { padding: 24px }
+
+  .bar-row { margin-bottom: 24px }
+  .bar-row:last-of-type { margin-bottom: 0 }
+
+  .bar-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 8px;
+    gap: 16px
+  }
+
+  .bar-top b { font-family: var(--cond); font-weight: 600; font-size: 17px; color: var(--ink-2) }
+  .bar-top span { font-family: var(--mono); font-size: 15px; color: var(--ink-2); font-variant-numeric: tabular-nums }
+  .bar-row.amber .bar-top b, .bar-row.amber .bar-top span { color: var(--amber) }
+  .bar-row.jade .bar-top b, .bar-row.jade .bar-top span { color: var(--jade-hi) }
+
+  .bar-track { height: 10px; background: var(--line-soft) }
+  .bar-track > i { display: block; height: 10px; background: #5D6B65 }
+  .bar-row.amber .bar-track > i { background: var(--amber) }
+  .bar-row.jade .bar-track > i { background: var(--jade) }
+
+  .panel-note { font-family: var(--mono); font-size: 11px; line-height: 1.9; color: var(--ink-4) }
+
+  /* A 1px gap over a line-coloured ground is how the source draws its grids -- no borders
+     on the cells themselves, so no doubled rules where two cells meet. */
+  .home-grid {
+    display: grid;
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line)
+  }
+
+  .home-grid.three { grid-template-columns: repeat(3, 1fr) }
+  .home-grid.two { grid-template-columns: repeat(2, 1fr) }
+  .home-grid > div { background: var(--ground); padding: 32px }
+
+  .home-step {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .14em;
+    color: var(--jade);
+    margin-bottom: 24px
+  }
+
+  .home-step.blue { color: var(--blue) }
+  .home-step.amber { color: var(--amber) }
+
+  .home-grid h3 { font-size: 26px; margin: 0 0 12px }
+  .home-grid.two h3 { font-size: 24px }
+  .home-grid p { font-size: 15px; line-height: 1.65; color: var(--ink-2); margin: 0 }
+
+  .home-head-row {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 32px;
+    margin-bottom: 32px;
+    flex-wrap: wrap
+  }
+
+  .home-head-note {
+    font-family: var(--mono);
+    font-size: 11px;
+    line-height: 1.9;
+    color: var(--ink-4);
+    margin: 0;
+    max-width: 44ch;
+    text-align: right
+  }
+
+  .money-scroll { overflow-x: auto }
+  .home-money { width: 100%; border-collapse: collapse; min-width: 640px }
+
+  .home-money th {
+    text-align: right;
+    padding: 14px 24px;
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: .14em;
+    color: var(--ink-3);
+    text-transform: uppercase;
+    background: var(--surface-2);
+    white-space: nowrap
+  }
+
+  .home-money th:first-child, .home-money td:first-child { text-align: left }
+
+  .home-money td {
+    text-align: right;
+    padding: 18px 24px;
+    font-family: var(--mono);
+    font-size: 14px;
+    color: var(--ink-2);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap
+  }
+
+  .home-money td:first-child { font-family: var(--sans); font-size: 15px }
+  .home-money tbody tr { border-bottom: 1px solid var(--line-soft) }
+  .home-money tr.win { background: var(--callout-jade); box-shadow: inset 3px 0 0 var(--jade) }
+  .home-money tr.win td:first-child { font-weight: 600; color: var(--ink) }
+  .home-money .amber { color: var(--amber) }
+  .home-money .jade { color: var(--jade-hi) }
+  .home-money tr.win .jade { font-weight: 600 }
+  .home-money .muted { color: var(--ink-4) }
+
+  .home-foot { font-size: 14px; line-height: 1.7; color: var(--ink-3); margin: 20px 0 0; max-width: 82ch }
+
+  .home-cta {
+    border: 1px solid #234037;
+    background: var(--callout-jade);
+    padding: 64px 48px;
+    text-align: center
+  }
+
+  .home-cta h2 { font-size: 44px; margin: 0 0 16px }
+  .home-cta p { font-size: 17px; color: var(--ink-2); margin: 0 auto 32px; max-width: 52ch }
+
+  @media (max-width: 1000px) {
+    .home-hero, .home-split { grid-template-columns: 1fr; gap: 40px }
+    .home-grid.three { grid-template-columns: 1fr }
+    .home-head-note { text-align: left; max-width: none }
+  }
+
+  @media (max-width: 700px) {
+    .home-block { margin-top: 72px }
+    h1.home-h1 { font-size: 46px }
+    h2.home-h2, .home-cta h2 { font-size: 32px }
+    .home-stat, .home-grid > div { padding: 22px }
+    .home-stat-big { font-size: 56px }
+    .home-grid.two { grid-template-columns: 1fr }
+    .home-grid h3, .home-grid.two h3 { font-size: 21px }
+    .home-cta { padding: 40px 22px }
+    .home-lede { font-size: 16px }
+  }
+
 </style>
 
 <header>
   <div class="wrap">
     <div class="masthead">
-      <h1>Inventory Optimization Engine</h1>
-      <span class="sub">M5 · 720 SERIES · CA / FOODS · 5-FOLD ROLLING ORIGIN</span>
+      <h1>Just Enough</h1>
+      <span class="sub">INVENTORY OPTIMIZATION ENGINE</span>
       <div class="fx">
         <span class="fx-rate" id="fxRate"></span>
         <div class="fx-switch" role="group" aria-label="Currency">
@@ -1360,8 +1695,10 @@ __FONTS__
       </div>
     </div>
     <div class="tabs" role="tablist">
-      <button class="tab" role="tab" aria-selected="true" data-t="calculator">Order calculator</button>
-      <button class="tab" role="tab" aria-selected="false" data-t="full">Full forecast</button>
+      <button class="tab" role="tab" aria-selected="true" data-t="home">Home</button>
+      <button class="tab" role="tab" aria-selected="false" data-t="calculator">How much to order</button>
+      <button class="tab" role="tab" aria-selected="false" data-t="full">Full forecast<span class="live-tag">live</span></button>
+      <div class="tab-gap" aria-hidden="true"></div>
       <button class="tab" role="tab" aria-selected="false" data-t="why">Why these numbers</button>
       <button class="tab" role="tab" aria-selected="false" data-t="overview">Proof it works</button>
     </div>
@@ -1370,8 +1707,213 @@ __FONTS__
 
 <main class="wrap">
 
+  <!-- ============ HOME ============ -->
+  <section id="home" class="stack fade">
+
+    <div class="home-hero">
+      <div>
+        <div class="home-eye">Newsvendor ordering for perishables</div>
+        <h1 class="home-h1">Order just enough.<br>Not what feels safe.</h1>
+        <p class="home-lede">A 95% service level is not caution &mdash; on a thin-margin
+          perishable it is the most expensive policy on the board. Upload your sales history,
+          state what a stockout and a spoiled unit each cost, and get the order quantity that
+          actually minimises cost.</p>
+        <div class="home-acts">
+          <button type="button" class="btn-solid" data-goto="calculator">
+            Open the calculator
+            <svg class="arrow" width="16" height="16" viewBox="0 0 24 24" stroke-width="1.5"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline>
+            </svg>
+          </button>
+          <a class="btn-ghost" href="#method-block">See the method</a>
+        </div>
+      </div>
+
+      <div class="home-stat bracket"><span class="bk"></span>
+        <div class="home-stat-lbl">Measured on <span id="hDecisions">&mdash;</span> stocking decisions</div>
+        <div class="home-stat-big" id="hCut">&mdash;</div>
+        <div class="home-stat-cap">lower inventory cost than current practice</div>
+        <div class="home-rule"></div>
+        <dl class="home-pair">
+          <div>
+            <dt>Waste cut</dt>
+            <dd class="amber" id="hWasteCut">&mdash;</dd>
+            <small id="hWasteFlow">&mdash;</small>
+          </div>
+          <div>
+            <dt>Optimal service</dt>
+            <dd class="blue" id="hService">&mdash;</dd>
+            <small>not the industry's 95%</small>
+          </div>
+        </dl>
+      </div>
+    </div>
+
+    <div class="home-block">
+      <div class="home-split">
+        <div>
+          <div class="home-eye">The finding</div>
+          <h2 class="home-h2">A flat 95% service level costs <span id="hMultiple">&mdash;</span>
+            more than doing nothing sophisticated at all.</h2>
+          <p class="home-body">Understocking costs you the margin. Overstocking a perishable
+            costs close to the whole unit. With a 30% margin and 60% spoilage the critical
+            ratio lands at <span id="hCR">&mdash;</span> &mdash; so the cost-optimal service
+            level is <span id="hService2">&mdash;</span>, and every unit you stock past that is
+            spoilage you paid for in advance.</p>
+          <p class="home-body">The winning policy accepts a higher stockout rate than doing
+            nothing and still costs <span id="hCut2">&mdash;</span> less, because it cuts waste
+            by <span id="hWasteCut2">&mdash;</span>. On thin-margin perishables an empty shelf
+            is cheaper than a full bin.</p>
+        </div>
+        <div class="panel">
+          <div class="panel-head">Cost by policy &middot; <span id="hDecisions2">&mdash;</span> decisions</div>
+          <div class="panel-body">
+            <div class="bar-row">
+              <div class="bar-top"><b>Current practice &middot; last week's sales</b><span id="hMNaive">&mdash;</span></div>
+              <div class="bar-track"><i id="hBarNaive" style="width:0"></i></div>
+            </div>
+            <div class="bar-row amber">
+              <div class="bar-top"><b>Fixed 95% service level</b><span id="hM95">&mdash;</span></div>
+              <div class="bar-track"><i id="hBar95" style="width:0"></i></div>
+            </div>
+            <div class="bar-row jade">
+              <div class="bar-top"><b>Newsvendor &middot; this tool</b><span id="hMNv">&mdash;</span></div>
+              <div class="bar-track"><i id="hBarNv" style="width:0"></i></div>
+            </div>
+            <div class="home-rule"></div>
+            <div class="panel-note">The middle bar has the best stockout rate in the table and
+              is by far the most expensive &mdash; hitting 95% requires
+              <span id="hSpoil">&mdash;</span> units of stock that spoil.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="home-block" id="method-block">
+      <div class="home-eye">How it works</div>
+      <h2 class="home-h2" style="max-width:20ch;margin-bottom:48px">Three steps between a CSV and an order sheet.</h2>
+      <div class="home-grid three">
+        <div>
+          <div class="home-step">STEP 01</div>
+          <h3>Upload sales history</h3>
+          <p>Drop a CSV of SKU, store, date and units. A global gradient-boosted model fits the
+            full demand distribution &mdash; seven quantile levels, not a single point forecast.</p>
+        </div>
+        <div>
+          <div class="home-step">STEP 02</div>
+          <h3>State your two costs</h3>
+          <p>What a missed sale costs, and what a spoiled unit costs. Those two numbers set the
+            critical ratio, and the critical ratio is the whole policy.</p>
+        </div>
+        <div>
+          <div class="home-step">STEP 03</div>
+          <h3>Read the order sheet</h3>
+          <p>Per-SKU quantities, buffer stock and expected cost, priced against the naive and
+            fixed-95% alternatives so the saving is auditable rather than asserted.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="home-block">
+      <div class="home-head-row">
+        <div>
+          <div class="home-eye">Results</div>
+          <h2 class="home-h2" style="margin:0">The money table</h2>
+        </div>
+        <p class="home-head-note"><span id="hDecisions3">&mdash;</span> decisions across 5
+          rolling-origin folds, priced against realised demand &mdash; never against the
+          forecast that produced the order.</p>
+      </div>
+      <div class="panel money-scroll">
+        <table class="home-money">
+          <thead>
+            <tr>
+              <th>Policy</th><th>Stockout rate</th><th>Waste units</th><th>Total cost</th><th>vs naive</th>
+            </tr>
+          </thead>
+          <tbody id="hMoneyBody"></tbody>
+        </table>
+      </div>
+      <p class="home-foot">Every cost figure here is a stated assumption, not a measured fact:
+        a 30% margin, 60% spoilage and 2%/day holding produce the
+        <span id="hCR2">&mdash;</span> critical ratio. Newsvendor wins at every spoilage rate
+        from 0.0 to 1.0, so the conclusion does not depend on those particular numbers.</p>
+    </div>
+
+    <div class="home-block">
+      <div class="home-head-row">
+        <div>
+          <div class="home-eye blue">And on your own sales</div>
+          <h2 class="home-h2" style="margin:0;max-width:24ch">A forecast that has to earn the right to be used</h2>
+        </div>
+        <p class="home-head-note">The calculator above runs in your browser. This runs on the
+          service, on a file you upload, and keeps nothing longer than 30 days.</p>
+      </div>
+      <div class="home-grid two">
+        <div>
+          <div class="home-step">IT REFUSES WHAT IT CANNOT SERVE</div>
+          <h3>Told, not guessed at</h3>
+          <p>Every product is checked before anything is fitted, and the ones that fall short
+            are named with the shortfall &mdash; 90 days of history needed, 21 found. A partial
+            pass is still a pass: the rest are forecast, and the refused ones go to the
+            calculator instead.</p>
+        </div>
+        <div>
+          <div class="home-step">IT REPORTS ITS OWN LOSSES</div>
+          <h3>Both scores, every time</h3>
+          <p>The model is backtested against a simple method on your data, and the winner is
+            served whichever it is. When the two are within 5% it is called a draw and the
+            simpler method takes it. A service that quietly returns the loser of its own
+            comparison looks validated and is not.</p>
+        </div>
+        <div>
+          <div class="home-step blue">MEASURED IS NOT ASSUMED</div>
+          <h3>Festivals, with the working shown</h3>
+          <p>A festival can raise a quantity only while showing what raised it: the keyword it
+            matched, the run-up days inside your window, both quantities side by side, and
+            whether the ratio came from your own sales or from a reference figure. A measured
+            1.4x and a suggested 2.0x are different kinds of claim and never look alike.</p>
+        </div>
+        <div>
+          <div class="home-step amber">YOUR DATA IS A LIABILITY, NOT AN ASSET</div>
+          <h3>Deleted on request, deleted anyway</h3>
+          <p>No accounts and no cookies. Your file, its forecasts and its stored history are
+            deleted 30 days after upload whether you ask or not, and one button removes all
+            three now. Analytics count runs and nothing else &mdash; no file names, no product
+            names.</p>
+        </div>
+      </div>
+      <div class="home-acts" style="margin-top:32px">
+        <button type="button" class="btn-ghost blue" data-goto="full">
+          Forecast your own sales
+          <svg class="arrow" width="16" height="16" viewBox="0 0 24 24" stroke-width="1.5"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="home-block">
+      <div class="home-cta bracket"><span class="bk"></span>
+        <h2>Run it on your own numbers.</h2>
+        <p>No account, no setup. A CSV and two cost figures is the whole input.</p>
+        <button type="button" class="btn-solid" data-goto="calculator">
+          Open the calculator
+          <svg class="arrow" width="16" height="16" viewBox="0 0 24 24" stroke-width="1.5"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+  </section>
+
+
   <!-- ============ HOW MUCH TO ORDER ============ -->
-  <section id="calculator" class="stack fade">
+  <section id="calculator" class="stack fade" hidden>
     <div class="page-head">
       <div>
         <p class="eyebrow">Browser only &middot; nothing leaves this page</p>
@@ -1685,7 +2227,7 @@ __FONTS__
   </section>
 
   <!-- ============ PROOF ============ -->
-  <section id="overview" class="stack fade">
+  <section id="overview" class="stack fade" hidden>
     <div>
       <p class="eyebrow">Tested on 100,720 real ordering decisions from 720 supermarket products</p>
       <h2 style="font-size:19px;margin-bottom:14px">Does this actually work?</h2>
@@ -1948,6 +2490,7 @@ __FONTS__
      the example forecasts belong with the technical detail. Mapping tab -> sections keeps
      that grouping without reshuffling the markup. */
   const TAB_SECTIONS = {
+    home: ['home'],
     calculator: ['calculator'],
     full: ['full'],
     why: ['why'],
@@ -1985,7 +2528,7 @@ __FONTS__
       try { const saved = localStorage.getItem(TAB_KEY); if (TAB_SECTIONS[saved]) wanted = saved; }
       catch (e) { /* private mode */ }
     }
-    if (wanted && wanted !== 'calculator') show(wanted);
+    if (wanted && wanted !== 'home') show(wanted);
   }
   document.addEventListener('click', e => {
     const g = e.target.closest('[data-goto]');
@@ -1997,6 +2540,72 @@ __FONTS__
   const byPolicy = p => M.find(m => m.policy.startsWith(p));
   const naiveM = byPolicy('Current'), fixedM = byPolicy('Fixed'), newsM = byPolicy('Newsvendor');
   const savedAbs = naiveM.total_cost - newsM.total_cost;
+
+  /* ---------------- home ----------------
+     Every figure the landing page asserts is computed here from DATA. The design file
+     states them as literals -- 28.6%, 73%, 41%, 2.5x -- and all of them happened to be
+     correct when it was drawn. Hardcoding them anyway would mean the one page that makes
+     the project's central claim is the one page that cannot notice when the claim stops
+     being true. */
+  function renderHome() {
+    const set = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+    const pct1 = x => (x * 100).toFixed(1) + '%';
+    const pct0 = x => Math.round(x * 100) + '%';
+
+    const cut = (naiveM.total_cost - newsM.total_cost) / naiveM.total_cost;
+    const wasteCut = (naiveM.waste_units - newsM.waste_units) / naiveM.waste_units;
+    const multiple = fixedM.total_cost / naiveM.total_cost;
+    const worst = Math.max(naiveM.total_cost, fixedM.total_cost, newsM.total_cost);
+
+    set('hDecisions', fmt(DATA.n_decisions));
+    set('hDecisions2', fmt(DATA.n_decisions));
+    set('hDecisions3', fmt(DATA.n_decisions));
+    set('hCut', pct1(cut));
+    set('hCut2', pct1(cut));
+    set('hWasteCut', pct0(wasteCut));
+    set('hWasteCut2', pct0(wasteCut));
+    set('hWasteFlow', fmt(naiveM.waste_units) + ' → ' + fmt(newsM.waste_units) + ' units');
+    set('hService', pct0(newsM.critical_ratio));
+    set('hService2', pct0(newsM.critical_ratio));
+    set('hCR', newsM.critical_ratio.toFixed(3));
+    set('hCR2', newsM.critical_ratio.toFixed(3));
+    set('hMultiple', multiple.toFixed(1) + '×');
+    set('hSpoil', Math.round(fixedM.waste_units / 1000) + 'k');
+
+    const bar = (id, v) => {
+      const el = document.getElementById(id);
+      if (el) el.style.width = (v / worst * 100).toFixed(1) + '%';
+    };
+    bar('hBarNaive', naiveM.total_cost);
+    bar('hBar95', fixedM.total_cost);
+    bar('hBarNv', newsM.total_cost);
+
+    set('hMNaive', money(naiveM.total_cost));
+    set('hM95', money(fixedM.total_cost));
+    set('hMNv', money(newsM.total_cost));
+
+    const body = document.getElementById('hMoneyBody');
+    if (body) {
+      const vs = m => m === naiveM
+        ? '<td class="muted">—</td>'
+        : '<td class="' + (m.total_cost > naiveM.total_cost ? 'amber' : 'jade') + '">'
+          + (m.total_cost > naiveM.total_cost ? '+' : '−')
+          + pct1(Math.abs(m.total_cost / naiveM.total_cost - 1)) + '</td>';
+      const row = (m, label, wasteClass, win) =>
+        '<tr' + (win ? ' class="win"' : '') + '>'
+        + '<td>' + label + '</td>'
+        + '<td>' + pct1(m.stockout_rate) + '</td>'
+        + '<td class="' + wasteClass + '">' + fmt(m.waste_units) + '</td>'
+        + '<td' + (win ? ' class="jade"' : '') + '>' + money(m.total_cost) + '</td>'
+        + vs(m) + '</tr>';
+      body.innerHTML =
+        row(naiveM, 'Current practice (naive)', '', false)
+        + row(fixedM, 'Fixed 95% service level', 'amber', false)
+        + row(newsM, 'Newsvendor + our forecast', 'jade', true);
+    }
+  }
+  renderHome();
+  CURRENCY_LISTENERS.push(renderHome);
 
   function renderOverviewMoney() {
     $('#tiles').innerHTML = [
