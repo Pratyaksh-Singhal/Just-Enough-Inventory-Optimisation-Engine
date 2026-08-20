@@ -1039,7 +1039,7 @@ __FONTS__
     border: 1px dashed var(--line);
     border-radius: var(--r);
     background: var(--ground);
-    padding: 44px 24px;
+    padding: 26px 20px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -1057,7 +1057,7 @@ __FONTS__
   .drop-ico {
     width: 38px;
     height: 38px;
-    margin-bottom: 14px;
+    margin-bottom: 12px;
     border: 1px solid var(--line);
     display: flex;
     align-items: center;
@@ -1305,41 +1305,6 @@ __FONTS__
     letter-spacing: .04em
   }
 
-  .saving-hero {
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-left: 3px solid var(--jade);
-    border-radius: var(--r);
-    padding: 17px 20px;
-    margin-bottom: 18px
-  }
-
-  .saving-hero .v {
-    font-family: var(--mono);
-    font-size: 32px;
-    font-weight: 600;
-    letter-spacing: -.03em;
-    color: var(--jade);
-    font-variant-numeric: tabular-nums;
-    line-height: 1.05
-  }
-
-  .saving-hero .k {
-    font-family: var(--mono);
-    font-size: 10.5px;
-    letter-spacing: .09em;
-    text-transform: uppercase;
-    color: var(--ink-3);
-    margin-bottom: 7px
-  }
-
-  .saving-hero .d {
-    font-size: 13px;
-    color: var(--ink-2);
-    margin-top: 8px;
-    max-width: 62ch
-  }
-
   footer {
     border-top: 1px solid var(--line);
     padding: 26px 0 40px;
@@ -1422,10 +1387,12 @@ __FONTS__
     font-family: var(--cond);
     font-weight: 600;
     font-size: 16px;
+    line-height: 1;
     letter-spacing: .02em;
     border-radius: 4px;
-    padding: 14px 24px;
-    cursor: pointer
+    padding: 14px 22px;
+    cursor: pointer;
+    text-decoration: none
   }
 
   .btn-solid { background: var(--jade); color: var(--ground); border: 0 }
@@ -1677,6 +1644,209 @@ __FONTS__
     .home-grid h3, .home-grid.two h3 { font-size: 21px }
     .home-cta { padding: 40px 22px }
     .home-lede { font-size: 16px }
+  }
+
+  /* ---------- what to order: empty state, panels, tiles, chips ---------- */
+
+  /* The step head runs a hairline out to the right margin, which is what makes 03 read as a
+     full-width band rather than a heading floating over a table. */
+  .step-rule { flex: 1 1 auto; height: 1px; background: var(--line); margin-left: 4px }
+
+  .calc-empty {
+    border: 1px dashed var(--line);
+    border-radius: var(--r);
+    padding: 64px 24px;
+    text-align: center
+  }
+
+  .calc-empty-eye {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--ink-4);
+    margin-bottom: 14px
+  }
+
+  .calc-empty-t {
+    font-family: var(--cond);
+    font-weight: 600;
+    font-size: 26px;
+    color: var(--ink-3)
+  }
+
+  /* Full-width, and the only solid jade control on the tab: pressing it is the whole point
+     of the two cards above it. */
+  .run-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    margin-top: 18px;
+    font-family: var(--cond);
+    font-weight: 600;
+    font-size: 16px;
+    line-height: 1;
+    letter-spacing: .02em;
+    background: var(--jade);
+    color: var(--ground);
+    border: 0;
+    border-radius: 4px;
+    padding: 15px 24px;
+    cursor: pointer
+  }
+
+  .run-btn:hover { background: var(--jade-hi) }
+  .run-btn[disabled] { background: var(--line); color: var(--ink-4); cursor: not-allowed }
+
+  .calc-tiles {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    margin-bottom: 24px
+  }
+
+  .ctile {
+    border: 1px solid var(--line);
+    background: var(--surface);
+    padding: 22px 24px
+  }
+
+  .ctile.jade { box-shadow: inset 3px 0 0 var(--jade) }
+  .ctile.amber { box-shadow: inset 3px 0 0 var(--amber) }
+
+  .ctile .k {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin-bottom: 14px
+  }
+
+  .ctile.jade .k { color: var(--jade) }
+
+  .ctile .v {
+    font-family: var(--mono);
+    font-size: 44px;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: -.04em;
+    font-variant-numeric: tabular-nums
+  }
+
+  .ctile.jade .v { color: var(--jade-hi) }
+  .ctile .d { font-size: 14px; line-height: 1.55; color: var(--ink-3); margin-top: 14px }
+  .ctile.amber .d { color: var(--amber) }
+
+  .cpanel { border: 1px solid var(--line); background: var(--surface); margin-top: 24px }
+
+  .cpanel-cap {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--line)
+  }
+
+  .cpanel-cap b { font-family: var(--cond); font-weight: 600; font-size: 19px; color: var(--ink) }
+
+  .cpanel-cap .hint {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--ink-4);
+    text-align: right
+  }
+
+  .dl-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    line-height: 1;
+    color: var(--ink);
+    background: transparent;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    padding: 9px 13px;
+    cursor: pointer;
+    white-space: nowrap
+  }
+
+  .dl-btn:hover { border-color: var(--jade); color: var(--jade-hi) }
+
+  .ctable { width: 100%; border-collapse: collapse; min-width: 720px }
+
+  .ctable th {
+    text-align: right;
+    padding: 13px 24px;
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    background: var(--surface-2);
+    white-space: nowrap
+  }
+
+  .ctable td {
+    text-align: right;
+    padding: 16px 24px;
+    font-family: var(--mono);
+    font-size: 14px;
+    color: var(--ink-2);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap
+  }
+
+  .ctable th:first-child, .ctable td:first-child { text-align: left }
+  .ctable th:last-child, .ctable td:last-child { text-align: left }
+  .ctable tbody tr { border-bottom: 1px solid var(--line-soft) }
+  .ctable tbody tr:last-child { border-bottom: 0 }
+  .ctable td.name { font-family: var(--sans); font-size: 15px }
+  .ctable tr.win { background: var(--callout-jade); box-shadow: inset 3px 0 0 var(--jade) }
+  .ctable tr.win td { font-weight: 600; color: var(--ink) }
+  .ctable .amber { color: var(--amber) }
+  .ctable .blue { color: var(--blue) }
+  .ctable .jade { color: var(--jade-hi) }
+  .ctable .muted { color: var(--ink-4) }
+  .ctable .store { color: var(--ink-3) }
+
+  .chip-note {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 9.5px;
+    font-weight: 500;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    border-radius: 2px;
+    padding: 4px 8px;
+    background: rgba(47, 169, 124, .14);
+    color: var(--jade)
+  }
+
+  .chip-note.warn { background: var(--amber-dim); color: var(--amber) }
+  .chip-note.cool { background: var(--blue-dim); color: var(--blue) }
+
+  @media (max-width: 900px) {
+    .calc-tiles { grid-template-columns: 1fr }
+  }
+
+  @media (max-width: 700px) {
+    .calc-empty { padding: 40px 18px }
+    .calc-empty-t { font-size: 20px }
+    .ctile .v { font-size: 34px }
+    .ctile { padding: 18px }
+    .cpanel-cap { flex-wrap: wrap; gap: 10px }
+    .cpanel-cap .hint { text-align: left }
   }
 
 </style>
@@ -2016,6 +2186,7 @@ __FONTS__
             their money figures but not how many units to order.
           </p>
         </div>
+        <button class="run-btn" type="button" id="calcRun" disabled>Work out what to order</button>
       </div>
     </div>
 
@@ -2023,17 +2194,45 @@ __FONTS__
       <div class="step-head">
         <span class="step-n">03</span>
         <h3>What to order</h3>
+        <i class="step-rule"></i>
       </div>
-      <div id="calcMsg"></div>
-        <div id="calcSaving"></div>
-        <div class="grid g3" id="calcTiles" style="margin-bottom:18px"></div>
-        <div class="tw">
-          <table id="calcTable"></table>
+
+      <!-- Shown until the order has actually been worked out. The results used to render
+           themselves the moment a file was read, which made the "work it out" button look
+           decorative; naming the waiting state is what makes pressing it mean something. -->
+      <div id="calcEmpty" class="calc-empty">
+        <div class="calc-empty-eye">Waiting for figures</div>
+        <div class="calc-empty-t">Load your sales history, then work out the order</div>
+      </div>
+
+      <div id="calcOut" hidden>
+        <div id="calcMsg"></div>
+        <div class="calc-tiles" id="calcTiles"></div>
+
+        <div class="cpanel">
+          <div class="cpanel-cap">
+            <b>Three ways to decide, priced on your figures</b>
+            <span class="hint">Costs are assumptions, not measurements</span>
+          </div>
+          <div class="tw"><table class="ctable" id="calcWays"></table></div>
         </div>
-        <figcaption id="calcCap" style="margin-top:10px"></figcaption>
-        <div class="btnrow" id="dlRow" hidden style="margin-top:14px">
-          <button class="btn" type="button" id="dlCsv">Download this order list</button>
+
+        <div class="cpanel">
+          <div class="cpanel-cap">
+            <b>Your order list</b>
+            <button class="dl-btn" type="button" id="dlCsv">
+              <svg class="arrow" width="13" height="13" viewBox="0 0 24 24" stroke-width="1.5"
+                   stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+              Download
+            </button>
+          </div>
+          <div class="tw"><table class="ctable" id="calcTable"></table></div>
         </div>
+
+        <figcaption id="calcCap" style="margin-top:14px"></figcaption>
       </div>
     </div>
   </section>
@@ -2466,7 +2665,7 @@ __FONTS__
     renderRateInputs();
     renderOverviewMoney();
     update();             // simulator readouts + curve labels re-read money()
-    runCalculator();      // calculator table + tiles re-read money()
+    if (CALC_RAN) runCalculator();   // calculator table + tiles re-read money()
     CURRENCY_LISTENERS.forEach(fn => { try { fn(); } catch (e) { /* one tab must not break the rest */ } });
   }
   $('#curUSD').addEventListener('click', () => setCurrency('USD'));
@@ -2815,6 +3014,7 @@ __FONTS__
     const iDate = find('date', 'day', 'week', 'period');
     const iUnits = find('units_sold', 'units', 'sold', 'qty', 'quantity', 'sales', 'demand');
     const iPrice = find('unit_price', 'price');
+    const iStore = find('store', 'location', 'shop', 'outlet', 'branch');
 
     if (iSku < 0) return { error: 'Could not find a product column. Name one of them "sku", "product" or "item".' };
     if (iUnits < 0) return { error: 'Could not find a sales column. Name one of them "units_sold", "qty" or "sales".' };
@@ -2827,6 +3027,7 @@ __FONTS__
       if (!sku || !Number.isFinite(units)) { skipped++; continue; }
       rows.push({
         sku, date: iDate >= 0 ? c[iDate] : String(i),
+        store: iStore >= 0 ? c[iStore] : '',
         units: Math.max(units, 0),
         price: iPrice >= 0 ? Number(c[iPrice]) : null
       });
@@ -2855,21 +3056,48 @@ __FONTS__
     return out;
   }
 
+  /* Whether the order has been worked out at least once for the file now loaded. The
+     sliders, the currency switch and a fresh upload all used to re-render results the user
+     had never asked for, which is what made the button look like decoration. They now only
+     refresh a result that is already on screen. */
+  let CALC_RAN = false;
+  const EMPTY_HTML = '<div class="calc-empty-eye">Waiting for figures</div>'
+    + '<div class="calc-empty-t">Load your sales history, then work out the order</div>';
+
+  /** A new file is loaded but not yet costed: arm the button, show the waiting state. */
+  function armCalculator() {
+    CALC_RAN = false;
+    const btn = $('#calcRun');
+    btn.disabled = !$('#csv').value.trim();
+    btn.textContent = 'Work out what to order';
+    $('#calcOut').hidden = true;
+    $('#calcEmpty').hidden = false;
+    $('#calcEmpty').innerHTML = EMPTY_HTML;
+  }
+
+  $('#calcRun').addEventListener('click', () => {
+    CALC_RAN = true;
+    $('#calcRun').textContent = 'Work it out again';
+    runCalculator();
+  });
+
   function runCalculator() {
+    if (!CALC_RAN) return armCalculator();
     const raw = $('#csv').value;
     const msg = $('#calcMsg'), tiles = $('#calcTiles'), table = $('#calcTable'), cap = $('#calcCap');
     const clear = html => {
-      msg.innerHTML = html; tiles.innerHTML = ''; table.innerHTML = ''; cap.textContent = '';
-      $('#calcSaving').innerHTML = ''; CAL.skus = new Map();
-      // Nothing to download when there is no order list -- the button would hand back a
-      // header row and nothing else, which reads as the download being broken.
-      $('#dlRow').hidden = true;
+      // Back to the waiting state, with the reason shown above it when there is one.
+      $('#calcOut').hidden = true;
+      $('#calcEmpty').hidden = false;
+      $('#calcEmpty').innerHTML = html
+        ? `<div class="calc-empty-eye">Cannot work this out yet</div><div class="calc-empty-t">${html}</div>`
+        : EMPTY_HTML;
+      CAL.skus = new Map();
     };
 
-    if (!raw.trim()) return clear(`<div class="msg">Paste your sales history on the left, or press
-    <strong>Load example data</strong> to see it working on real supermarket sales.</div>`);
+    if (!raw.trim()) return clear('');
     const parsed = parseCsv(raw);
-    if (parsed.error) return clear(`<div class="msg">${parsed.error}</div>`);
+    if (parsed.error) return clear(parsed.error);
 
     const h = +$('#cover').value;
     const cr = criticalRatio();
@@ -2909,8 +3137,22 @@ __FONTS__
       const naiveOrder = Math.round(expected);
       const recCost = costOf(ordered), naiveCost = costOf(naiveOrder);
 
+      /* The order list shows product and store in separate columns. A file with its own
+         store column is believed; otherwise a trailing "-CA_1"-style suffix is split off,
+         which is how the M5 example data names its series. Anything else keeps the whole
+         string as the product and leaves the store blank rather than inventing one. */
+      const ownStore = rows.find(r => r.store)?.store || '';
+      const m = ownStore ? null : /^(.*)-([A-Za-z]{2}_\d+)$/.exec(sku);
+      const meanOf = f => totals.reduce((a, t) => a + f(t), 0) / totals.length;
+      const mu = meanOf(t => t);
+      const sd = Math.sqrt(meanOf(t => (t - mu) * (t - mu)));
+
       results.push({
-        sku, days: units.length, order: ordered, expected,
+        sku, product: m ? m[1] : sku, store: ownStore || (m ? m[2] : ''),
+        mean: meanOf, cv: mu > 0 ? sd / mu : 0,
+        lastQty: Math.round(totals[totals.length - 1]),
+        q95: Math.ceil(quantile(sorted, 0.95)),
+        days: units.length, order: ordered, expected,
         price, priced: priced.length > 0, cu, co,
         surplus: ordered - expected,
         runOut: totals.filter(t => t > ordered).length / totals.length,
@@ -2919,12 +3161,13 @@ __FONTS__
       });
     });
 
-    if (!results.length) return clear(`<div class="msg">Not enough history yet. Each product needs
-    a few more days than the period you're covering — try a shorter period, or add more days.</div>`);
+    if (!results.length) return clear('Not enough history yet — each product needs a few more '
+      + "days than the period you're covering. Try a shorter period, or add more days.");
 
     results.sort((a, b) => b.order - a.order);
     CAL.skus = new Map(results.map(r => [r.sku, r]));
-    $('#dlRow').hidden = false;
+    $('#calcEmpty').hidden = true;
+    $('#calcOut').hidden = false;
 
     const shortest = Math.min(...results.map(r => r.days));
     const notes = [];
@@ -2936,86 +3179,103 @@ __FONTS__
       : `<div class="msg ok">Ready — ${results.length} products, ${shortest}+ days of history each.</div>`;
 
     const totUnits = results.reduce((a, r) => a + r.order, 0);
-    const netBuffer = results.reduce((a, r) => a + r.surplus, 0);
     const totCost = results.reduce((a, r) => a + r.expCost, 0);
-    const totNaive = results.reduce((a, r) => a + r.naiveCost, 0);
-    const totSaved = totNaive - totCost;
-    const savedPct = totNaive > 0 ? totSaved / totNaive : 0;
 
-    $('#calcSaving').innerHTML = `
-    <div class="saving-hero">
-      <div class="k">Expected saving vs ordering the average</div>
-      <div class="v">${moneySmart(totSaved)}${savedPct > 0.0005 ? ` <span style="font-size:17px;color:var(--ink-3)">(${(savedPct * 100).toFixed(1)}%)</span>` : ''}</div>
-      <div class="d">
-        per ${h}-day cycle, across ${results.length} product${results.length > 1 ? 's' : ''}. This is an
-        <strong>expected value, not a guarantee</strong> — it's what the maths works out to on
-        average across your own past demand, and any single cycle can land either side of it.
-        The comparison orders your average demand instead, then prices both the same way.
-      </div>
-    </div>`;
+    /* Three policies, priced the same way on the same windows. The only thing that differs
+       between the rows is the order quantity, which is the whole claim: the saving comes
+       from choosing a different quantity, not from a different cost model. */
+    const ways = ['last', 's95', 'target'].map(key => {
+      let units = 0, wasted = 0, missed = 0;
+      results.forEach(r => {
+        const q = key === 'last' ? r.lastQty : key === 's95' ? r.q95 : r.order;
+        units += q;
+        wasted += r.mean(t => Math.max(q - t, 0)) * r.co;
+        missed += r.mean(t => Math.max(t - q, 0)) * r.cu;
+      });
+      return { key, units, wasted, missed, total: wasted + missed };
+    });
+    const base = ways[0], mine = ways[2];
+    const deltaPct = base.total > 0 ? (mine.total - base.total) / base.total : 0;
+    const deltaAbs = base.total - mine.total;
 
-    // The buffer is signed on purpose. When wasting stock costs more than a missed sale the
-    // cheapest order sits *below* average demand, and a tile that only ever showed a
-    // non-negative "spare" would hide the single most important thing this tool has to say.
-    const bufferLabel = netBuffer >= 0 ? 'Spare stock included' : 'Held back below average';
-    const bufferNote = netBuffer >= 0
-      ? 'extra units above typical demand, to absorb a busy spell'
-      : 'fewer units than average demand — cheaper, because waste costs you more';
+    /* The first tile is signed and keeps its sign. Ordering to the target is not guaranteed
+       to be cheaper on every file -- on a fat-margin, low-spoilage product it is not -- and a
+       tile that could only ever show a saving would be advertising, not arithmetic. */
+    const cheaper = deltaPct <= 0;
+    const targetPct = Math.round(cr * 100);
     tiles.innerHTML = [
-      ['Total units to order', fmt(totUnits), `to cover the next ${h} day${h > 1 ? 's' : ''}`],
-      [bufferLabel, (netBuffer >= 0 ? '+' : '−') + fmt(Math.abs(Math.round(netBuffer))), bufferNote],
-      ['Expected cost of being wrong', moneySmart(totCost), `vs ${moneySmart(totNaive)} ordering the average`],
-    ].map(([k, v, d]) => `<div class="tile"><div class="k">${k}</div><div class="v">${v}</div><div class="d">${d}</div></div>`).join('');
+      ['jade', "Cost against ordering last week's sales",
+        (cheaper ? '−' : '+') + Math.abs(deltaPct * 100).toFixed(1) + '%',
+        moneySmart(Math.abs(deltaAbs)) + (cheaper ? ' lower' : ' higher') + ', on your two cost figures.'],
+      ['', 'Units to order in total', fmt(totUnits),
+        `Across ${results.length} product${results.length > 1 ? 's' : ''} for the next ${h}-day period.`],
+      [targetPct < 95 ? 'amber' : '', 'In-stock target you are buying', targetPct + '%',
+        targetPct < 95
+          ? 'Below the 95% default, because throwing stock away costs more than the missed sale.'
+          : 'At or above the 95% default, because the missed sale costs more than the waste.'],
+    ].map(([cls, k, v, d]) =>
+      `<div class="ctile ${cls}"><div class="k">${k}</div><div class="v">${v}</div><div class="d">${d}</div></div>`
+    ).join('');
 
-    table.innerHTML = `<thead><tr><th>Product</th><th>Unit price</th><th>Order this many</th>
-    <th>Typical demand</th><th>vs typical</th><th>Chance you run out</th><th>Expected saving</th>
-    <th>What to know</th></tr></thead><tbody>` +
+    const vsBase = w => w === base
+      ? '<td class="muted">—</td>'
+      : `<td class="${w.total > base.total ? 'amber' : 'jade'}">${w.total > base.total ? '+' : '−'}${Math.abs((w.total / base.total - 1) * 100).toFixed(1)}%</td>`;
+    $('#calcWays').innerHTML =
+      `<thead><tr><th>Way of deciding</th><th>Units</th><th>Thrown away</th><th>Sales missed</th>
+      <th>Total</th><th>Against row one</th></tr></thead><tbody>` +
+      [[base, 'Order what sold last week', false],
+       [ways[1], 'Always be 95% in stock', false],
+       [mine, 'Order to the target your costs imply', true]]
+        .map(([w, label, win]) =>
+          `<tr${win ? ' class="win"' : ''}><td class="name">${label}</td>
+          <td>${fmt(w.units)}</td>
+          <td class="amber">${moneySmart(w.wasted)}</td>
+          <td class="blue">${moneySmart(w.missed)}</td>
+          <td>${moneySmart(w.total)}</td>
+          ${vsBase(w)}</tr>`).join('') + '</tbody>';
+
+    $('#calcTable').innerHTML = `<thead><tr><th>Product</th><th>Store</th><th>Typical demand</th>
+    <th>Order this many</th><th>Against typical</th><th>Expected cost</th><th>Note</th></tr></thead><tbody>` +
       results.map(r => {
-        let note = '';
-        if (r.order === 0) note = 'Sells too rarely to stock every cycle — order on request.';
-        else if (r.zeroShare > 0.6) note = 'Slow seller — keep orders small and watch a few cycles.';
-        else if (r.surplus < 0) note = 'Below average on purpose — waste costs you more than a missed sale.';
-        else if (r.surplus < 1) note = 'Demand is steady, so barely any spare is needed.';
-        else note = 'Carrying spare to cover the busy days.';
+        // The chip carries the same judgement the sentence used to, in the space a table can
+        // afford. Order matters: the rarest case has to be tested first or it never shows.
+        let chip = ['', 'Steady'];
+        if (r.order === 0) chip = ['warn', 'Order on request'];
+        else if (r.zeroShare > 0.6) chip = ['warn', 'Slow seller'];
+        else if (r.surplus < 0) chip = ['cool', 'Held back on purpose'];
+        else if (r.cv > 0.35) chip = ['warn', 'Demand jumps about'];
         const vs = r.surplus >= 0
-          ? `<span class="win">+${r.surplus.toFixed(1)}</span>`
-          : `<span class="lose">${r.surplus.toFixed(1)}</span>`;
-        // A near-zero saving is honest output, not a rounding artefact: when the optimal order
-        // lands on the average anyway, optimising genuinely buys nothing for that product.
-        const sv = r.saved > 0.005
-          ? `<span class="win">${moneyFine(r.saved)}</span>`
-          : `<span style="color:var(--ink-3)">—</span>`;
-        // Flagged when it came from the fallback rather than the file, so nobody reads an
-        // invented price as one of their own.
-        const px = r.priced ? moneyFine(r.price)
-          : `<span style="color:var(--ink-3)" title="No unit_price in your file">${moneyFine(r.price)}*</span>`;
-        return `<tr><td>${r.sku}</td>
-      <td class="num">${px}</td>
-      <td class="num"><span class="order-qty">${fmt(r.order)}</span></td>
-      <td class="num">${r.expected.toFixed(1)}</td>
-      <td class="num">${vs}</td>
-      <td class="num">${(r.runOut * 100).toFixed(0)}%</td>
-      <td class="num">${sv}</td>
-      <td class="note-cell">${note}</td></tr>`;
+          ? `<span class="jade">+${r.surplus.toFixed(0)}</span>`
+          : `<span class="blue">${r.surplus.toFixed(0)}</span>`;
+        const px = r.priced ? '' : '<span class="muted" title="No unit_price in your file">*</span>';
+        return `<tr><td class="name">${r.product}</td>
+      <td class="store">${r.store || '—'}</td>
+      <td>${fmt(Math.round(r.expected))}</td>
+      <td class="jade">${fmt(r.order)}</td>
+      <td>${vs}</td>
+      <td>${moneySmart(r.expCost)}${px}</td>
+      <td><span class="chip-note ${chip[0]}">${chip[1]}</span></td></tr>`;
       }).join('') + '</tbody>';
 
-    reveal($('#calcSaving'), tiles, table);
+    reveal(tiles, $('#calcWays'), $('#calcTable'));
 
-    cap.textContent = `Aiming to have enough stock ${Math.round(cr * 100)}% of the time — worked out `
+    cap.textContent = `Aiming to have enough stock ${targetPct}% of the time — worked out `
       + `from your ${Math.round(RATES.margin * 100)}% margin and ${Math.round(RATES.spoilage * 100)}% `
       + `write-off, not chosen. That target is shared across products (both costs scale with `
       + `price, so price cancels out of it), but the money columns are each product's own: they `
-      + `come from its own price. "Typical demand" is your average ${h}-day total, and "vs typical" `
-      + `is how far above or below it you're ordering. A negative number is not an error: when `
-      + `waste costs more than a missed sale, ordering under your average is the cheaper plan.`;
+      + `come from its own price. "Typical demand" is your average ${h}-day total, and "against `
+      + `typical" is how far above or below it you're ordering. A negative number is not an `
+      + `error: when waste costs more than a missed sale, ordering under your average is the `
+      + `cheaper plan. Expected cost is an average over the windows your own file contains, `
+      + `for a period that has not happened yet.`;
   }
 
-  $('#loadDemo').addEventListener('click', () => { $('#csv').value = DATA.demoCsv; runCalculator(); });
+  $('#loadDemo').addEventListener('click', () => { $('#csv').value = DATA.demoCsv; armCalculator(); });
   $('#csvFile').addEventListener('change', e => {
     const f = e.target.files && e.target.files[0];
     if (!f) return;
     const fr = new FileReader();
-    fr.onload = () => { $('#csv').value = String(fr.result); runCalculator(); };
+    fr.onload = () => { $('#csv').value = String(fr.result); armCalculator(); };
     fr.readAsText(f);
   });
   ['input', 'change'].forEach(ev => {
@@ -3104,10 +3364,10 @@ __FONTS__
         $$('#ffHealth').innerHTML = HOSTED
           ? `<span class="lose">The service didn't answer.</span> It sleeps when nobody is
              using it and takes a second or two to wake — try again shortly. The
-             <a href="#" data-goto="calculator">Order calculator</a> tab needs no service at all.`
+             <a href="#" data-goto="calculator">How much to order</a> tab needs no service at all.`
           : `<span class="lose">No service running.</span> This page was opened from a file,
              so start one with <code>run-service</code> — or use the
-             <a href="#" data-goto="calculator">Order calculator</a> tab, which needs none.`;
+             <a href="#" data-goto="calculator">How much to order</a> tab, which needs none.`;
         return false;
       }
     }
@@ -3188,7 +3448,7 @@ __FONTS__
           </tbody></table></div>
         <p class="hint" style="margin-top:8px;font-size:12.5px">
           These aren't errors in your file — there just isn't enough history to test a
-          forecast against. The <a href="#" data-goto="calculator">Order calculator</a>
+          forecast against. The <a href="#" data-goto="calculator">How much to order</a>
           handles them, because it validates nothing.
         </p>`;
     }
