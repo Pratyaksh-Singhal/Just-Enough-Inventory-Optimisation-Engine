@@ -193,8 +193,11 @@
   }
 
   /* ---------- structure ---------- */
+  /* The source gives every tab 48px under the sticky nav and 96px before the footer.
+     At 32 / 72 the first heading sat against the tab strip and the footer rule crowded
+     the last block. */
   main {
-    padding: 32px 0 72px
+    padding: 48px 0 96px
   }
 
   section[hidden] {
@@ -2110,6 +2113,58 @@
     .fmeta { gap: 12px }
   }
 
+  /* ---------- fig 03 ---------- */
+  .simctrl { margin-bottom: 24px }
+
+  .simctrl-top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    gap: 12px
+  }
+
+  .simctrl-l {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .1em;
+    text-transform: uppercase
+  }
+
+  .simctrl-l.amber { color: var(--amber) }
+  .simctrl-l.blue { color: var(--blue) }
+
+  .simctrl output {
+    font-family: var(--mono);
+    font-size: 15px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums
+  }
+
+  .simctrl input[type=range] { width: 100% }
+
+  .simbox { border: 1px solid #234037; background: var(--callout-jade); padding: 18px }
+
+  .simbox-k {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--jade);
+    margin-bottom: 10px
+  }
+
+  .simbox-v {
+    font-family: var(--mono);
+    font-size: 32px;
+    font-weight: 600;
+    color: var(--jade-hi);
+    font-variant-numeric: tabular-nums
+  }
+
+  .simbox-d { font-size: 14px; color: var(--ink-2); margin: 10px 0 0; line-height: 1.55 }
+  .simchart { border: 1px solid var(--line); background: var(--surface); padding: 20px }
+
 </style>
 
 <header>
@@ -2451,7 +2506,7 @@
       </div>
     </div>
 
-    <div class="results">
+    <div class="results" id="calcResults" hidden>
       <div class="step-head">
         <span class="step-n">03</span>
         <h3>What to order</h3>
@@ -2576,7 +2631,7 @@
       </div>
     </div>
 
-    <div class="fcard">
+    <div class="fcard" id="ffRunCard" hidden>
       <div class="fcard-head">
         <div class="fcard-t"><span class="step-n">03</span><h2>The run</h2></div>
       </div>
@@ -2722,75 +2777,39 @@
 
   <!-- ============ SIMULATOR ============ -->
   <section id="simulator" class="stack fade" hidden>
-    <div>
-      <p class="why-eye">Fig. 03 — move the assumptions yourself</p>
-      <h2>Would it still work if the costs were different?</h2>
-      <p class="lede">
-        Move the two sliders and watch the total cost of each plan change, on the same
-        100,720 Walmart outcomes. The point is that the smarter plan stays cheapest across
-        the whole range — the result doesn't depend on having picked flattering numbers.
-      </p>
-    </div>
-
-    <div class="sim">
-      <div class="card">
-        <div class="ctrl">
-          <label for="cu"><span>Cost of a missed sale <span class="chip cool">lost profit</span></span>
-            <output id="cuOut">$0.88</output></label>
-          <input type="range" id="cu" min="0.05" max="3" step="0.01" value="0.88">
-        </div>
-        <div class="ctrl">
-          <label for="co"><span>Cost of wasted stock <span class="chip warn">thrown away</span></span>
-            <output id="coOut">$1.27</output></label>
-          <input type="range" id="co" min="0.05" max="3" step="0.01" value="1.27">
-        </div>
-
-        <div class="readout">
-          <div class="row" style="align-items:flex-end;margin-bottom:2px">
-            <span>Target: have enough stock</span><span class="big-cr" id="crOut">41%</span>
+    <div class="reading wide">
+      <div class="why-fig" style="border-top:0;padding-top:0;margin-bottom:32px">
+        <p class="why-eye">Fig. 03 &mdash; move the assumptions yourself</p>
+        <div class="sim">
+          <div>
+            <div class="simctrl">
+              <div class="simctrl-top">
+                <label for="simSpoil" class="simctrl-l amber">Spoilage rate</label>
+                <output id="simSpoilOut" for="simSpoil">60%</output>
+              </div>
+              <input type="range" id="simSpoil" min="0" max="100" step="1" value="60">
+            </div>
+            <div class="simctrl">
+              <div class="simctrl-top">
+                <label for="simTarget" class="simctrl-l blue">In-stock target you pick</label>
+                <output id="simTargetOut" for="simTarget">95%</output>
+              </div>
+              <input type="range" id="simTarget" min="5" max="99" step="1" value="95">
+            </div>
+            <div class="simbox">
+              <div class="simbox-k">Cheapest target at this spoilage</div>
+              <div class="simbox-v" id="simCheapest">&mdash;</div>
+              <p class="simbox-d" id="simVerdict">&mdash;</p>
+            </div>
           </div>
-          <div class="row" style="margin-bottom:6px"><span>&nbsp;</span><span style="color:var(--ink-3)">of the
-              time</span></div>
-          <div class="row"><span>vs. always-in-stock plan</span><b id="qtyOut">—</b></div>
-        </div>
-        <div class="readout">
-          <div class="row"><span>Our recommended plan</span><b class="win" id="cNews">—</b></div>
-          <div class="row"><span>What you're probably doing now</span><b id="cNaive">—</b></div>
-          <div class="row"><span>Always keep 95% in stock</span><b id="cFixed">—</b></div>
-          <div class="row" style="border-top:1px solid var(--line);margin-top:7px;padding-top:10px">
-            <span>You'd save</span><b class="win" id="cSaved">—</b>
+          <div class="simchart">
+            <div id="curve"></div>
+            <p class="panel-note" id="curveCap" style="margin:14px 0 0;padding-top:14px;border-top:1px solid var(--line-soft)"></p>
           </div>
         </div>
       </div>
 
-      <div>
-        <figure>
-          <div class="legend">
-            <span><i style="background:var(--jade)"></i>Our recommended plan, at every in-stock target</span>
-            <span><i style="background:var(--ink-3)"></i>What you're probably doing now</span>
-            <span><i style="background:var(--amber)"></i>Always keep 95% in stock</span>
-          </div>
-          <div id="curve"></div>
-          <figcaption id="curveCap"></figcaption>
-        </figure>
-        <div class="callout" style="margin-top:20px" id="simNote"></div>
-      </div>
-    </div>
-
-    <div>
-      <h3>Why the answer usually isn't "always keep it in stock"</h3>
-      <p class="prose" style="margin-top:8px">
-        Missing a sale costs you the profit on that one item — you still have the goods, you
-        just didn't sell them today. Wasting stock costs you almost what you paid for it,
-        because most of it gets thrown out. When wasting stock costs roughly three times more
-        than missing a sale, the cheapest plan runs out of stock well below the "always
-        in-stock" target that feels safe by default. Drag the wasted-stock slider down toward
-        zero and the recommended target climbs back up toward 95% — that's the only situation
-        where "always keep it in stock" is actually the cheapest plan.
-      </p>
-    </div>
-
-    <div class="why-fig">
+      <div class="why-fig">
       <p class="why-eye">Fig. 04 &mdash; what would make this wrong</p>
       <div class="home-grid three risk-grid">
         <div>
@@ -2809,6 +2828,7 @@
             saving. They do not set its sign.</p>
         </div>
       </div>
+    </div>
     </div>
   </section>
 
@@ -3132,50 +3152,85 @@
     return { nC, fC };
   }
 
-  function update() {
-    const cu = +$('#cu').value, co = +$('#co').value, cr = cu / (cu + co);
-    $('#cuOut').textContent = money(cu); $('#coOut').textContent = money(co);
-    $('#cu').style.setProperty('--p', ((cu - 0.05) / (3 - 0.05) * 100) + '%');
-    $('#co').style.setProperty('--p', ((co - 0.05) / (3 - 0.05) * 100) + '%');
-    $('#crOut').textContent = Math.round(cr * 100) + '%';
+  /* Fig. 03. The design's model, not the old one: spoilage is the assumption you move, and
+     the in-stock target is a number you *pick* so the page can price picking it wrong. The
+     margin stays at the money table's 30% so this figure and that table stay comparable.
 
-    let best = null;
-    SW.forEach(p => { const c = cost(p, cu, co); if (!best || c < best.cost) best = { cr: p.cr, cost: c, p }; });
-    const { nC, fC } = renderCurve(cu, co, cr, best);
+     The old version exposed the two unit costs directly, in currency. That made the axis
+     read in dollars, put three policy lines and a legend on one chart, and needed a
+     paragraph to explain the gap between the arithmetic and the sweep. Cost here is indexed
+     instead: the shape is the finding, not the height. */
+  const SIM_MARGIN = naiveM.margin_rate;
 
-    // policy the CR actually selects (clamped to fitted grid)
-    const sel = SW.reduce((a, b) => Math.abs(b.cr - cr) < Math.abs(a.cr - cr) ? b : a);
-    const selCost = cost(sel, cu, co);
-    $('#cNews').textContent = money(selCost);
-    $('#cNaive').textContent = money(nC);
-    $('#cFixed').textContent = money(fC);
-    const saved = (nC - selCost) / nC;
-    $('#cSaved').textContent = (saved >= 0 ? '−' : '+') + Math.abs(saved * 100).toFixed(1) + '% (' + money(Math.abs(nC - selCost)) + ')';
-    $('#cSaved').className = saved >= 0 ? 'win' : 'lose';
-    $('#qtyOut').textContent = 'runs out ' + (sel.stockout_rate * 100).toFixed(1) + '% of the time, vs ' + (F95.stockout_rate * 100).toFixed(1) + '%';
-
-    $('#curveCap').textContent =
-      `Not a smoothed guess: for every possible in-stock target, we counted exactly how many units would have been missed or wasted across all 100,720 real outcomes, then multiplied by your two costs above. Moving a slider only changes that multiplication, so the line updates instantly with no re-modelling.`;
-
-    const gap = best.cr - cr, lost = selCost - best.cost;
-    const gapTxt = Math.abs(gap) <= 0.011
-      ? `The cheapest target here is <strong>${Math.round(best.cr * 100)}%</strong>, matching what the simple cost math above predicts — they agree at this cost ratio.`
-      : `<strong>The simple math and the real data disagree slightly, and it's worth knowing why.</strong>
-       The cost math above says target <strong>${Math.round(cr * 100)}%</strong>, but the
-       actual cheapest target on real outcomes is <strong>${Math.round(best.cr * 100)}%</strong>
-       — following the math exactly would leave ${money(Math.abs(lost))} on the table
-       (${(Math.abs(lost) / selCost * 100).toFixed(2)}% of total cost). That's because our demand
-       predictions tend to run a little low, so aiming a bit higher than the simple math
-       suggests ends up matching reality more closely.`;
-    $('#simNote').innerHTML =
-      `<span class="hd">These two costs are your call — change them to match your business</span><p style="margin:0">${gapTxt}
-     Both sliders are a cost per unit — set them to what a missed sale and a wasted item
-     actually cost you. The default (${money(0.88)} / ${money(1.27)}) matches the assumptions
-     used in the money table above. These sliders use one flat cost per unit, while the
-     money table priced every item at its own shelf price, so totals here run 0.1–2% higher
-     depending on the plan.</p>`;
+  /** Cu and Co per unit of price at a given spoilage rate. Mirrors costs.py. */
+  function simCosts(spoil) {
+    return { cu: SIM_MARGIN, co: (1 - SIM_MARGIN) * (spoil + HOLDING_RATE) };
   }
-  ['input', 'change'].forEach(ev => { $('#cu').addEventListener(ev, update); $('#co').addEventListener(ev, update); });
+
+  function update() {
+    const spoil = +$('#simSpoil').value / 100;
+    const pick = +$('#simTarget').value / 100;
+    $('#simSpoilOut').textContent = Math.round(spoil * 100) + '%';
+    $('#simTargetOut').textContent = Math.round(pick * 100) + '%';
+    $('#simSpoil').style.setProperty('--p', (spoil * 100) + '%');
+    $('#simTarget').style.setProperty('--p', ((pick * 100 - 5) / 94 * 100) + '%');
+
+    const { cu, co } = simCosts(spoil);
+    const costs = SW.map(p => cost(p, cu, co));
+    let bi = 0;
+    costs.forEach((c, i) => { if (c < costs[bi]) bi = i; });
+    const best = SW[bi];
+
+    // The picked target snapped to the fitted grid -- the sweep is on 1% steps, so this is
+    // the same number, not an approximation of it.
+    let pi = 0;
+    SW.forEach((p, i) => { if (Math.abs(p.cr - pick) < Math.abs(SW[pi].cr - pick)) pi = i; });
+    const over = costs[pi] / costs[bi] - 1;
+
+    $('#simCheapest').textContent = Math.round(best.cr * 100) + '%';
+    $('#simVerdict').textContent = over < 0.0005
+      ? `That is the target you have picked, so you are already on the cheapest one at this spoilage rate.`
+      : `Your ${Math.round(pick * 100)}% target costs ${(over * 100).toFixed(1)}% more than the `
+        + `cheapest one at this spoilage rate.`;
+
+    renderCurve(costs, bi, pi);
+
+    $('#curveCap').textContent = 'Cost is indexed, not currency — the shape of the curve is '
+      + 'the finding, not its height. The right-hand climb is spoilage; the left-hand climb '
+      + 'is lost margin.';
+  }
+
+  /** One line, two markers, four labels. Everything else was noise. */
+  function renderCurve(costs, bi, pi) {
+    const w = 880, h = 300, x0 = 70, x1 = 860, y0 = 20, y1 = 250;
+    const lo = Math.min(...costs), hi = Math.max(...costs);
+    const X = i => x0 + i / (costs.length - 1) * (x1 - x0);
+    const Y = v => y1 - (v - lo) / ((hi - lo) || 1) * (y1 - y0) * 0.88;
+    const pts = costs.map((c, i) => `${X(i).toFixed(1)},${Y(c).toFixed(1)}`).join(' ');
+    const bx = X(bi).toFixed(1), px = X(pi).toFixed(1), py = Y(costs[pi]).toFixed(1);
+    const t = (x, y, txt, fill, anchor) =>
+      `<text x="${x}" y="${y}" ${anchor ? `text-anchor="${anchor}" ` : ''}fill="${fill}" `
+      + `font-family="JetBrains Mono, monospace" font-size="${anchor === 'end' || fill === '#5F6F69' ? 10 : 11}">${txt}</text>`;
+    $('#curve').innerHTML =
+      `<svg class="fluid" viewBox="0 0 ${w} ${h}" role="img" aria-label="Indexed cost against in-stock target">`
+      + `<line x1="${x0}" y1="${y1}" x2="${x1}" y2="${y1}" stroke="#222E2A" stroke-width="1"></line>`
+      + `<line x1="${x0}" y1="${y0}" x2="${x0}" y2="${y1}" stroke="#222E2A" stroke-width="1"></line>`
+      + `<polyline points="${pts}" fill="none" stroke="#2FA97C" stroke-width="2.4"></polyline>`
+      + `<line x1="${bx}" y1="${y0}" x2="${bx}" y2="${y1}" stroke="#2FA97C" stroke-width="1" stroke-dasharray="4 4"></line>`
+      + `<line x1="${px}" y1="${y0}" x2="${px}" y2="${y1}" stroke="#4F86D4" stroke-width="1.4"></line>`
+      + `<circle cx="${px}" cy="${py}" r="4.5" fill="#4F86D4"></circle>`
+      + t(+bx + 6, 36, 'cheapest', '#69DBAA')
+      + t(x0, 270, '5% in stock', '#5F6F69')
+      + t(x1, 270, '99% in stock', '#5F6F69', 'end')
+      + t(14, 26, 'cost', '#5F6F69')
+      + t(14, 254, 'low', '#5F6F69')
+      + '</svg>';
+  }
+
+  ['input', 'change'].forEach(ev => {
+    $('#simSpoil').addEventListener(ev, update);
+    $('#simTarget').addEventListener(ev, update);
+  });
 
   /* ================= ORDER CALCULATOR =================
      Works entirely on data the user pastes in, in the browser. Nothing is uploaded.
@@ -3344,6 +3399,7 @@
     const btn = $('#calcRun');
     btn.disabled = !$('#csv').value.trim();
     btn.textContent = 'Work out what to order';
+    $('#calcResults').hidden = true;
     $('#calcOut').hidden = true;
     $('#calcEmpty').hidden = false;
     $('#calcEmpty').innerHTML = EMPTY_HTML;
@@ -3361,6 +3417,7 @@
     const msg = $('#calcMsg'), tiles = $('#calcTiles'), table = $('#calcTable'), cap = $('#calcCap');
     const clear = html => {
       // Back to the waiting state, with the reason shown above it when there is one.
+      $('#calcResults').hidden = !html;
       $('#calcOut').hidden = true;
       $('#calcEmpty').hidden = false;
       $('#calcEmpty').innerHTML = html
@@ -3440,6 +3497,7 @@
 
     results.sort((a, b) => b.order - a.order);
     CAL.skus = new Map(results.map(r => [r.sku, r]));
+    $('#calcResults').hidden = false;
     $('#calcEmpty').hidden = true;
     $('#calcOut').hidden = false;
 
@@ -3645,7 +3703,11 @@
         if (note) note.textContent = notes[i];
       });
     }
-    const msg = (html, cls = 'msg') => { $$('#ffMsg').innerHTML = `<div class="${cls}">${html}</div>`; };
+    const msg = (html, cls = 'msg') => {
+      // Anything worth saying about a run means the run card has something in it.
+      $$('#ffRunCard').hidden = false;
+      $$('#ffMsg').innerHTML = `<div class="${cls}">${html}</div>`;
+    };
 
     /* ---- connection ---- */
     async function ping() {
@@ -3717,7 +3779,8 @@
            Results for a file the user believes was refused is the worst possible outcome
            here -- worse than an error, because it looks like it worked. */
         S.dataset = null; S.job = null; S.results = []; S.sku = null; S.lastJob = null;
-        S.gate = null; S.status = null; S.fileLabel = null; steps();
+        S.gate = null; S.status = null; S.fileLabel = null;
+        $$('#ffRunCard').hidden = true; steps();
         clearInterval(S.poll);
         $$('#ffRun').disabled = true;
         $$('#ffChartWrap').hidden = true;
