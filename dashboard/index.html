@@ -1917,6 +1917,62 @@
     .why-fig { margin-bottom: 32px; padding-top: 24px }
   }
 
+  /* ---------- proof it works ---------- */
+  .reading.wide { max-width: 1200px }
+
+  .proof-head {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    gap: 56px;
+    align-items: end;
+    margin-bottom: 48px
+  }
+
+  .proof-lede { font-size: 17px; line-height: 1.7; color: var(--ink-2); margin: 0; max-width: 60ch }
+  .proof-stat { border: 1px solid var(--line); background: var(--surface); padding: 28px }
+
+  .proof-stat-big {
+    font-family: var(--mono);
+    font-size: 64px;
+    font-weight: 600;
+    line-height: .92;
+    letter-spacing: -.04em;
+    color: var(--jade-hi);
+    font-variant-numeric: tabular-nums
+  }
+
+  .proof-stat-note {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-4);
+    margin-top: 14px;
+    line-height: 1.8
+  }
+
+  /* Fig 03: controls in a fixed column, the curve taking whatever is left. */
+  .sim {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 40px;
+    align-items: start
+  }
+
+  .risk-grid > div { background: var(--surface); padding: 24px }
+  .risk-grid h4 { font-family: var(--cond); font-weight: 600; font-size: 19px; margin: 0 0 10px }
+  .risk-grid p { font-size: 14px; line-height: 1.7; color: var(--ink-2); margin: 0 }
+
+  @media (max-width: 1000px) {
+    .proof-head { grid-template-columns: 1fr; gap: 32px }
+    .sim { grid-template-columns: 1fr; gap: 24px }
+    .risk-grid { grid-template-columns: 1fr }
+  }
+
+  @media (max-width: 700px) {
+    .proof-stat { padding: 20px }
+    .proof-stat-big { font-size: 44px }
+    .proof-head { margin-bottom: 32px }
+  }
+
 </style>
 
 <header>
@@ -2465,82 +2521,46 @@
 
   <!-- ============ PROOF ============ -->
   <section id="overview" class="stack fade" hidden>
-    <div>
-      <p class="eyebrow">Tested on 100,720 real ordering decisions from 720 supermarket products</p>
-      <h2 style="font-size:19px;margin-bottom:14px">Does this actually work?</h2>
-      <div class="hero">
-        <div class="figure" id="heroFig">−28.6%</div>
-        <p class="caption">
-          <strong>lower inventory costs</strong> than ordering the way most stores do today.
-          And the plan a lot of teams reach for instead — always keep 95% of items in stock —
-          actually costs <strong>2.5× more</strong> than doing nothing clever at all.
-        </p>
-      </div>
-      <p class="lede" style="margin-top:20px;margin-bottom:0">
-        These results come from real Walmart sales data (2011–2016), using the same ordering
-        method the calculator applies to your data. Every plan was tested against sales that
-        actually happened, never against a prediction of them.
-      </p>
-    </div>
+    <div class="reading wide">
+      <p class="why-eye">Tier 1 &middot; precomputed on M5 retail data</p>
 
-    <div class="grid g4" id="tiles"></div>
-
-    <div>
-      <h2>What each plan costs you</h2>
-      <p class="lede">
-        Three ways of deciding how much to order, run against the same demand that actually
-        happened — not against a guess.
-      </p>
-      <div class="tw">
-        <table id="moneyTable"></table>
-      </div>
-      <figure style="margin-top:18px">
-        <div class="legend">
-          <span><i style="background:var(--blue)"></i>Cost of missed sales</span>
-          <span><i style="background:var(--amber)"></i>Cost of unsold stock thrown away</span>
+      <div class="proof-head">
+        <div>
+          <h1 class="why-h1" style="max-width:24ch">Measured, on decisions that already happened</h1>
+          <p class="proof-lede"><span id="pDecisions">&mdash;</span> stocking decisions across five
+            rolling-origin folds, each priced against the demand that actually arrived &mdash;
+            never against the forecast that produced the order.</p>
         </div>
-        <div id="costBars"></div>
-        <figcaption>
-          Each bar is one plan's total cost, split into the two ways it can lose you money.
-          The "always keep 95% in stock" bar is mostly amber — it avoids running out by
-          throwing away a lot of unsold stock.
-        </figcaption>
-      </figure>
-    </div>
+        <div class="proof-stat">
+          <div class="home-stat-lbl">Fig. 01 &mdash; cost against current practice</div>
+          <div class="proof-stat-big" id="pCut">&mdash;</div>
+          <div class="home-stat-cap" style="font-size:20px;margin-top:10px">lower total inventory cost</div>
+          <div class="proof-stat-note">
+            Waste <span id="pWasteFlow">&mdash;</span>.<br>
+            Stockout rate rose <span id="pStockFlow">&mdash;</span>.
+          </div>
+        </div>
+      </div>
 
-    <div class="callout blue">
-      <span class="hd">Why the best plan still runs out of stock sometimes</span>
-      <p style="margin:0">
-        <strong>The best plan runs out of stock about 48% of the time. That's not a mistake
-          — it's the cheaper choice.</strong> When throwing away a wasted item costs more than
-        losing a sale, it's cheaper to run out sometimes than to always have enough on the
-        shelf. Today's approach runs out less often (31%) — but that lower number is bought
-        with far more waste: 78,106 units thrown out instead of 20,714. A low
-        "in-stock rate" sounds good but isn't the same as low cost — check the total-cost
-        column, not the stockout column alone.
-      </p>
-    </div>
-
-    <div class="callout amber">
-      <span class="hd">These numbers depend on a few assumptions you can change</span>
-      <p style="margin:0">
-        The sales data doesn't say what your profit margin is, how much of your unsold stock
-        actually spoils, or what it costs to hold it. This page assumes a
-        <strong>30% profit margin</strong>, that <strong>60% of unsold stock</strong> is a
-        total loss, and a small daily holding cost — reasonable numbers for fresh food, but
-        you should use your own. Go to <a href="#" data-goto="simulator" style="color:var(--jade)">How much to order</a>
-        and move the sliders: the smarter
-        plan keeps winning across the whole range, from barely-perishable to
-        everything-spoils.
-      </p>
+      <div class="why-fig">
+        <p class="why-eye">Fig. 02 &mdash; the money table</p>
+        <div class="cpanel" style="margin-top:0">
+          <div class="tw"><table class="ctable" id="moneyTable"></table></div>
+        </div>
+        <p class="why-note" style="max-width:84ch">The middle row has the best in-stock rate on the
+          table and is the most expensive on it by a wide margin. Reaching 95% took
+          <span id="pSpoiled">&mdash;</span> units of stock that spoiled. Cost figures rest on
+          stated assumptions &mdash; a 30% margin, 60% spoilage, 2% a day holding &mdash; and the
+          ordering rule wins at every spoilage rate from 0.0 to 1.0, so the conclusion does not
+          depend on them.</p>
+      </div>
     </div>
   </section>
 
   <!-- ============ SIMULATOR ============ -->
   <section id="simulator" class="stack fade" hidden>
     <div>
-      <hr class="rule" style="margin-bottom:30px">
-      <p class="eyebrow">Stress-test the assumptions — drag either slider</p>
+      <p class="why-eye">Fig. 03 — move the assumptions yourself</p>
       <h2>Would it still work if the costs were different?</h2>
       <p class="lede">
         Move the two sliders and watch the total cost of each plan change, on the same
@@ -2605,6 +2625,27 @@
         zero and the recommended target climbs back up toward 95% — that's the only situation
         where "always keep it in stock" is actually the cheapest plan.
       </p>
+    </div>
+
+    <div class="why-fig">
+      <p class="why-eye">Fig. 04 &mdash; what would make this wrong</p>
+      <div class="home-grid three risk-grid">
+        <div>
+          <h4>Overlapping windows</h4>
+          <p>The 28-day totals share days, so they are correlated and the tails are slightly
+            tighter than independent sampling would give. Both tiers have this property.</p>
+        </div>
+        <div>
+          <h4>One dataset, one category</h4>
+          <p>This is M5 food sales in California. The method is general; this evidence is not.
+            Your own data is the only test that counts for you.</p>
+        </div>
+        <div>
+          <h4>Costs are assumed</h4>
+          <p>Margin, spoilage and holding were chosen, not measured. They set the size of the
+            saving. They do not set its sign.</p>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -2845,43 +2886,42 @@
   CURRENCY_LISTENERS.push(renderHome);
 
   function renderOverviewMoney() {
-    $('#tiles').innerHTML = [
-      ['Money saved vs today', money(savedAbs), `<span class="chip good">−28.6% of total cost</span>`],
-      ['Less stock thrown away', fmt(newsM.waste_units) + ' units', `<span class="chip good">−73% vs today</span>`],
-      ['Times you\'d run out', (newsM.stockout_rate * 100).toFixed(1) + '%', `<span class="chip cool">on purpose — see below</span>`],
-      ['Ordering decisions tested', fmt(DATA.n_decisions), `<span class="chip good">against real sales, not guesses</span>`]
-    ].map(([k, v, d]) => `<div class="tile"><div class="k">${k}</div><div class="v">${v}</div><div class="d">${d}</div></div>`).join('');
+    const pct1 = x => (x * 100).toFixed(1) + '%';
+    const cut = (naiveM.total_cost - newsM.total_cost) / naiveM.total_cost;
+    const set = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
 
-    $('#moneyTable').innerHTML = `
-  <thead><tr><th>Plan</th><th>Times you'd run out</th><th>Stock thrown away</th><th>Cost of missed sales</th>
-  <th>Cost of waste</th><th>Total cost</th><th>vs today</th></tr></thead><tbody>` +
+    set('pDecisions', fmt(DATA.n_decisions));
+    set('pCut', pct1(cut));
+    set('pWasteFlow', fmt(naiveM.waste_units) + ' → ' + fmt(newsM.waste_units) + ' units');
+    set('pStockFlow', pct1(naiveM.stockout_rate) + ' → ' + pct1(newsM.stockout_rate));
+    set('pSpoiled', fmt(fixedM.waste_units));
+
+    /* Five columns, as the design draws it. The old table had seven and split the cost into
+       its understock and overstock halves; that breakdown now lives on the calculator tab,
+       where it is priced on the reader's own figures rather than on M5's. */
+    const vs = m => m === naiveM
+      ? '<td class="muted">—</td>'
+      : `<td class="${m.total_cost > naiveM.total_cost ? 'amber' : 'jade'}">`
+        + (m.total_cost > naiveM.total_cost ? '+' : '−')
+        + pct1(Math.abs(m.total_cost / naiveM.total_cost - 1)) + '</td>';
+    const LABELS = {
+      'Current': 'Order what sold last week',
+      'Fixed': 'Always be 95% in stock',
+      'Newsvendor': 'Order to the cost-optimal target',
+    };
+    $('#moneyTable').innerHTML =
+      `<thead><tr><th>Way of deciding</th><th>Ran out on</th><th>Units wasted</th>
+      <th>Total cost</th><th>Against row one</th></tr></thead><tbody>` +
       M.map(m => {
-        const win = m.policy.startsWith('Newsvendor');
-        const delta = (m.total_cost - naiveM.total_cost) / naiveM.total_cost;
-        const dTxt = m === naiveM ? '—' : `<span class="${delta < 0 ? 'win' : 'lose'}">${delta > 0 ? '+' : ''}${(delta * 100).toFixed(1)}%</span>`;
-        const label = m === naiveM ? "What you're probably doing now"
-          : m === fixedM ? 'Always keep 95% in stock'
-            : "Our recommended plan";
-        return `<tr class="${win ? 'hi' : ''}"><td>${label}</td>
-    <td class="num">${(m.stockout_rate * 100).toFixed(1)}%</td>
-    <td class="num">${fmt(m.waste_units)}</td>
-    <td class="num">${money(m.understock_cost)}</td>
-    <td class="num">${money(m.overstock_cost + m.holding_cost)}</td>
-    <td class="num"><b>${money(m.total_cost)}</b></td><td class="num">${dTxt}</td></tr>`;
+        const win = m === newsM;
+        const label = LABELS[Object.keys(LABELS).find(k => m.policy.startsWith(k))] || m.policy;
+        const wasteClass = m === fixedM ? 'amber' : win ? 'jade' : '';
+        return `<tr${win ? ' class="win"' : ''}><td class="name">${label}</td>
+        <td>${pct1(m.stockout_rate)}</td>
+        <td class="${wasteClass}">${fmt(m.waste_units)}</td>
+        <td${win ? ' class="jade"' : ''}>${money(m.total_cost)}</td>
+        ${vs(m)}</tr>`;
       }).join('') + '</tbody>';
-
-    /* stacked cost bars */
-    const w = 760, rowH = 52, h = M.length * rowH + 30, max = Math.max(...M.map(m => m.total_cost)), lx = 190, bw = w - lx - 90;
-    let s = `<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Total cost by policy, split into understock and overstock">`;
-    M.forEach((m, i) => {
-      const y = i * rowH + 12, u = m.understock_cost / max * bw, o = (m.overstock_cost + m.holding_cost) / max * bw;
-      const short = m.policy.replace(" (naive: last week's sales)", "").replace(' service level', '');
-      s += `<text x="0" y="${y + 17}" class="axis" style="font-size:11.5px;fill:${C.ink2}">${short}</text>`;
-      s += `<rect x="${lx}" y="${y}" width="${u}" height="24" fill="${C.blue}" rx="2"/>`;
-      s += `<rect x="${lx + u + 2}" y="${y}" width="${Math.max(o - 2, 0)}" height="24" fill="${C.amber}" rx="2"/>`;
-      s += `<text x="${lx + u + o + 10}" y="${y + 17}" class="axis" style="font-size:11.5px;fill:#E8EFEC">${money(m.total_cost)}</text>`;
-    });
-    s += '</svg>'; $('#costBars').innerHTML = s;
   }
   renderOverviewMoney();
 
