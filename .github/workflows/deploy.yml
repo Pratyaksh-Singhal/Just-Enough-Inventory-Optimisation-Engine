@@ -67,3 +67,18 @@ jobs:
           done
           echo "health never returned 200"
           exit 1
+
+      # A 200 from /health only proves something is running -- it was still green while a
+      # two-day-old image served a stale dashboard. Compare the page actually being served
+      # with the one in this checkout, byte for byte, so "deployed" means this commit's page.
+      - name: Check the served page is this commit's page
+        run: |
+          want=$(sha256sum dashboard/index.html | cut -d' ' -f1)
+          for i in $(seq 1 12); do
+            got=$(curl -s https://inventory-optimization-engine.fly.dev/ | sha256sum | cut -d' ' -f1)
+            echo "attempt $i: served=${got:0:12} want=${want:0:12}"
+            [ "$got" = "$want" ] && exit 0
+            sleep 10
+          done
+          echo "the served page never matched dashboard/index.html from this commit"
+          exit 1
