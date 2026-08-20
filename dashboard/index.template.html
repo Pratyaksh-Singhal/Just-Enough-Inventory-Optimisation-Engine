@@ -1970,6 +1970,134 @@ __FONTS__
     .proof-head { margin-bottom: 32px }
   }
 
+  /* ---------- full forecast ---------- */
+  .ff-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 40px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--line)
+  }
+
+  .ff-eye {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--blue);
+    margin: 0 0 10px
+  }
+
+  h1.ff-h1 {
+    font-family: var(--cond);
+    font-weight: 600;
+    font-size: 40px;
+    line-height: 1.05;
+    letter-spacing: -.02em;
+    margin: 0 0 10px
+  }
+
+  .ff-lede { margin: 0; max-width: 64ch; color: var(--ink-2) }
+
+  /* The stepper. Reached steps are lit, the current one is raised out of the ground, and
+     everything ahead stays dim -- so the strip answers "where am I" before it is read. */
+  .fsteps {
+    display: flex;
+    align-items: stretch;
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+    margin-top: 28px;
+    overflow-x: auto
+  }
+
+  .fstep { flex: 1; min-width: 150px; padding: 16px 18px; background: var(--ground); color: var(--ink-4) }
+  .fstep.done { color: var(--ink) }
+  .fstep.now { background: var(--surface); color: var(--ink) }
+  .fstep-n { font-family: var(--mono); font-size: 10px; letter-spacing: .14em; margin-bottom: 7px; color: #3E4A46 }
+  .fstep.done .fstep-n { color: var(--ink-3) }
+  .fstep.now .fstep-n { color: var(--jade) }
+  .fstep-l { font-family: var(--cond); font-weight: 600; font-size: 16px; line-height: 1.2 }
+  .fstep-note { font-family: var(--mono); font-size: 10px; color: var(--ink-4); margin-top: 5px }
+
+  .fcard { border: 1px solid var(--line); background: var(--surface); margin-top: 24px }
+
+  .fcard-head {
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px
+  }
+
+  .fcard-t { display: flex; align-items: baseline; gap: 10px }
+  .fcard-t h2 { font-family: var(--cond); font-weight: 600; font-size: 19px; margin: 0; letter-spacing: 0 }
+  .fcard-body { padding: 24px }
+
+  .btn-mono {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    line-height: 1;
+    color: var(--jade-hi);
+    background: transparent;
+    border: 1px solid #234037;
+    border-radius: 3px;
+    padding: 8px 12px;
+    cursor: pointer;
+    white-space: nowrap
+  }
+
+  .btn-mono:hover { background: rgba(47, 169, 124, .12); border-color: var(--jade) }
+
+  .updrop {
+    display: block;
+    border: 1px dashed var(--line);
+    background: var(--ground);
+    padding: 26px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .15s, background .15s
+  }
+
+  .updrop:hover { border-color: var(--jade); background: var(--jade-dim) }
+  .updrop-t { font-family: var(--cond); font-weight: 600; font-size: 19px; margin-bottom: 6px; word-break: break-all }
+  .updrop-h { font-family: var(--mono); font-size: 11px; color: var(--ink-3); line-height: 1.8 }
+
+  .fmeta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+    margin-top: 16px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-4)
+  }
+
+  .ff-costs { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; align-items: start }
+  .ff-costs .run-btn { margin-top: 20px }
+
+  /* The delete panel writes itself into #ffData and toggles only that element, so the card
+     around it follows the same flag rather than needing its own. */
+  #ffDataCard:has(#ffData[hidden]) { display: none }
+
+  @media (max-width: 900px) {
+    .ff-costs { grid-template-columns: 1fr; gap: 20px }
+  }
+
+  @media (max-width: 700px) {
+    h1.ff-h1 { font-size: 30px }
+    .fcard-body { padding: 18px }
+    .fcard-head { padding: 14px 18px }
+    .updrop { padding: 20px 16px }
+    .updrop-t { font-size: 17px }
+    .fmeta { gap: 12px }
+  }
+
 </style>
 
 <header>
@@ -2364,63 +2492,83 @@ __FONTS__
        and, when it cannot reach one, explains that the calculator tab is the offline
        path. That is the honest cost of the deviation recorded in dashboard/README.md. -->
   <section id="full" class="stack fade" hidden>
-    <div>
-      <p class="eyebrow">Uploads your file to this service · fits a model · backtests it</p>
-      <h2>Full forecast</h2>
-      <p class="lede">
-        The calculator on the first tab reads a quantile straight off your own demand — no
-        model, no validation, works on a few weeks of data. This tab does the other thing:
-        it fits a model per product, tests it against a simple baseline on <em>your</em>
-        history, and tells you which one won. It needs at least 90 days per product, and it
-        will refuse rather than guess if you don't have them.
-      </p>
+    <div class="ff-head">
+      <div>
+        <p class="ff-eye">Live service &middot; your data leaves this page</p>
+        <h1 class="ff-h1">Full forecast on your own sales</h1>
+        <p class="ff-lede">A model is fitted per product on your history, backtested against a
+          simple method, and only served if it earns the comparison. Files are kept 30 days and
+          you can delete everything at any point.</p>
+      </div>
     </div>
 
-    <div class="calc">
-      <div class="card">
-        <div id="ffHealth" class="hint" style="margin-bottom:16px"></div>
+    <!-- Where the run has got to. Four states, written by steps() from the same S the rest of
+         the tab reads, so the strip cannot claim a stage the page is not in. -->
+    <div class="fsteps" id="ffSteps">
+      <div class="fstep" data-i="0"><div class="fstep-n">01</div><div class="fstep-l">Upload</div><div class="fstep-note">no file</div></div>
+      <div class="fstep" data-i="1"><div class="fstep-n">02</div><div class="fstep-l">Gate</div><div class="fstep-note">&mdash;</div></div>
+      <div class="fstep" data-i="2"><div class="fstep-n">03</div><div class="fstep-l">Costs</div><div class="fstep-note">&mdash;</div></div>
+      <div class="fstep" data-i="3"><div class="fstep-n">04</div><div class="fstep-l">Results</div><div class="fstep-note">not run</div></div>
+    </div>
 
-        <div class="field">
-          <label for="ffFile">Your sales history</label>
-          <span class="hint">Same columns as the calculator: product, date, units sold, and
-            optionally unit price. This one is uploaded and stored.</span>
-          <div class="btnrow">
-            <label class="btn ghost" style="cursor:pointer;margin:0">
-              Choose CSV<input type="file" id="ffFile" accept=".csv,text/csv" style="display:none">
-            </label>
-            <button class="btn ghost" type="button" id="ffDemo">Use example data</button>
-          </div>
-          <div id="ffFileName" class="hint" style="margin-top:8px"></div>
-        </div>
-
-        <div class="field">
-          <label for="ffHorizon">Order enough to cover</label>
-          <select id="ffHorizon">
-            <option value="7">the next 7 days</option>
-            <option value="14">the next 14 days</option>
-            <option value="28" selected>the next 28 days</option>
-          </select>
-        </div>
-        <div class="ctrl">
-          <label for="ffMargin"><span>Your profit margin</span><output id="ffMarginOut">30%</output></label>
-          <input type="range" id="ffMargin" min="1" max="95" step="1" value="30">
-        </div>
-        <div class="ctrl">
-          <label for="ffWaste"><span>Written off if it doesn't sell</span><output
-              id="ffWasteOut">60%</output></label>
-          <input type="range" id="ffWaste" min="0" max="100" step="1" value="60">
-        </div>
-
-        <div class="btnrow" style="margin-top:16px">
-          <button class="btn" type="button" id="ffRun" disabled>Run full forecast</button>
-        </div>
-        <p class="hint" style="font-size:12px;color:var(--ink-3);margin:10px 0 0">
-          Your file is uploaded to the service and stored there so the worker can read it.
-          Unlike the calculator tab, this does leave your browser.
-        </p>
+    <div class="fcard">
+      <div class="fcard-head">
+        <div class="fcard-t"><span class="step-n">01</span><h2>Your file</h2></div>
+        <button class="btn-mono" type="button" id="ffDemo">Use the example file</button>
       </div>
+      <div class="fcard-body">
+        <div id="ffHealth" class="hint" style="margin-bottom:16px"></div>
+        <label class="updrop" for="ffFile">
+          <div class="updrop-t" id="ffFileName">Choose a CSV to upload</div>
+          <div class="updrop-h">product &middot; date &middot; units sold &mdash; this one is
+            uploaded and stored, unlike the calculator tab</div>
+          <input type="file" id="ffFile" accept=".csv,text/csv" style="display:none">
+        </label>
+        <div class="fmeta">
+          <span>NEEDS &nbsp;product &middot; date &middot; units sold</span>
+          <span>OPTIONAL &nbsp;unit price</span>
+          <span>KEPT &nbsp;30 days</span>
+        </div>
+      </div>
+    </div>
 
-      <div>
+    <div class="fcard">
+      <div class="fcard-head">
+        <div class="fcard-t"><span class="step-n">02</span><h2>Your costs, and how long ahead</h2></div>
+      </div>
+      <div class="fcard-body">
+        <div class="ff-costs">
+          <div>
+            <div class="ctrl">
+              <label for="ffMargin"><span>Your profit margin</span><output id="ffMarginOut">30%</output></label>
+              <input type="range" id="ffMargin" min="1" max="95" step="1" value="30">
+            </div>
+            <div class="ctrl">
+              <label for="ffWaste"><span>Written off if it doesn't sell</span><output
+                  id="ffWasteOut">60%</output></label>
+              <input type="range" id="ffWaste" min="0" max="100" step="1" value="60">
+            </div>
+          </div>
+          <div>
+            <div class="field">
+              <label for="ffHorizon">Order enough to cover</label>
+              <select id="ffHorizon">
+                <option value="7">the next 7 days</option>
+                <option value="14">the next 14 days</option>
+                <option value="28" selected>the next 28 days</option>
+              </select>
+            </div>
+            <button class="run-btn" type="button" id="ffRun" disabled>Run full forecast</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="fcard">
+      <div class="fcard-head">
+        <div class="fcard-t"><span class="step-n">03</span><h2>The run</h2></div>
+      </div>
+      <div class="fcard-body">
         <div id="ffMsg"></div>
         <div id="ffGate"></div>
         <div id="ffChartWrap" hidden>
@@ -2436,11 +2584,17 @@ __FONTS__
           <div id="ffFestival"></div>
         </div>
         <div class="tw" style="margin-top:18px">
-          <table id="ffTable"></table>
+          <table class="ctable" id="ffTable"></table>
         </div>
         <div id="ffExcluded" style="margin-top:14px"></div>
-        <div id="ffData" hidden style="margin-top:22px"></div>
       </div>
+    </div>
+
+    <div class="fcard" id="ffDataCard">
+      <div class="fcard-head">
+        <div class="fcard-t"><span class="step-n">04</span><h2>Your file, and getting rid of it</h2></div>
+      </div>
+      <div class="fcard-body"><div id="ffData" hidden></div></div>
     </div>
   </section>
 
@@ -3450,6 +3604,35 @@ __FONTS__
     const S = { file: null, dataset: null, job: null, results: [], sku: null, poll: null, lastJob: null };
 
     const esc = t => { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; };
+
+    /* Which of the four stages the tab is in, written from S rather than tracked separately:
+       a second copy of "where are we" is a second thing that can be wrong. */
+    /** CR from this tab's own two sliders. Same formula as costs.py, same as tier 1. */
+    function ffCr() {
+      const m = +$$('#ffMargin').value / 100, sp = +$$('#ffWaste').value / 100;
+      const cu = m, co = (1 - m) * (sp + HOLDING_RATE);
+      return cu + co > 0 ? cu / (cu + co) : 0.5;
+    }
+
+    function steps() {
+      const host = $$('#ffSteps');
+      if (!host) return;
+      const admitted = S.gate ? S.gate.admitted.length : 0;
+      const excluded = S.gate ? S.gate.excluded.length : 0;
+      const notes = [
+        S.dataset ? (S.fileLabel || 'loaded') : 'no file',
+        S.gate ? `${admitted} in · ${excluded} out` : '—',
+        (ffCr() * 100).toFixed(1) + '% target',
+        S.job ? (S.status || 'running') : 'not run',
+      ];
+      const at = S.job ? 3 : S.dataset ? 2 : 0;
+      [...host.children].forEach((el, i) => {
+        el.classList.toggle('now', i === at);
+        el.classList.toggle('done', i < at);
+        const note = el.querySelector('.fstep-note');
+        if (note) note.textContent = notes[i];
+      });
+    }
     const msg = (html, cls = 'msg') => { $$('#ffMsg').innerHTML = `<div class="${cls}">${html}</div>`; };
 
     /* ---- connection ---- */
@@ -3522,6 +3705,7 @@ __FONTS__
            Results for a file the user believes was refused is the worst possible outcome
            here -- worse than an error, because it looks like it worked. */
         S.dataset = null; S.job = null; S.results = []; S.sku = null; S.lastJob = null;
+        S.gate = null; S.status = null; S.fileLabel = null; steps();
         clearInterval(S.poll);
         $$('#ffRun').disabled = true;
         $$('#ffChartWrap').hidden = true;
@@ -3529,6 +3713,8 @@ __FONTS__
         return null;
       }
       S.dataset = data.dataset_id;
+      S.gate = { admitted: data.admitted || [], excluded: data.excluded || [] };
+      steps();
       // Published for the data-and-deletion panel, which lives in its own script block and
       // cannot see this closure. The retention window travels from the API rather than
       // being hardcoded in the page, so the date shown is the one the purge job enforces.
@@ -3603,6 +3789,8 @@ __FONTS__
             ${j.elapsed_seconds ? ` Took ${j.elapsed_seconds.toFixed(1)}s.` : ''}
             ${j.error ? `<br>${esc(j.error)}` : ''}`, 'msg ok');
           S.lastJob = j;
+          S.status = j.status;
+          steps();
           S.results = j.results;
           renderResults(j);
         } catch (e) {
@@ -3834,8 +4022,13 @@ __FONTS__
     }
 
     /* ---- wiring ---- */
-    $$('#ffMargin').addEventListener('input', e => $$('#ffMarginOut').textContent = e.target.value + '%');
-    $$('#ffWaste').addEventListener('input', e => $$('#ffWasteOut').textContent = e.target.value + '%');
+    $$('#ffMargin').addEventListener('input', e => {
+      $$('#ffMarginOut').textContent = e.target.value + '%'; steps();
+    });
+    $$('#ffWaste').addEventListener('input', e => {
+      $$('#ffWasteOut').textContent = e.target.value + '%'; steps();
+    });
+    steps();
     $$('#ffSku').addEventListener('change', e => selectSku(e.target.value));
     $$('#ffRun').addEventListener('click', run);
 
@@ -3843,11 +4036,13 @@ __FONTS__
       const f = e.target.files && e.target.files[0];
       if (!f) return;
       $$('#ffFileName').textContent = `${f.name} · ${(f.size / 1024).toFixed(0)} KB`;
+      S.fileLabel = f.name; steps();
       if (await upload(f, f.name)) $$('#ffRun').disabled = false;
     });
     $$('#ffDemo').addEventListener('click', async () => {
       const blob = new Blob([DATA.demoCsv], { type: 'text/csv' });
       $$('#ffFileName').textContent = 'example data · real supermarket sales, 7 products';
+      S.fileLabel = 'example data'; steps();
       if (await upload(blob, 'example.csv')) $$('#ffRun').disabled = false;
     });
 
