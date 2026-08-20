@@ -202,6 +202,7 @@
   }
 
   svg.arrow { stroke: currentColor; fill: none; flex: none }
+  .drop-ico svg, .dl-btn svg { flex: none }
 
   .live-tag {
     font-family: var(--mono);
@@ -639,12 +640,20 @@
     line-height: 1.5
   }
 
-  svg {
+  /* Charts scale to their container; icons must not. This used to be a bare `svg` rule,
+     and since a CSS width overrides the HTML width attribute it silently blew every inline
+     icon up to the full width of its button. Anything that should fill its box now says so
+     by carrying .fluid. */
+  svg.fluid {
     display: block;
     width: 100%;
     height: auto;
     overflow: visible
   }
+
+  svg.arrow { width: 16px; height: 16px }
+  .dl-btn svg.arrow { width: 13px; height: 13px }
+  .drop-ico svg { width: 18px; height: 18px }
 
   /* ---------- full forecast tab ----------
      One hue for the demand series. History and forecast are the same quantity at
@@ -3090,7 +3099,7 @@
     const lo = 0, hi = Math.max(...costs, nC, fC) * 1.06;
     const X = c => ml + (c - 0.10) / (0.99 - 0.10) * iw;
     const Y = v => mt + ih - (v - lo) / (hi - lo) * ih;
-    let s = `<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Total cost against service level">`;
+    let s = `<svg class="fluid" viewBox="0 0 ${w} ${h}" role="img" aria-label="Total cost against service level">`;
     for (let i = 0; i <= 4; i++) {
       const v = lo + (hi - lo) * i / 4, y = Y(v);
       s += `<line x1="${ml}" y1="${y}" x2="${w - mr}" y2="${y}" class="gridline"/>`;
@@ -3930,7 +3939,7 @@
       const fi = hist.length;
       const tickFmt = v => fmt(v, step < 1 ? 1 : 0);
 
-      let s = `<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Daily sales for ${esc(r.sku)} with the forecast for the next ${fc.length} days">`;
+      let s = `<svg class="fluid" viewBox="0 0 ${w} ${h}" role="img" aria-label="Daily sales for ${esc(r.sku)} with the forecast for the next ${fc.length} days">`;
       for (let v = 0; v <= maxV + 1e-9; v += step) {
         const y = Y(v);
         s += `<line class="gridline" x1="${ml}" y1="${y.toFixed(1)}" x2="${w - mr}" y2="${y.toFixed(1)}"/>`;
