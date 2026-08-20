@@ -1852,6 +1852,71 @@
     .cpanel-cap .hint { text-align: left }
   }
 
+  /* ---------- why these numbers ----------
+     A reading column, not a dashboard: the source narrows this tab to 1000px because the
+     whole page is one argument read top to bottom, and a 1320px measure would break it. */
+  .reading { max-width: 1000px; margin: 0 auto; padding-bottom: 24px }
+
+  .why-eye {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin: 0 0 16px
+  }
+
+  h1.why-h1 {
+    font-family: var(--cond);
+    font-weight: 600;
+    font-size: 46px;
+    line-height: 1.03;
+    letter-spacing: -.025em;
+    margin: 0 0 20px;
+    max-width: 26ch;
+    text-wrap: balance
+  }
+
+  .why-lede { font-size: 18px; line-height: 1.7; color: var(--ink-2); margin: 0 0 48px; max-width: 66ch }
+  .why-pair { margin-bottom: 48px }
+  .why-pair > div { background: var(--surface); padding: 28px }
+  .why-card-h { font-family: var(--cond); font-weight: 600; font-size: 30px; margin-bottom: 10px }
+  .why-pair p { font-size: 15px; line-height: 1.7; color: var(--ink-2); margin: 0 }
+
+  .why-fig { border-top: 1px solid var(--line); padding-top: 32px; margin-bottom: 48px }
+  .why-fig:last-child { margin-bottom: 0 }
+  .why-say { font-size: 17px; line-height: 1.75; color: var(--ink); margin: 0 0 24px; max-width: 70ch }
+  .why-say:last-of-type { margin-bottom: 0 }
+  .why-note { font-size: 15px; line-height: 1.7; color: var(--ink-3); margin: 20px 0 0; max-width: 70ch }
+
+  .why-box {
+    border: 1px solid var(--line);
+    background: var(--surface);
+    padding: 28px;
+    font-family: var(--mono);
+    font-size: 14px;
+    line-height: 2.2;
+    color: var(--ink-2);
+    overflow-x: auto
+  }
+
+  .why-box .dim { color: var(--ink-4) }
+  .why-box-rule { height: 1px; background: var(--line); margin: 14px 0 }
+  .why-box-out { color: var(--ink); font-size: 16px }
+  .why-box-out b { color: var(--jade-hi); font-weight: 600 }
+
+  .btn-solid.small, .btn-ghost.small { font-size: 15px; padding: 12px 20px; border-radius: 3px }
+
+  @media (max-width: 700px) {
+    h1.why-h1 { font-size: 32px }
+    .why-lede { font-size: 16px; margin-bottom: 32px }
+    .why-pair > div { padding: 20px }
+    .why-card-h { font-size: 23px }
+    .why-say { font-size: 16px }
+    .why-box { padding: 18px; font-size: 12.5px; line-height: 2 }
+    .why-fig { margin-bottom: 32px; padding-top: 24px }
+  }
+
 </style>
 
 <header>
@@ -2328,103 +2393,73 @@
 
   <!-- ============ WHY ============ -->
   <section id="why" class="stack fade" hidden>
-    <div>
-      <p class="eyebrow">The one idea behind every number on this site</p>
-      <h2>Why these numbers</h2>
-      <p class="lede">
-        Ordering too little and ordering too much are not equally bad, and which one is worse
-        decides how much you should order. That's the whole thing.
-      </p>
-    </div>
+    <div class="reading">
+      <p class="why-eye">Tier 1 &middot; the reasoning</p>
+      <h1 class="why-h1">Why a full shelf is the expensive mistake</h1>
+      <p class="why-lede">Two mistakes are possible when you order. You can order too little and
+        miss a sale, or order too much and throw stock away. They do not cost the same, and the
+        whole method is arithmetic on that difference.</p>
 
-    <div class="grid g2">
-      <div class="card">
-        <h3 style="color:var(--blue)">If you order too little</h3>
-        <p class="prose" style="font-size:15px;margin-top:8px">
-          You lose the <strong>profit</strong> on a sale you could have made — your margin,
-          so a 30% margin on a $6 item costs you $1.80 and on a $1 item costs 30¢. Annoying,
-          but you still have your money, and the goods you didn't sell are still yours to sell
-          tomorrow.
-        </p>
+      <div class="home-grid two why-pair">
+        <div>
+          <div class="home-step blue">Order too little</div>
+          <div class="why-card-h">You lose the margin</div>
+          <p>A customer wanted it, you did not have it. On a <span id="wMargin">30%</span> margin
+            you are out <span id="wMargin2">30%</span> of the price. The stock itself cost you
+            nothing, because you never bought it.</p>
+        </div>
+        <div>
+          <div class="home-step amber">Order too much</div>
+          <div class="why-card-h">You lose most of the unit</div>
+          <p>It went unsold and it will not keep. You paid <span id="wCostShare">70%</span> of the
+            price for it and threw away most of that, plus the cost of holding it while it sat
+            there.</p>
+        </div>
       </div>
-      <div class="card">
-        <h3 style="color:var(--amber)">If you order too much</h3>
-        <p class="prose" style="font-size:15px;margin-top:8px">
-          You lose <strong>what you paid</strong> for everything that doesn't sell — not the
-          shelf price, the wholesale cost, because you never earned the margin. For fresh food
-          you lose nearly all of it; where you can discount it, less. This is usually the more
-          expensive mistake, and it's the one people make by trying to never run out.
-        </p>
+
+      <div class="why-fig">
+        <p class="why-eye">Fig. 01 &mdash; the ratio, worked out once</p>
+        <p class="why-say">Divide the cost of ordering too little by the two costs added together,
+          and you get the fraction of the time it is worth being in stock. That fraction is the
+          in-stock target. You do not choose it; the two costs do.</p>
+        <div class="why-box">
+          <div>missed sale &nbsp;= <span id="wCu">30%</span> of price &nbsp;<span class="dim">(the margin)</span></div>
+          <div>thrown away &nbsp;= <span id="wCoParts">70% of price × (60% + 2%)</span> &nbsp;= <span id="wCo">43.4%</span></div>
+          <div class="why-box-rule"></div>
+          <div class="why-box-out">in-stock target &nbsp;= <span id="wFormula">30 ÷ (30 + 43.4)</span>
+            &nbsp;= <b id="wTarget">40.9%</b></div>
+        </div>
+        <p class="why-note">Those three percentages are assumptions. They are yours to change on
+          the <a href="#" data-goto="calculator">How much to order</a> tab, and every figure
+          downstream moves when you do. What is not an assumption is the division.</p>
       </div>
-    </div>
 
-    <div class="callout">
-      <span class="hd">So the right amount to order isn't "enough to never run out"</span>
-      <p style="margin:0">
-        If wasting a unit costs you more than missing a sale, then <strong>running out
-          sometimes is the cheaper outcome</strong> — and the calculator deliberately leaves
-        you short on the quietest days, because covering those days would cost more in waste
-        than it earns in sales. That's why the recommended plan on the next tab runs out 48%
-        of the time and still costs 29% less than what most stores do.
-        <br><br>
-        This isn't a shortcut or an approximation. It's a standard result in operations
-        research (the "newsvendor" problem), and the maths is a single line: order enough to
-        cover demand <em>P</em> of the time, where <em>P</em> = your missed-sale cost divided
-        by the sum of both costs. Move the two sliders in the calculator and it does exactly
-        that.
-      </p>
-    </div>
+      <div class="why-fig">
+        <p class="why-eye">Fig. 02 &mdash; what that means on the shelf</p>
+        <p class="why-say">A <span id="wTarget2">40.9%</span> target means you expect to run out on
+          more days than you have stock left over. That reads like a failure and is not. Running
+          out costs you <span id="wCu2">30%</span>. Being left with it costs you
+          <span id="wCo2">43.4%</span>. If you cannot have both, take the cheaper mistake more
+          often.</p>
+        <p class="why-say">This is the part of the method that survives being explained to the
+          person doing the ordering, which is why it is here and not in a footnote. Nothing after
+          it is more sophisticated than a division.</p>
+      </div>
 
-    <div>
-      <h3>Why the two settings are percentages, not amounts</h3>
-      <p class="prose" style="margin-top:8px">
-        A missed sale on a $6 bottle and a missed sale on a $1 loaf are not the same loss, so
-        one flat cash figure can't price a mixed product list. The calculator asks for two
-        <strong>rates</strong> instead and applies them to each product's own price, taken
-        from the <code>unit_price</code> column of your file:
-      </p>
-      <ul class="prose" style="margin-top:6px">
-        <li><strong>Profit margin</strong> — the share of the shelf price you keep. Run out,
-          and that's what the missed sale costs you: <em>price × margin</em>.</li>
-        <li><strong>Written off if it doesn't sell</strong> — the share of what you
-          <em>paid</em> that you can't recover. Note it comes off your cost, not the shelf
-          price: you never earned the margin, so you can't lose it twice. That works out to
-          <em>price × (1 − margin) × write-off</em>.</li>
-      </ul>
-      <p class="prose">
-        These are the same two formulas the engine behind the rest of this site uses on the
-        Walmart data, so the calculator and the results on the other tabs are costed
-        identically rather than by two different rules.
-      </p>
-      <p class="prose">
-        One consequence worth knowing, because it looks like a bug and isn't: the
-        <strong>service level</strong> the two settings imply is the same for every product.
-        Price appears in both costs, so it cancels out of the ratio between them. What is
-        <em>not</em> the same for every product is the money — a write-off on an expensive
-        item costs more — or the quantity, since each product's order is a percentile of its
-        own sales history. Two products at an identical 41% service level routinely order
-        very different amounts.
-      </p>
-    </div>
-
-    <div>
-      <h3>What the calculator does with your data</h3>
-      <p class="prose" style="margin-top:8px">
-        It looks at how much you actually sold, day by day, and builds up a picture of how
-        much your demand swings around — not just the average, but the good days and the
-        quiet ones. Then it picks the order quantity that leaves you covered often enough to
-        be worth it, given your two costs. It doesn't assume your sales follow a neat curve,
-        which matters for slow-moving items where most days are zero: those get handled
-        correctly rather than being smoothed into a fractional daily average that never
-        happens in real life.
-      </p>
-      <p class="prose">
-        <strong>What it needs from you:</strong> at least a few weeks of daily sales per
-        product, and a <code>unit_price</code> column. More history is better — a couple of
-        months gives a much steadier read on your busy days. Without a price a product still
-        gets an order quantity, but its money figures fall back to a default price and the
-        results table marks it with an asterisk so you know which ones those are.
-      </p>
+      <div class="why-fig">
+        <p class="why-eye">Fig. 03 &mdash; where the forecast comes in</p>
+        <p class="why-say">The target says which point of the demand spread to order to. The
+          forecast supplies the spread &mdash; not one number, but seven, from a quiet day to a
+          very busy one. The order lands where the target falls inside that spread.</p>
+        <p class="why-note" style="margin-bottom:28px">Which is why a better forecast is worth
+          money here in a way it is not worth money in a report: a tighter spread at the same
+          target means less stock for the same protection.</p>
+        <div class="home-acts">
+          <button type="button" class="btn-solid small" data-goto="overview">See it measured on
+            <span id="wDecisions">&mdash;</span> decisions</button>
+          <button type="button" class="btn-ghost small" data-goto="calculator">Try it on your own figures</button>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -2994,10 +3029,43 @@
     return cu + co > 0 ? cu / (cu + co) : 0.5;
   }
 
+
+  /* The Why tab states the derivation in words. Every percentage in it is read back out of
+     unitCosts(), so moving a slider on the calculator tab rewrites the argument here too --
+     and so the page cannot end up explaining a ratio it is no longer using.
+
+     Deliberately *not* the design's figures. The source file works the overage cost out as
+     `spoilage x cost + holding x price` and lands on 44% / 40.5%; costs.py works it out as
+     `cost x (spoilage + holding)` and lands on 43.4% / 40.9%. The engine that produces every
+     other number on this site is the one that wins. */
+  function renderWhy() {
+    const set = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
+    const { cu, co } = unitCosts(1);
+    const cr = criticalRatio();
+    const pc = (x, d = 0) => (x * 100).toFixed(d) + '%';
+    const costShare = 1 - RATES.margin;
+
+    set('wMargin', pc(RATES.margin));
+    set('wMargin2', pc(RATES.margin));
+    set('wCostShare', pc(costShare));
+    set('wCu', pc(cu));
+    set('wCu2', pc(cu));
+    set('wCo', pc(co, 1));
+    set('wCo2', pc(co, 1));
+    set('wCoParts', pc(costShare) + ' of price × (' + pc(RATES.spoilage) + ' spoilage + '
+      + pc(HOLDING_RATE) + ' holding)');
+    set('wFormula', (cu * 100).toFixed(0) + ' ÷ (' + (cu * 100).toFixed(0) + ' + '
+      + (co * 100).toFixed(1) + ')');
+    set('wTarget', pc(cr, 1));
+    set('wTarget2', pc(cr, 1));
+    set('wDecisions', fmt(DATA.n_decisions));
+  }
+
   function renderRateInputs() {
     $('#pMarginOut').textContent = `${Math.round(RATES.margin * 100)}%`;
     $('#pWasteOut').textContent = `${Math.round(RATES.spoilage * 100)}%`;
     $('#fallbackPrice').textContent = moneyFine(FALLBACK_PRICE_USD);
+    renderWhy();
   }
   /** Read the sliders back into canonical rates. Only ever called from a real user edit. */
   function syncRatesFromInputs() {
