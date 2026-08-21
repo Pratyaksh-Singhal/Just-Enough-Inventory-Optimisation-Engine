@@ -20,6 +20,11 @@ newsvendor theory, and reports the cost delta against baseline stocking practice
 the first time, none of which crashed, and every one of which returned a confident,
 plausible, wrong answer.
 
+The dashboard's resolved palette, type roles and layout rules are in
+[`docs/design-system.md`](docs/design-system.md), together with the six CSS rules whose
+violation each shipped a visible bug, and the places where the page deliberately departs
+from its design file.
+
 ---
 
 ## Headline result
