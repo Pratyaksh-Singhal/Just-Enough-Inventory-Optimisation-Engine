@@ -4042,7 +4042,20 @@ __FONTS__
        to hover to discover has not really been shown to you. */
     function renderFestival(r) {
       const box = $$('#ffFestival'), f = r.festival;
-      if (!f || f.state === 'none') { box.innerHTML = ''; return; }
+      if (!f) { box.innerHTML = ''; return; }
+      /* A `none` state normally has nothing to say. The exception is a window past the end
+         of the calendar: the server reports it as `none` because no festival could be
+         dated, and says why in `unresolved`. Rendering nothing there would turn "we cannot
+         see that far" into "nothing is coming", which is the failure the server-side branch
+         exists to prevent -- and the page would undo it on the last hop. */
+      if (f.state === 'none') {
+        const why = (f.unresolved || [])[0];
+        box.innerHTML = why
+          ? `<div class="ff-fest advisory">${esc(f.message || why)}</div>`
+          : '';
+        if (why) reveal(box);
+        return;
+      }
 
       const moved = r.order_qty_before_festival != null
         && Math.ceil(r.order_qty_before_festival) !== Math.ceil(r.order_qty);

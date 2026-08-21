@@ -64,6 +64,8 @@ import pandas as pd
 from inventory_engine.service.festivals import (
     DEFAULT_REGION,
     Festival,
+    coverage,
+    covers,
     tie_break,
     windows_in,
 )
@@ -257,6 +259,25 @@ def plan_for(
         return FestivalPlan.unchanged()
 
     if not nearby:
+        # Two different facts, and only one of them is "nothing is coming". Past the last
+        # year the calendar holds, every product would report `none` for ever -- the exact
+        # silent failure this module's docstring says the design forbids, and the kind that
+        # gets quieter as it gets more wrong.
+        if not covers(last_day, region):
+            first_known, last_known = coverage(region)
+            return replace(
+                FestivalPlan.unchanged(),
+                unresolved=(
+                    f"our festival calendar runs {first_known.isoformat()} to "
+                    f"{last_known.isoformat()} and cannot speak about "
+                    f"{last_day.isoformat()}; no festival adjustment was considered",
+                ),
+                message=(
+                    "No festival adjustment was considered for this order window, because "
+                    f"our calendar ends on {last_known.isoformat()}. That is a gap in what "
+                    "we know, not a statement that nothing is coming."
+                ),
+            )
         return FestivalPlan.unchanged()
 
     nearby_names = tuple(dict.fromkeys(f.name for f in nearby))

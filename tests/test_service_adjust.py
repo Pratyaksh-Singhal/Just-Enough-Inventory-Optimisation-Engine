@@ -23,7 +23,7 @@ from inventory_engine.service.adjust import (
     State,
     plan_for,
 )
-from inventory_engine.service.festivals import festivals
+from inventory_engine.service.festivals import coverage, festivals
 from inventory_engine.service.pipeline import forecast_sku
 from inventory_engine.service.uplift import Source
 
@@ -363,3 +363,54 @@ def test_nothing_a_catalogue_can_contain_produces_an_accidental_match(sku):
     plan = plan_for(sku, ending_before("diwali", 2025, 15), horizon=28)
     assert plan.matches == ()
     assert plan.apply(500.0) == 500.0
+
+
+# ------------------------------------------------- past the end of the calendar
+
+
+def _flat(start: str, days: int = 400, level: float = 10.0) -> pd.Series:
+    index = pd.date_range(start, periods=days, freq="D")
+    return pd.Series(np.full(days, level), index=index)
+
+
+def test_an_order_window_past_the_calendar_says_so_instead_of_reporting_none():
+    """ "We have no dates for that year" and "no festival is coming" are different facts.
+
+    ``windows_in`` returns an empty list for both, and ``plan_for`` used to collapse them
+    into ``State.NONE``. Past the calendar's last year every product would report "nothing
+    near" for ever -- a silent failure that gets quieter as it gets more wrong, and the one
+    this module's docstring says the design forbids.
+    """
+    _, last_known = coverage("IN")
+    beyond = last_known + timedelta(days=400)
+
+    plan = plan_for("Paneer 200g", _flat(beyond.isoformat()), horizon=28)
+
+    assert plan.state is State.NONE
+    assert plan.factor == 1.0
+    assert plan.unresolved, "the calendar ran out and nothing said so"
+    assert last_known.isoformat() in plan.unresolved[0]
+    assert "cannot speak about" in plan.unresolved[0]
+    assert "not a statement that nothing is coming" in plan.message
+
+
+def test_a_quiet_window_inside_the_calendar_stays_silent():
+    """The other half: inside the covered years, "nothing near" needs no explanation."""
+    first_known, _ = coverage("IN")
+    quiet = date(first_known.year + 1, 6, 1)
+
+    plan = plan_for("Paneer 200g", _flat((quiet - timedelta(days=120)).isoformat(), 120), horizon=7)
+
+    if plan.state is State.NONE:
+        assert not plan.unresolved
+        assert plan.message == ""
+
+
+def test_the_expired_calendar_still_leaves_the_quantity_alone():
+    """The invariant the on/off test pins holds in this branch too."""
+    _, last_known = coverage("IN")
+    plan = plan_for(
+        "Paneer 200g", _flat((last_known + timedelta(days=400)).isoformat()), horizon=28
+    )
+    assert plan.apply(250.0) == 250.0
+    assert not plan.adjusts
