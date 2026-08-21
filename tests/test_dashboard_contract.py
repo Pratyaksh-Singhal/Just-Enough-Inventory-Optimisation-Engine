@@ -195,3 +195,40 @@ def test_the_built_page_matches_its_template(page):
         "dashboard/index.html is out of date with its template -- run "
         "scripts/build_dashboard.py and commit the result"
     )
+
+
+def test_the_cost_curve_chooses_its_shape_at_draw_time(page):
+    """SVG text scales with the viewBox, so a wide box on a phone shrinks the words too.
+
+    An 880x300 box rendered about 97px tall with 3px labels in a phone column. The fix is
+    a different viewBox below the breakpoint, which only works if the renderer asks at
+    draw time rather than baking one shape in.
+    """
+    assert "function narrowScreen()" in page
+    curve = page[page.index("function renderCurve(") :][:1600]
+    assert "narrowScreen()" in curve, "renderCurve no longer adapts to the viewport"
+    assert 'font-size="${fs}"' in curve, "label size is no longer tied to the chosen shape"
+
+
+@pytest.mark.parametrize(
+    "tab,marker",
+    [
+        ("home", ".home-block"),
+        ("how much to order", ".drop"),
+        ("why these numbers", "h1.why-h1"),
+        ("proof it works", ".simchart"),
+        ("full forecast", ".updrop"),
+    ],
+)
+def test_every_tab_has_some_narrow_screen_rule(css, tab, marker):
+    """Fig 03 shipped with none at all and kept desktop sizes in a phone column.
+
+    Narrow-screen rules live in several blocks, not one -- each tab's sit just after that
+    tab's own base rules, which is what keeps them winning. So this looks across every
+    ``max-width`` block rather than only the last, and just asserts no tab was forgotten.
+    """
+    narrow = "".join(
+        css[m.start() : css.index("\n  }", m.start())]
+        for m in re.finditer(r"@media\s*\(max-width", css)
+    )
+    assert marker in narrow, f"the {tab} tab has no narrow-screen rule anywhere"
