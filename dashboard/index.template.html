@@ -191,10 +191,14 @@ __FONTS__
 
   /* ---------- structure ---------- */
   /* The source gives every tab 48px under the sticky nav and 96px before the footer.
-     At 32 / 72 the first heading sat against the tab strip and the footer rule crowded
-     the last block. */
-  main {
-    padding: 48px 0 96px
+     Written as `main.wrap` with longhands, and both parts matter. `.wrap` is a class, so it
+     outranks a bare `main` selector -- its `padding: 0 32px` was quietly zeroing the
+     vertical padding, which is why raising the numbers on a `main {}` rule changed nothing
+     at all. Longhands then leave `.wrap`'s horizontal gutter alone instead of resetting it
+     to zero. Home looked fine throughout only because .home-hero brings its own padding. */
+  main.wrap {
+    padding-top: 48px;
+    padding-bottom: 96px
   }
 
   section[hidden] {
@@ -947,8 +951,9 @@ __FONTS__
      was merely generous on a 1500px canvas costs a screenful. Shrink the padding and the
      display figures together -- trimming only one leaves big numbers in cramped boxes. */
   @media (max-width: 700px) {
-    .wrap { padding: 0 18px }
-    section { padding: 26px 0 60px }
+    .wrap { padding-left: 18px; padding-right: 18px }
+    main.wrap { padding-top: 32px; padding-bottom: 64px }
+    footer.wrap { padding-top: 24px; padding-bottom: 36px }
     h2 { font-size: 32px }
     .card { padding: 16px }
     .drop { padding: 22px 16px }
@@ -1317,9 +1322,10 @@ __FONTS__
     letter-spacing: .04em
   }
 
-  footer {
+  footer.wrap {
     border-top: 1px solid var(--line);
-    padding: 26px 0 40px;
+    padding-top: 30px;
+    padding-bottom: 48px;
     color: var(--ink-3);
     font-family: var(--mono);
     font-size: 11.5px;
