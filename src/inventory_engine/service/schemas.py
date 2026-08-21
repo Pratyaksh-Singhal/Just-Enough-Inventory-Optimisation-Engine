@@ -4,11 +4,16 @@ from __future__ import annotations
 
 import uuid
 from datetime import date, datetime
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from pydantic import BaseModel, Field
 
-from inventory_engine.service.gate import GateReport, SkuVerdict
+if TYPE_CHECKING:  # pragma: no cover - import-time only
+    # Names used in annotations and nowhere else. Imported for real, they pull in
+    # `gate`, which imports pandas -- about 2.4s of cold start spent so a response
+    # model could describe its own type. `from __future__ import annotations` keeps
+    # the annotations as strings, so nothing here is needed at runtime.
+    from inventory_engine.service.gate import GateReport, SkuVerdict
 
 
 class SkuVerdictOut(BaseModel):

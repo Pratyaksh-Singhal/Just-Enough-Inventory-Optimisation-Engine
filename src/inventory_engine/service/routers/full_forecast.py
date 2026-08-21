@@ -11,13 +11,12 @@ from __future__ import annotations
 
 import logging
 import uuid
+from typing import TYPE_CHECKING
 
-import pandas as pd
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
-from inventory_engine.optimize.costs import CostModel
 from inventory_engine.service.db.models import (
     Dataset,
     DatasetSku,
@@ -26,7 +25,6 @@ from inventory_engine.service.db.models import (
     JobStatus,
 )
 from inventory_engine.service.db.session import get_session
-from inventory_engine.service.gate import GateReport, evaluate, refusal_message
 from inventory_engine.service.jobs import enqueue_forecast
 from inventory_engine.service.observability import (
     EVENT_DATA_DELETED,
@@ -51,6 +49,9 @@ from inventory_engine.service.schemas import (
     UploadResponse,
 )
 from inventory_engine.service.settings import ServiceSettings, get_settings
+
+if TYPE_CHECKING:  # pragma: no cover - import-time only
+    from inventory_engine.service.gate import GateReport
 from inventory_engine.service.storage import LocalDiskStorage, UploadTooLarge
 
 VERSION = "2.0.0"
@@ -139,6 +140,13 @@ def upload(
             no SKU cleared the thresholds. The 422 body carries the per-SKU shortfall.
 
     """
+    # Imported here rather than at module scope. Reading a CSV needs pandas; serving
+    # the dashboard, answering /health or polling a job does not, and paying 2.4s of
+    # import on a cold machine before the first page can render is the wrong trade.
+    import pandas as pd
+
+    from inventory_engine.service.gate import evaluate, refusal_message
+
     try:
         blob = storage.put(file.file, limit_bytes=settings.max_upload_bytes)
     except UploadTooLarge as exc:
@@ -297,6 +305,12 @@ def run_forecast(
             "there is nothing to forecast.",
         )
 
+    # Deferred: importing `costs` runs inventory_engine.optimize.__init__, which
+    # re-exports newsvendor and therefore imports pandas. Both handlers that need a
+    # cost model are already doing database work, so the import is free here and
+    # expensive at module scope.
+    from inventory_engine.optimize.costs import CostModel
+
     costs = CostModel(
         margin_rate=body.margin_rate,
         spoilage_rate=body.spoilage_rate,
@@ -384,6 +398,12 @@ def forecast_status(
     job = session.get(ForecastJob, job_id)
     if job is None:
         raise HTTPException(status_code=404, detail=f"no forecast job {job_id}")
+
+    # Deferred: importing `costs` runs inventory_engine.optimize.__init__, which
+    # re-exports newsvendor and therefore imports pandas. Both handlers that need a
+    # cost model are already doing database work, so the import is free here and
+    # expensive at module scope.
+    from inventory_engine.optimize.costs import CostModel
 
     costs = CostModel(
         margin_rate=job.margin_rate,

@@ -14,6 +14,8 @@ rather than by how the line was spelled.
 from __future__ import annotations
 
 import ast
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -118,3 +120,47 @@ def test_the_router_package_is_fully_covered():
 def test_the_tier_one_guard_still_holds():
     """Tier 1's own rule, restated here so both tiers fail from one test file."""
     assert not (imported_roots(SRC / "api" / "app.py") & TRAINING_LIBRARIES)
+
+
+# --------------------------------------------------------------------------- cold start
+
+#: Heavy at import and unnecessary to serve a page, answer a health check or poll a job.
+#: pandas alone measured 2.4s of a 4.5s cold start, paid before uvicorn could answer
+#: anything -- on a Machine that suspends when idle, that is the first visitor's wait.
+DEFERRED_LIBRARIES = frozenset({"pandas", "numpy"})
+
+
+def test_importing_the_api_does_not_import_pandas():
+    """Importing the app must not drag the data stack in with it.
+
+    The three routes that need pandas import it inside the handler, where the request is
+    already doing slow work. Everything else -- the dashboard, ``/health``, polling a job --
+    starts without it. This is asserted in a subprocess because the test session has almost
+    certainly imported pandas already for its own fixtures.
+    """
+    code = (
+        "import sys; import inventory_engine.service.app; "
+        "print(','.join(sorted(m for m in "
+        f"{sorted(DEFERRED_LIBRARIES)!r} if m in sys.modules)))"
+    )
+    done = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=False)
+    assert done.returncode == 0, done.stderr
+    leaked = done.stdout.strip()
+    assert not leaked, (
+        f"importing the API pulled in {leaked}. Something on the import path reaches the "
+        "data stack again -- check for a module-scope import in a router, or a package "
+        "__init__ that re-exports one."
+    )
+
+
+def test_the_upload_handler_can_still_reach_pandas():
+    """The other half: deferring must not have broken the code that needs it."""
+    code = (
+        "import inventory_engine.service.routers.full_forecast as m; "
+        "import inspect; src = inspect.getsource(m.upload); "
+        "assert 'import pandas' in src, 'upload no longer imports pandas anywhere'; "
+        "print('ok')"
+    )
+    done = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=False)
+    assert done.returncode == 0, done.stderr
+    assert done.stdout.strip() == "ok"
