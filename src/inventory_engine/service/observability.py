@@ -46,6 +46,7 @@ import uuid
 from contextvars import ContextVar
 from datetime import UTC, datetime
 from typing import Any, Final
+from urllib.parse import urlparse
 
 from inventory_engine.service.settings import ServiceSettings, get_settings
 
@@ -276,6 +277,10 @@ ALLOWED_PROPERTIES: Final = frozenset(
         # and `jobs_cancelled` is a count.
         "path",
         "jobs_cancelled",
+        # Host only, never the path or query. "news.ycombinator.com" says where the
+        # traffic came from; the full URL would say which thread, which post, and in
+        # a search referrer, what was typed to find it.
+        "referrer_host",
     }
 )
 
@@ -397,6 +402,28 @@ def visitor_id(
     """
     material = _daily_salt(settings) + (ip or "-").encode() + b"|" + (user_agent or "-").encode()
     return hashlib.sha256(material).hexdigest()[:32]
+
+
+def referrer_host(referer: str | None) -> str | None:
+    """Return just the host of a referring URL, or None when there is nothing usable.
+
+    Deliberately lossy. A full referrer carries the path and query string, which on a search
+    engine is the words somebody typed and on a forum is the specific thread -- neither is
+    needed to answer "where does traffic come from", and both are somebody else's business.
+    An empty or unparseable header is dropped rather than guessed at, and a referrer from
+    this service itself is dropped too, since a visitor moving between our own pages is not
+    a traffic source.
+    """
+    if not referer:
+        return None
+    try:
+        host = urlparse(referer).hostname
+    except ValueError:
+        return None
+    if not host:
+        return None
+    host = host.lower()
+    return None if host.endswith("fly.dev") else host
 
 
 def reset_salt() -> None:

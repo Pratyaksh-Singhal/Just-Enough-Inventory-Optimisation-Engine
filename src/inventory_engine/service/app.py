@@ -22,6 +22,7 @@ from inventory_engine.service.observability import (
     bind_request_id,
     configure_logging,
     init_sentry,
+    referrer_host,
     visitor_id,
 )
 from inventory_engine.service.routers import full_forecast
@@ -158,6 +159,7 @@ def _count_page_view(request: Request, response: Response) -> None:
             EVENT_PAGE_VIEW,
             visitor_id(client.host if client else None, request.headers.get("user-agent")),
             path=request.url.path,
+            referrer_host=referrer_host(request.headers.get("referer")),
         )
     except Exception:  # noqa: BLE001 - analytics must never break a page load
         log.debug("page view not counted", exc_info=True)

@@ -23,6 +23,7 @@ from inventory_engine.service.observability import (
     bind_request_id,
     component_var,
     init_sentry,
+    referrer_host,
     request_id_var,
     reset_salt,
     visitor_id,
@@ -304,3 +305,41 @@ def test_a_configured_seed_makes_two_processes_agree():
     first = visitor_id("203.0.113.9", "Mozilla/5.0", settings)
     reset_salt()
     assert visitor_id("203.0.113.9", "Mozilla/5.0", settings) == first
+
+
+# --------------------------------------------------------------------------- referrers
+
+
+@pytest.mark.parametrize(
+    "referer,expected",
+    [
+        ("https://news.ycombinator.com/item?id=123", "news.ycombinator.com"),
+        ("https://LinkedIn.com/feed", "linkedin.com"),
+        ("http://example.org:8080/a/b", "example.org"),
+    ],
+)
+def test_only_the_host_survives_a_referrer(referer, expected):
+    assert referrer_host(referer) == expected
+
+
+def test_a_search_referrer_keeps_none_of_the_query():
+    """The query string on a search engine is what somebody typed to find you."""
+    got = referrer_host("https://www.google.com/search?q=inventory+forecasting+for+my+shop")
+    assert got == "www.google.com"
+    assert "inventory" not in got
+    assert "?" not in got
+
+
+def test_our_own_pages_are_not_a_traffic_source():
+    """A visitor moving between our own tabs is not a referral."""
+    assert referrer_host("https://inventory-optimization-engine.fly.dev/") is None
+
+
+@pytest.mark.parametrize("bad", [None, "", "not a url", "://", "  "])
+def test_an_unusable_referrer_is_dropped_rather_than_guessed_at(bad):
+    assert referrer_host(bad) is None
+
+
+def test_the_referrer_host_is_on_the_allowlist():
+    """A property the middleware sends but the allowlist rejects is silently dropped."""
+    assert "referrer_host" in ALLOWED_PROPERTIES

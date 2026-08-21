@@ -433,7 +433,8 @@ def test_opening_the_dashboard_counts_one_page_view(tmp_path, monkeypatch, count
 
     events = [e for e in counted if e[0] == "page_view"]
     assert len(events) == 1
-    assert events[0][2] == {"path": "/"}
+    # No referrer on a direct hit, which is the common case and must not be invented.
+    assert events[0][2] == {"path": "/", "referrer_host": None}
 
 
 def test_an_api_call_is_not_counted_as_a_page_view(client, counted):
@@ -489,3 +490,15 @@ class _Recorder:
     def capture(self, event, distinct_id=None, **properties):
         self.sink.append((event, distinct_id, properties))
         return properties
+
+
+def test_a_page_view_records_the_referring_host_only(tmp_path, monkeypatch, counted):
+    """Where traffic came from, without what was typed to get there."""
+    (tmp_path / "index.html").write_text("<h1>page</h1>", encoding="utf-8")
+    monkeypatch.setattr(app_module, "get_settings", lambda: ServiceSettings(dashboard_dir=tmp_path))
+    with TestClient(app_module.create_app(configure_observability=False)) as c:
+        c.get("/", headers={"Referer": "https://www.google.com/search?q=private+search+terms"})
+
+    _, _, properties = next(e for e in counted if e[0] == "page_view")
+    assert properties["referrer_host"] == "www.google.com"
+    assert "private" not in str(properties)
