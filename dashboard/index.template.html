@@ -2687,7 +2687,7 @@ __FONTS__
                 <label for="simTarget" class="simctrl-l blue">In-stock target you pick</label>
                 <output id="simTargetOut" for="simTarget">95%</output>
               </div>
-              <input type="range" id="simTarget" min="5" max="99" step="1" value="95">
+              <input type="range" id="simTarget" min="10" max="99" step="1" value="95">
             </div>
             <div class="simbox">
               <div class="simbox-k">Cheapest target at this spoilage</div>
@@ -3026,7 +3026,7 @@ __FONTS__
     $('#simSpoilOut').textContent = Math.round(spoil * 100) + '%';
     $('#simTargetOut').textContent = Math.round(pick * 100) + '%';
     $('#simSpoil').style.setProperty('--p', (spoil * 100) + '%');
-    $('#simTarget').style.setProperty('--p', ((pick * 100 - 5) / 94 * 100) + '%');
+    $('#simTarget').style.setProperty('--p', ((pick * 100 - 10) / 89 * 100) + '%');
 
     const { cu, co } = simCosts(spoil);
     const costs = SW.map(p => cost(p, cu, co));
@@ -3073,7 +3073,7 @@ __FONTS__
       + `<line x1="${px}" y1="${y0}" x2="${px}" y2="${y1}" stroke="#4F86D4" stroke-width="1.4"></line>`
       + `<circle cx="${px}" cy="${py}" r="4.5" fill="#4F86D4"></circle>`
       + t(+bx + 6, 36, 'cheapest', '#69DBAA')
-      + t(x0, 270, '5% in stock', '#5F6F69')
+      + t(x0, 270, '10% in stock', '#5F6F69')
       + t(x1, 270, '99% in stock', '#5F6F69', 'end')
       + t(14, 26, 'cost', '#5F6F69')
       + t(14, 254, 'low', '#5F6F69')
@@ -3084,6 +3084,10 @@ __FONTS__
     $('#simSpoil').addEventListener(ev, update);
     $('#simTarget').addEventListener(ev, update);
   });
+
+  /* A newly loaded file arms the button; it never renders results the user has not asked
+     for. This is the single place that reacts to #csv changing, whoever wrote it. */
+  $('#csv').addEventListener('input', () => armCalculator());
 
   /* ================= ORDER CALCULATOR =================
      Works entirely on data the user pastes in, in the browser. Nothing is uploaded.
@@ -3191,12 +3195,27 @@ __FONTS__
     if (lines.length < 2) return { error: 'Not enough rows — paste a header row and some sales.' };
     const split = l => l.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
     const head = split(lines[0]).map(h => h.toLowerCase());
-    const find = (...names) => head.findIndex(h => names.some(n => h === n || h.includes(n)));
-    const iSku = find('sku', 'product', 'item', 'name', 'description');
-    const iDate = find('date', 'day', 'week', 'period');
-    const iUnits = find('units_sold', 'units', 'sold', 'qty', 'quantity', 'sales', 'demand');
+    /* Exact header names win before any substring is considered, and a column already
+       claimed by an earlier field cannot be claimed again. Without the first rule
+       `product,sales_date,units_sold` read its units from `sales_date`, because that header
+       contains "sales"; without the second, `date,store_name,item_name,units` read every
+       product as its store, because `store_name` contains "name". Both files are ordinary
+       POS exports and both failed silently. */
+    const taken = new Set();
+    const find = (...names) => {
+      const free = (i) => i >= 0 && !taken.has(i);
+      let i = head.findIndex((h, k) => free(k) && names.some(nm => h === nm));
+      if (i < 0) i = head.findIndex((h, k) => free(k) && names.some(nm => h.includes(nm)));
+      if (i >= 0) taken.add(i);
+      return i;
+    };
+    // Asked in order of how specific their names are: whoever asks first claims an
+    // ambiguous header, so `unit_price` must beat `units`, and `store` must beat `name`.
     const iPrice = find('unit_price', 'price');
-    const iStore = find('store', 'location', 'shop', 'outlet', 'branch');
+    const iUnits = find('units_sold', 'units_sold', 'qty', 'quantity', 'units', 'sold', 'demand', 'sales');
+    const iDate = find('date', 'day', 'week', 'period');
+    const iStore = find('store', 'store_id', 'location', 'shop', 'outlet', 'branch');
+    const iSku = find('sku', 'product', 'item', 'product_id', 'item_id', 'name', 'description');
 
     if (iSku < 0) return { error: 'Could not find a product column. Name one of them "sku", "product" or "item".' };
     if (iUnits < 0) return { error: 'Could not find a sales column. Name one of them "units_sold", "qty" or "sales".' };
@@ -3205,7 +3224,10 @@ __FONTS__
     for (let i = 1; i < lines.length; i++) {
       const c = split(lines[i]);
       const sku = c[iSku];
-      const units = Number(String(c[iUnits]).replace(/[^0-9.\-]/g, ''));
+      const rawUnits = c[iUnits];
+      const cleaned = rawUnits == null ? '' : String(rawUnits).replace(/[^0-9.\-]/g, '');
+      // Empty after cleaning means there was no number in the cell at all -- not a zero.
+      const units = cleaned === '' ? NaN : Number(cleaned);
       if (!sku || !Number.isFinite(units)) { skipped++; continue; }
       rows.push({
         sku, date: iDate >= 0 ? c[iDate] : String(i),
@@ -3216,6 +3238,35 @@ __FONTS__
     }
     if (!rows.length) return { error: 'No usable rows — check the sales column contains numbers.' };
     return { rows, skipped, hasDate: iDate >= 0 };
+  }
+
+  /** A sortable number for a date cell, or null when the format is not recognised.
+   *
+   * ISO is taken as written. Slash and dash formats are disambiguated by looking for a
+   * component above 12, which settles DD/MM against MM/DD for every date except the first
+   * twelve days of a month -- where the two orderings agree on the month anyway, so a
+   * mistake cannot move a row outside its own month.
+   */
+  function dateKey(v) {
+    const t = String(v).trim();
+    let m = /^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/.exec(t);
+    if (m) return (+m[1]) * 10000 + (+m[2]) * 100 + (+m[3]);
+    m = /^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/.exec(t);
+    if (m) {
+      const a = +m[1], b = +m[2];
+      const [d, mo] = a > 12 ? [a, b] : b > 12 ? [b, a] : [a, b];
+      return (+m[3]) * 10000 + mo * 100 + d;
+    }
+    // Date.parse accepts things no user would call a date -- "week 3" becomes a real
+    // timestamp -- so it is only consulted for strings carrying a four-digit year or a
+    // month name. Anything else returns null and the file's own order is kept.
+    if (!/\d{4}/.test(t) && !/jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec/i.test(t)) return null;
+    const ms = Date.parse(t);
+    if (!Number.isFinite(ms)) return null;
+    // Returned on the same YYYYMMDD scale as the two branches above. Mixing scales would
+    // sort every date read by one branch ahead of every date read by another.
+    const d = new Date(ms);
+    return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
   }
 
   /** Empirical quantile by linear interpolation on the sorted sample. */
@@ -3291,7 +3342,16 @@ __FONTS__
 
     const results = []; let thin = 0, unpriced = 0;
     bySku.forEach((rows, sku) => {
-      if (parsed.hasDate) rows.sort((a, b) => String(a.date).localeCompare(String(b.date)));
+      /* Sorted by parsed date, not by text. When a format cannot be parsed the file's
+         own order is kept -- exports are chronological in practice, and leaving them alone
+         is strictly better than imposing a text order that is wrong in a different way. */
+      if (parsed.hasDate) {
+        rows.sort((a, b) => {
+          const x = dateKey(a.date), y = dateKey(b.date);
+          if (x == null || y == null) return 0;
+          return x - y;
+        });
+      }
       const units = rows.map(r => r.units);
       const totals = windowTotals(units, h);
       if (totals.length < 4) { thin++; return; }
@@ -3389,7 +3449,7 @@ __FONTS__
     const cheaper = deltaPct <= 0;
     const targetPct = Math.round(cr * 100);
     tiles.innerHTML = [
-      ['jade', "Cost against ordering last week's sales",
+      [cheaper ? 'jade' : 'amber', `Cost against ordering the last ${h} day${h > 1 ? 's' : ''}' sales`,
         (cheaper ? '−' : '+') + Math.abs(deltaPct * 100).toFixed(1) + '%',
         moneySmart(Math.abs(deltaAbs)) + (cheaper ? ' lower' : ' higher') + ', on your two cost figures.'],
       ['', 'Units to order in total', fmt(totUnits),
@@ -3402,13 +3462,21 @@ __FONTS__
       `<div class="ctile ${cls}"><div class="k">${k}</div><div class="v">${v}</div><div class="d">${d}</div></div>`
     ).join('');
 
-    const vsBase = w => w === base
-      ? '<td class="muted">—</td>'
-      : `<td class="${w.total > base.total ? 'amber' : 'jade'}">${w.total > base.total ? '+' : '−'}${Math.abs((w.total / base.total - 1) * 100).toFixed(1)}%</td>`;
+    const vsBase = w => {
+      if (w === base) return '<td class="muted">—</td>';
+      // No baseline cost means no percentage exists; show the gap in money instead of NaN.
+      if (!(base.total > 0)) {
+        return w.total > 0
+          ? `<td class="amber">+${moneySmart(w.total)}</td>`
+          : '<td class="muted">same</td>';
+      }
+      const d = w.total / base.total - 1;
+      return `<td class="${d > 0 ? 'amber' : 'jade'}">${d > 0 ? '+' : '−'}${Math.abs(d * 100).toFixed(1)}%</td>`;
+    };
     $('#calcWays').innerHTML =
       `<thead><tr><th>Way of deciding</th><th>Units</th><th>Thrown away</th><th>Sales missed</th>
       <th>Total</th><th>Against row one</th></tr></thead><tbody>` +
-      [[base, 'Order what sold last week', false],
+      [[base, `Order what sold in the last ${h} day${h > 1 ? 's' : ''}`, false],
        [ways[1], 'Always be 95% in stock', false],
        [mine, 'Order to the target your costs imply', true]]
         .map(([w, label, win]) =>
@@ -3427,11 +3495,14 @@ __FONTS__
         let chip = ['', 'Steady'];
         if (r.order === 0) chip = ['warn', 'Order on request'];
         else if (r.zeroShare > 0.6) chip = ['warn', 'Slow seller'];
-        else if (r.surplus < 0) chip = ['cool', 'Held back on purpose'];
         else if (r.cv > 0.35) chip = ['warn', 'Demand jumps about'];
-        const vs = r.surplus >= 0
-          ? `<span class="jade">+${r.surplus.toFixed(0)}</span>`
-          : `<span class="blue">${r.surplus.toFixed(0)}</span>`;
+        else if (r.surplus < 0) chip = ['cool', 'Held back on purpose'];
+        // Rounded first: -0.4 formats as "-0" and +0.4 as "+0", two different products
+        // reading as the same non-answer.
+        const surplus = Math.round(r.surplus) === 0 ? 0 : Math.round(r.surplus);
+        const vs = surplus === 0
+          ? '<span class="muted">0</span>'
+          : `<span class="${surplus > 0 ? 'jade' : 'blue'}">${surplus > 0 ? '+' : ''}${surplus}</span>`;
         const px = r.priced ? '' : '<span class="muted" title="No unit_price in your file">*</span>';
         return `<tr><td class="name">${r.product}</td>
       <td class="store">${r.store || '—'}</td>
@@ -3456,13 +3527,10 @@ __FONTS__
   }
 
   $('#loadDemo').addEventListener('click', () => { $('#csv').value = DATA.demoCsv; armCalculator(); });
-  $('#csvFile').addEventListener('change', e => {
-    const f = e.target.files && e.target.files[0];
-    if (!f) return;
-    const fr = new FileReader();
-    fr.onload = () => { $('#csv').value = String(fr.result); armCalculator(); };
-    fr.readAsText(f);
-  });
+  /* No 'change' handler for #csvFile here: the drop-zone block binds one, and two
+     readers racing on the same pick made the outcome depend on which promise settled
+     first. That block writes #csv and dispatches 'input', which is what armCalculator
+     below responds to. */
   ['input', 'change'].forEach(ev => {
     ['#csv', '#cover'].forEach(sel => $(sel).addEventListener(ev, runCalculator));
     // Sliders write back to canonical rates before recalculating, so the readout beside the
@@ -3476,7 +3544,7 @@ __FONTS__
   function orderListCsv() {
     const cur = CURRENCY === 'USD' ? 'usd' : FX.code.toLowerCase();
     const lines = [`product,unit_price_${cur},price_source,order_quantity,typical_demand,`
-      + `vs_typical,chance_of_running_out,expected_saving_${cur}`];
+      + `vs_typical,chance_of_running_out,saving_vs_mean_order_${cur}`];
     CAL.skus.forEach(r => lines.push([
       JSON.stringify(r.sku), toDisplayCcy(r.price).toFixed(2), r.priced ? 'your file' : 'default',
       r.order, r.expected.toFixed(2), r.surplus.toFixed(2),
@@ -3841,7 +3909,7 @@ __FONTS__
       box.hidden = false;
       box.innerHTML = `<div class="ff-fest advisory">`
         + `<b>${esc(near.join(', ') || 'A festival')} `
-        + `${near.length === 1 ? 'falls' : 'fall'} in or near this order window.</b> `
+        + `${near.length === 1 || !near.length ? 'falls' : 'fall'} in or near this order window.</b> `
         + `${names.length} of your ${S.results.length} products matched no festival pattern, `
         + `so their quantities are unchanged: ${names.map(esc).join(', ')}. `
         + `If you know these sell harder over the festival, raise them yourself — we will not `
@@ -3907,7 +3975,15 @@ __FONTS__
           + `nearby. No festival pattern found for this item, so the quantity is unchanged.">`
           + `no pattern found</span>`;
       }
+      // A factor the server declined to apply is not an adjustment to announce. adjust.py
+      // keeps state="adjusted" for the audit trail, but below its materiality threshold the
+      // quantity did not move, and a "+0%" chip beside two identical numbers reads as a bug.
       const pct = Math.round((f.factor - 1) * 100);
+      if (pct === 0) {
+        return `<span class="fest-tag advisory" title="${esc((f.matches || []).map(m => m.festival_name).join(', '))} `
+          + `matched, but the run-up covers too little of this window to move the quantity.">`
+          + `matched, unchanged</span>`;
+      }
       const m = (f.matches || [])[0] || {};
       const how = m.source === 'measured' ? 'your own sales' : 'reference figure';
       const why = m.keyword ? `matched "${m.keyword}" as ${m.category}` : `measured at ${m.festival_name}`;
@@ -3922,7 +3998,9 @@ __FONTS__
       const box = $$('#ffFestival'), f = r.festival;
       if (!f || f.state === 'none') { box.innerHTML = ''; return; }
 
-      const was = (f.state === 'adjusted' && r.order_qty_before_festival != null)
+      const moved = r.order_qty_before_festival != null
+        && Math.ceil(r.order_qty_before_festival) !== Math.ceil(r.order_qty);
+      const was = (f.state === 'adjusted' && moved)
         ? `<span class="fest-was">Forecast before this adjustment: `
           + `${fmt(Math.ceil(r.order_qty_before_festival))} units. `
           + `Recommended: ${fmt(Math.ceil(r.order_qty))} units. `
