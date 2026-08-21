@@ -2171,6 +2171,21 @@ __FONTS__
   .simbox-d { font-size: 14px; color: var(--ink-2); margin: 10px 0 0; line-height: 1.55 }
   .simchart { border: 1px solid var(--line); background: var(--surface); padding: 20px }
 
+  /* The column report under a refusal. Mono, because every value in it is something the
+     user typed into a header row. */
+  .ff-cols {
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.9;
+    color: var(--ink-2);
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--line-soft)
+  }
+
+  .ff-cols b { color: var(--ink-3); font-weight: 500; margin-right: 8px }
+  .ff-cols code { color: var(--ink); background: var(--surface-2); padding: 1px 5px; border-radius: 2px }
+  .ff-cols .lose code { background: transparent; padding: 0 }
 </style>
 
 <header>
@@ -2644,6 +2659,7 @@ __FONTS__
       <div class="fcard-body">
         <div id="ffMsg"></div>
         <div id="ffGate"></div>
+        <div id="ffAdvice" hidden style="margin-top:14px"></div>
         <div id="ffChartWrap" hidden>
           <div class="ff-chart-head">
             <div>
@@ -3717,7 +3733,7 @@ __FONTS__
         const h = await r.json();
         const bits = [`database ${h.database ? 'ok' : 'down'}`, `queue ${h.queue ? 'ok' : 'down'}`];
         $$('#ffHealth').innerHTML = h.status === 'ok'
-          ? `<span class="win">Connected</span> — ${bits.join(', ')}`
+          ? ''
           : `<span class="lose">Degraded</span> — ${bits.join(', ')}. A forecast needs both.`;
         return h.status === 'ok';
       } catch (e) {
@@ -3769,8 +3785,9 @@ __FONTS__
       if (!r.ok) {
         // The gate's refusal is the product here, not an error page: show the shortfall
         // per product and point at the tab that does work on this data.
-        const d = data.detail && typeof data.detail === 'object' ? data.detail : { detail: data.detail };
-        msg(esc(d.detail || 'Upload rejected.'), 'msg');
+        const d = data.detail && typeof data.detail === 'object' && !Array.isArray(data.detail)
+          ? data.detail : { detail: refusalText(data.detail) };
+        msg(esc(d.detail || 'Upload rejected.') + columnReport(d), 'msg');
         renderGate(d.excluded || [], true);
 
         /* Forget the previous dataset. Without this, a rejected upload left S.dataset
@@ -3801,6 +3818,45 @@ __FONTS__
         ${warn ? `<br>${warn}` : ''}`, 'msg ok');
       renderGate(data.excluded || [], false);
       return data;
+    }
+
+    /* A refusal arrives in three shapes and only one of them is ours: our own structured
+       UploadRefusal, a plain string from the reader (not UTF-8, unparseable CSV, too big),
+       and FastAPI's own validation array when the request never reached the handler. The
+       array is the one that mattered -- rendering it produced "[object Object]", so a file
+       with the wrong shape looked like a bug in the page rather than a problem with the
+       file. */
+    function refusalText(detail) {
+      if (typeof detail === 'string') return detail;
+      if (Array.isArray(detail)) {
+        return detail.map(e => {
+          const where = Array.isArray(e.loc) ? e.loc.filter(x => x !== 'body').join(' → ') : '';
+          return (where ? where + ': ' : '') + (e.msg || 'invalid');
+        }).join('; ') || 'The request was rejected before the file could be read.';
+      }
+      return 'Upload rejected.';
+    }
+
+    /* Which of their columns we read as what. For a wrong-layout file this is the whole
+       answer -- "we found no sales column" is actionable, "upload rejected" is not. */
+    function columnReport(d) {
+      const map = d.column_mapping || {};
+      const keys = Object.keys(map);
+      const NEEDED = { sku: 'product', date: 'date', units_sold: 'units sold' };
+      const missing = Object.keys(NEEDED).filter(k => !map[k]);
+      if (!keys.length && !d.rows_read) return '';
+      const read = keys.length
+        ? keys.map(k => `<code>${esc(map[k])}</code> → ${esc(k)}`).join(', ')
+        : 'none recognised';
+      return `<div class="ff-cols">`
+        + `<div><b>Rows read</b> ${fmt(d.rows_read || 0)}</div>`
+        + `<div><b>Columns read</b> ${read}</div>`
+        + (missing.length
+          ? `<div class="lose"><b>Missing</b> ${missing.map(k => esc(NEEDED[k])).join(', ')}`
+            + ` — name a column <code>${missing.map(esc).join('</code>, <code>')}</code>`
+            + ` and upload again.</div>`
+          : '')
+        + `</div>`;
     }
 
     function renderGate(excluded, fatal) {
@@ -3877,9 +3933,33 @@ __FONTS__
     }
 
     /* ---- results ---- */
+    /* Products a festival is coming for that we could not match, named together above the
+       table. One tag per row is easy to miss and the full sentence only shows for whichever
+       product happens to be charted -- so the case the user most needs to act on, "this is
+       probably seasonal and we have no pattern for it", was the least visible thing on the
+       page. Naming them is deliberately cheaper than growing the reference table: no amount
+       of category coverage makes an arbitrary product name resolvable. */
+    function renderAdvisories() {
+      const box = $$('#ffAdvice');
+      const advisory = S.results.filter(r => r.festival && r.festival.state === 'advisory');
+      if (!advisory.length) { box.innerHTML = ''; box.hidden = true; return; }
+      const near = [...new Set(advisory.flatMap(r => r.festival.nearby || []))];
+      const names = advisory.map(r => r.sku);
+      box.hidden = false;
+      box.innerHTML = `<div class="ff-fest advisory">`
+        + `<b>${esc(near.join(', ') || 'A festival')} `
+        + `${near.length === 1 ? 'falls' : 'fall'} in or near this order window.</b> `
+        + `${names.length} of your ${S.results.length} products matched no festival pattern, `
+        + `so their quantities are unchanged: ${names.map(esc).join(', ')}. `
+        + `If you know these sell harder over the festival, raise them yourself — we will not `
+        + `invent a multiplier for a product we have never measured.</div>`;
+      reveal(box);
+    }
+
     function renderResults(job) {
       renderGate(job.excluded || [], false);
       if (!S.results.length) { $$('#ffChartWrap').hidden = true; $$('#ffTable').innerHTML = ''; return; }
+      renderAdvisories();
 
       $$('#ffSku').innerHTML = S.results
         .map(r => `<option value="${esc(r.sku)}">${esc(r.sku)}</option>`).join('');
