@@ -268,6 +268,12 @@ def measure(series: pd.Series, festival: Festival) -> Occurrence | None:
     )
 
 
+#: Used when a festival is flagged partial in SOURCES but has no row in PARTIAL. The two
+#: are separate dicts, so they can disagree; degrading to a general sentence keeps a
+#: mismatch from raising inside the worker, where it would fail a whole forecast run.
+PARTIAL_FALLBACK: Final = "Our calendar has gaps for this festival."
+
+
 def measure_sku(
     sku: str, series: pd.Series, festival_key: str, *, region: str = DEFAULT_REGION
 ) -> Uplift:
@@ -307,7 +313,8 @@ def measure_sku(
         # same problem: "you need more data" is wrong advice for a year we cannot date.
         why = (
             f"not measurable — your history covers {months} month(s), and our calendar has "
-            f"no date for this festival inside it. {partial_coverage()[festival_key]}"
+            f"no date for this festival inside it. "
+            f"{partial_coverage().get(festival_key, PARTIAL_FALLBACK)}"
             if gappy
             else (
                 f"not measurable — your history covers {months} month(s) and does not "

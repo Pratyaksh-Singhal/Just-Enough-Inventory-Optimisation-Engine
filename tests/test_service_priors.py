@@ -365,3 +365,56 @@ def test_coverage_reports_how_much_of_a_catalogue_the_table_can_speak_about(tabl
     assert report["n_matched"] == 2
     assert set(report["unmatched"]) == {"SKU-88213", "AT-1L-BLU"}
     assert report["matched"]["Amul Paneer 200g"] == "paneer"
+
+
+# --------------------------------------------------- the row's words vs its arithmetic
+
+
+def _table_with(tmp_path, row: str) -> str:
+    """A one-row table on disk, for validation tests."""
+    path = tmp_path / "bad.csv"
+    header = "festival_key,festival,direction,category,items,suggested_multiplier,notes\n"
+    path.write_text(header + row + "\n", encoding="utf-8")
+    load.cache_clear()
+    return str(path)
+
+
+def test_a_row_whose_direction_contradicts_its_multiplier_is_refused(tmp_path):
+    """``describe()`` reads the direction; ``adjust._factor`` reads the multiplier.
+
+    A row carrying ``down`` and ``1.6`` would tell the buyer demand falls while raising
+    their order 60%, and both halves would look correct in isolation. Neither value can be
+    trusted over the other, so the table is refused rather than silently believed.
+    """
+    path = _table_with(tmp_path, 'diwali,Diwali,down,dairy,"milk",1.6,Contradiction.')
+    with pytest.raises(ValueError, match="contradicts"):
+        load(path)
+    load.cache_clear()
+
+
+def test_the_same_check_catches_an_up_row_that_lowers_the_order(tmp_path):
+    path = _table_with(tmp_path, 'diwali,Diwali,up,dairy,"milk",0.7,Contradiction.')
+    with pytest.raises(ValueError, match="contradicts"):
+        load(path)
+    load.cache_clear()
+
+
+@pytest.mark.parametrize("bad", ["0", "0.0", "-1.4"])
+def test_a_multiplier_of_zero_or_less_is_refused(tmp_path, bad):
+    """Zero would drive the order to nothing while the row still reads as advice."""
+    path = _table_with(tmp_path, f'diwali,Diwali,up,dairy,"milk",{bad},Nonsense.')
+    with pytest.raises(ValueError, match="greater than zero"):
+        load(path)
+    load.cache_clear()
+
+
+def test_the_shipped_table_satisfies_both_rules():
+    """The invariant is only worth having if the table we actually ship obeys it."""
+    load.cache_clear()
+    for row in load():
+        assert row.multiplier > 0
+        assert (row.direction == "up") == (row.multiplier > 1.0), (
+            f"{row.festival_key}/{row.category}: direction {row.direction!r} "
+            f"disagrees with multiplier {row.multiplier}"
+        )
+    load.cache_clear()

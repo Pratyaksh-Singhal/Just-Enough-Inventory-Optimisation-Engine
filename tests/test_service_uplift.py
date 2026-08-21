@@ -275,3 +275,30 @@ def test_a_quiet_horizon_has_no_relevant_festivals():
         if not any(s <= d + timedelta(days=14) and e >= d + timedelta(days=1) for s, e in windows)
     )
     assert relevant_for(quiet, horizon=14, region="IN") == []
+
+
+def test_a_partial_festival_missing_from_the_coverage_map_degrades_rather_than_raises(
+    monkeypatch,
+):
+    """``SOURCES[key].partial`` and ``PARTIAL`` are separate dicts and can disagree.
+
+    ``measure_sku`` used to index ``partial_coverage()[key]`` directly, so marking a
+    ``Source`` partial without adding a matching ``PARTIAL`` row raised ``KeyError`` inside
+    the worker and failed the whole forecast run. ``Uplift._partial_note`` already used
+    ``.get()`` with a default for exactly this reason.
+    """
+    from inventory_engine.service import festivals, uplift
+
+    monkeypatch.setattr(festivals, "PARTIAL", {}, raising=True)
+    monkeypatch.setattr(uplift, "partial_coverage", lambda: {}, raising=False)
+    monkeypatch.setattr(uplift, "is_partial", lambda key: True, raising=False)
+
+    # April to May carries no Maha Shivratri, so `instances` is empty and the branch
+    # that reads the coverage map is the one that runs.
+    index = pd.date_range("2025-04-01", periods=60, freq="D")
+    series = pd.Series(np.full(60, 8.0), index=index)
+
+    result = uplift.measure_sku("Paneer 200g", series, "maha_shivaratri")
+
+    assert not result.available
+    assert "not measurable" in result.reason

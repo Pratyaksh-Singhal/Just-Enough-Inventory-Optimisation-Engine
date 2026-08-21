@@ -173,6 +173,22 @@ def load(path: str | None = None) -> tuple[PriorRow, ...]:
                     f"{source.name} line {line_no}: direction must be 'up' or 'down', "
                     f"got {direction!r}"
                 )
+            multiplier = float(raw["suggested_multiplier"])
+            if not multiplier > 0:
+                raise ValueError(
+                    f"{source.name} line {line_no}: suggested_multiplier must be greater "
+                    f"than zero, got {multiplier!r} -- a zero or negative multiplier would "
+                    "drive the order to nothing while the row still reads as advice."
+                )
+            # The words come from `direction` and the arithmetic from `multiplier`, so a row
+            # where they disagree tells the buyer demand falls while raising their order.
+            # Neither value can be trusted over the other; the row is simply wrong.
+            if (direction == "up") != (multiplier > 1.0):
+                raise ValueError(
+                    f"{source.name} line {line_no}: direction {direction!r} contradicts "
+                    f"suggested_multiplier {multiplier!r}. 'up' needs a multiplier above "
+                    "1.0 and 'down' needs one below it."
+                )
             keywords = tuple(
                 k.strip().lower()
                 for k in (raw.get("items") or "").split(",")
@@ -185,7 +201,7 @@ def load(path: str | None = None) -> tuple[PriorRow, ...]:
                     direction=direction,
                     category=(raw.get("category") or "").strip(),
                     keywords=keywords,
-                    multiplier=float(raw["suggested_multiplier"]),
+                    multiplier=multiplier,
                     notes=(raw.get("notes") or "").strip(),
                 )
             )
