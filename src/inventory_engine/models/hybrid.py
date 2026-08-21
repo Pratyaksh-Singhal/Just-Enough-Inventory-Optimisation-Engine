@@ -1,51 +1,4 @@
-"""Stratum-aware model selection: AutoETS on sparse series, LightGBM on dense and mid.
-
-**Status: investigated, not adopted.** This module is retained because the finding behind
-it is real and reproducible, but plain LightGBM is what feeds E6 and E7. The decision and
-its reasoning are recorded in the README under "Stratum-aware routing"; the short version
-is that the hybrid's advantage is a MASE-only, average-only advantage that does not survive
-closer inspection:
-
-* it **loses to plain LightGBM on folds 3 and 4** — the two most recent windows, and so the
-  closest analogue to production;
-* it is **worse on RMSSE** (0.7585 vs 0.7576), because on the sparse band the two metrics
-  disagree — AutoETS wins MASE, LightGBM wins RMSSE — meaning AutoETS is better on typical
-  error while LightGBM is better on large ones;
-* resolving that disagreement requires knowing whether occasional large misses cost more
-  than routine small ones, which is precisely what E7's newsvendor cost function decides.
-
-So the routing question is deferred to E7, where it can be settled with actual cost deltas
-instead of a preference between two abstract error metrics. See E7-S6.
-
-The finding itself
-------------------
-E3 established that AutoETS beats Croston and TSB on the sparse stratum — their own
-supposed specialty — and E4 showed the global GBM does not close that gap either:
-
-===========  ========  ========  ==============
-Stratum      lgbm      ets       winner
-===========  ========  ========  ==============
-dense        1.0155    1.0421    LightGBM
-mid          1.0328    1.0371    LightGBM
-sparse       1.0090    **0.9931**  AutoETS
-===========  ========  ========  ==============
-
-The mechanism is legible rather than mysterious. A global GBM learns one function across
-all 720 series; the dense two-thirds dominate the gradient, so the fitted response is tuned
-to series with regular structure. On a series selling on fewer than one day in five, the
-lag and rolling features it leans on are mostly zeros carrying little signal, while
-AutoETS's per-series fit adapts its level and seasonal terms to that specific sparse
-history. Neither model is wrong; they are good at different things.
-
-**Why this matters for Phase 7 specifically.** Perishables skew sparse, and perishables are
-where the newsvendor layer earns its keep — overstock cost approaches 100% of unit cost for
-fresh food. If routing does turn out to pay, that is where the payoff would show up, which
-is another reason to decide it there rather than here.
-
-Quantiles for sparse series come from AutoETS prediction intervals rather than being
-borrowed from LightGBM, so the whole hybrid forecast — point and distribution — comes from
-the model that won the stratum it serves.
-"""
+"""Stratum-aware model selection: AutoETS on sparse series, LightGBM on dense and mid."""
 
 from __future__ import annotations
 
@@ -69,11 +22,6 @@ LEVEL_ITEM_STORE: Final = "item_store"
 ROUTING: Final[dict[str, str]] = {"dense": "lgbm", "mid": "lgbm", "sparse": "ets"}
 
 #: Quantile level -> (AutoETS prediction-interval width, which bound to read).
-#:
-#: A symmetric interval of width ``w`` puts its upper bound at quantile ``0.5 + w/200`` and
-#: its lower bound at ``0.5 - w/200``. So q0.90 is the upper bound of an 80% interval and
-#: q0.10 is the lower bound of the same one. Sub-median levels are needed because the
-#: newsvendor critical ratio for perishables lands below 0.5.
 _INTERVAL_FOR: Final[dict[float, tuple[int, str]]] = {
     0.1: (80, "lo"),
     0.25: (50, "lo"),
@@ -120,12 +68,7 @@ def stratum_routing(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
 def _ets_quantiles(
     con: duckdb.DuckDBPyConnection, folds: tuple[Fold, ...], items: list[str]
 ) -> pd.DataFrame:
-    """Refit AutoETS on sparse series with prediction intervals, as quantile rows.
-
-    The E3 run produced point forecasts only. Sparse series need a distribution for E7, and
-    taking it from LightGBM would defeat the purpose of routing them away from LightGBM in
-    the first place.
-    """
+    """Refit AutoETS on sparse series with prediction intervals, as quantile rows."""
     from statsforecast import StatsForecast
     from statsforecast.models import AutoETS
 
@@ -185,24 +128,7 @@ def build_hybrid(
     *,
     replace: bool = True,
 ) -> HybridRun:
-    """Assemble the hybrid forecast from stored per-model rows.
-
-    Point forecasts are selected from existing ``lgbm`` and ``ets`` rows by stratum.
-    Quantiles come from ``lgbm`` for dense/mid and from a fresh AutoETS interval fit for
-    sparse.
-
-    Args:
-        con: Open warehouse connection with E3 and E4 forecasts present.
-        folds: The folds those forecasts were produced on.
-        replace: Clear existing hybrid rows first.
-
-    Returns:
-        A :class:`HybridRun` summary.
-
-    Raises:
-        ValueError: If a stratum has no routing rule, or source forecasts are missing.
-
-    """
+    """Assemble the hybrid forecast from stored per-model rows."""
     con.execute(FORECAST_DDL)
     if replace:
         con.execute(f"DELETE FROM {FORECAST} WHERE model_name = ?", [MODEL_NAME])

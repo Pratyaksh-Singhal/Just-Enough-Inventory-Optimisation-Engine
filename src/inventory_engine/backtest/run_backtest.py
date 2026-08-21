@@ -1,8 +1,4 @@
-"""E5 CLI: the canonical backtest report.
-
-Scores every model stored in ``forecast`` on identical folds and reports mean **and
-spread**, per stratum, per horizon, plus pinball loss on the monotonized quantiles.
-"""
+"""E5 CLI: the canonical backtest report."""
 
 from __future__ import annotations
 

@@ -1,9 +1,4 @@
-"""E8-S5 — measure request latency against the real warehouse, for the README/E10.
-
-Uses the real 2.1M-row `forecast` table via `TestClient` (in-process, no network hop), so
-the numbers isolate DuckDB read + FastAPI overhead from anything network-related. A
-deployed p95 will be higher by whatever the network and reverse proxy add.
-"""
+"""E8-S5 — measure request latency against the real warehouse, for the README/E10."""
 
 from __future__ import annotations
 

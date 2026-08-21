@@ -1,20 +1,4 @@
-"""Phase 1 loader: raw M5 CSVs -> long-format DuckDB warehouse.
-
-Design notes
-------------
-The whole ETL runs as DuckDB SQL against the CSVs on disk. There is no pandas
-in the loading path. ``sales_train_evaluation.csv`` is a 122 MB wide table of
-1,947 columns; melting it in pandas means materialising the full frame in RAM
-before the scope filter can shrink it. DuckDB pushes the filter down to the CSV
-scan and streams the ``UNPIVOT``, so peak memory stays flat and the whole build
-is a single transaction that either produces a valid warehouse or nothing.
-
-The target table is created from an explicit DDL with ``NOT NULL`` and primary
-key constraints, then inserted into. That is deliberate: the insert doubles as a
-data-quality assertion. If the calendar join fans out, or a series has duplicate
-(date, item, store) rows, the load fails loudly instead of quietly producing a
-panel that every downstream phase would misread.
-"""
+"""Phase 1 loader: raw M5 CSVs -> long-format DuckDB warehouse."""
 
 from __future__ import annotations
 
@@ -134,19 +118,7 @@ def _sql_literal(path: Path) -> str:
 
 
 def verify_raw_files(data_dir: Path = DATA_DIR) -> dict[str, Path]:
-    """Check that every required M5 extract is present.
-
-    Args:
-        data_dir: Directory expected to contain the raw Kaggle CSVs.
-
-    Returns:
-        Mapping of filename to resolved path.
-
-    Raises:
-        MissingRawDataError: If any required file is absent, with instructions
-            naming the exact files and the directory they belong in.
-
-    """
+    """Check that every required M5 extract is present."""
     resolved = {name: data_dir / name for name in REQUIRED_RAW_FILES}
     missing = [name for name, path in resolved.items() if not path.is_file()]
     if missing:
@@ -234,23 +206,7 @@ def _load_prices(con: duckdb.DuckDBPyConnection, prices_path: Path) -> None:
 
 
 def _classify_intermittency(con: duckdb.DuckDBPyConnection, scope: Scope) -> None:
-    """Measure each item's zero-day share and assign it an intermittency stratum.
-
-    Runs whether or not a sample is being drawn, because the stratum label is useful
-    downstream in its own right: E3 and E5 report accuracy per band, and "the GBM beats
-    TSB overall but loses on the sparse third" is exactly the finding a single headline
-    number hides.
-
-    The statistic is measured over a
-    :data:`~inventory_engine.config.STRATIFY_WINDOW_DAYS` window that ends before the
-    backtest region starts. Classifying SKUs on statistics computed over the evaluation
-    period would be selection leakage, even though scoping happens once and offline.
-
-    Args:
-        con: Open connection holding ``sales_wide``, ``sales_long``, ``prices``.
-        scope: Scope carrying the stratum count.
-
-    """
+    """Measure each item's zero-day share and assign it an intermittency stratum."""
     con.execute(
         f"""
         CREATE TEMP TABLE item_intermittency AS
@@ -298,21 +254,7 @@ def _classify_intermittency(con: duckdb.DuckDBPyConnection, scope: Scope) -> Non
 
 
 def _apply_stratified_sample(con: duckdb.DuckDBPyConnection, scope: Scope) -> None:
-    """Draw ``scope.items_per_dept`` items per department, an equal quota from each band.
-
-    Sampling by volume rank would quietly select the problem away: the densest SKUs are
-    the easy ones, and Phase 3's Croston/TSB work only earns its place if genuinely
-    intermittent series survive scoping.
-
-    Selection order comes from ``hash(item_id || seed)``, not ``random()``. A hash is
-    deterministic across DuckDB versions, platforms and thread counts, so the sampled
-    universe is reproducible in a way a PRNG seed is not guaranteed to be.
-
-    Args:
-        con: Open connection holding ``item_stratum``, ``sales_wide``, ``sales_long``.
-        scope: Scope carrying the item budget, stratum count and seed.
-
-    """
+    """Draw ``scope.items_per_dept`` items per department, an equal quota from each band."""
     quota, remainder = divmod(scope.items_per_dept, scope.n_strata)
     con.execute(
         f"""
@@ -339,13 +281,7 @@ def _apply_stratified_sample(con: duckdb.DuckDBPyConnection, scope: Scope) -> No
 
 
 def _persist_dim_series(con: duckdb.DuckDBPyConnection) -> tuple[StratumSummary, ...]:
-    """Write the surviving items' intermittency labels to a durable table.
-
-    Phase 1 originally computed strata into a temp table and dropped them, which would
-    have forced E5 to recompute the classification with a second copy of the window logic
-    -- and any drift between the two copies would silently mislabel the bands every result
-    is reported over. One table, written once, read by everything.
-    """
+    """Write the surviving items' intermittency labels to a durable table."""
     con.execute(f"DROP TABLE IF EXISTS {DIM_ITEM_STRATUM}")
     con.execute(f"""
         CREATE TABLE {DIM_ITEM_STRATUM} AS
@@ -366,13 +302,7 @@ def _persist_dim_series(con: duckdb.DuckDBPyConnection) -> tuple[StratumSummary,
 
 
 def _top_up_short_departments(con: duckdb.DuckDBPyConnection, scope: Scope) -> None:
-    """Backfill departments whose strata could not meet their quota.
-
-    A department with fewer items than ``items_per_dept`` cannot be filled, and
-    a thin stratum leaves the department short. Rather than silently returning a
-    smaller sample, pull the shortfall from that department's unselected items
-    in the same deterministic hash order.
-    """
+    """Backfill departments whose strata could not meet their quota."""
     short = con.execute(
         """
         SELECT dept_id, ? - count(*) AS shortfall
@@ -473,24 +403,7 @@ def build_warehouse(
     *,
     overwrite: bool = False,
 ) -> LoadReport:
-    """Build the DuckDB warehouse from the raw M5 CSVs.
-
-    Args:
-        data_dir: Directory holding the three raw Kaggle CSVs.
-        db_path: Destination DuckDB file. Created if absent.
-        scope: Which slice of M5 to load. See :class:`~inventory_engine.config.Scope`.
-        overwrite: Drop and rebuild ``fact_sales``/``dim_calendar`` if they exist.
-            Without this, building over a populated warehouse raises.
-
-    Returns:
-        A :class:`LoadReport` describing what landed.
-
-    Raises:
-        MissingRawDataError: If any raw CSV is absent.
-        ValueError: If the scope matches no series, or the warehouse is already
-            populated and ``overwrite`` is False.
-
-    """
+    """Build the DuckDB warehouse from the raw M5 CSVs."""
     # Validate the scope before touching disk, so an unusable scope fails with a
     # message about the scope rather than as a downstream "matched zero series".
     if scope.state_id not in VALID_STATES:

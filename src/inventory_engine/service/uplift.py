@@ -1,52 +1,4 @@
-"""What a festival actually did to *this* SKU — measured first, assumed only as a fallback.
-
-Two sources, and they are never confused
-----------------------------------------
-**Measured.** The ratio this SKU's own past festivals produced. Always preferred. Costs
-history: an annual festival needs roughly 13 months of data before it can be measured at
-all.
-
-**Prior.** The reference table in ``inventory_engine/data/india_festival_demand.csv``
-(loaded by
-:mod:`inventory_engine.service.priors`) — a suggested multiplier per festival and the item
-keywords it applies to. Used only where measurement is impossible: a shop with 90 days of
-history, or a SKU introduced last month.
-
-Every number this module returns carries its :class:`Source`. A measured 1.4x and a
-suggested 2.0x are different kinds of claim and are never presented as the same thing. The
-original design refused priors outright, on the grounds that a chosen multiplier is exactly
-the unvalidated number this project avoids elsewhere. That was half right: it is unvalidated,
-and it is also the only thing available to a user who has just signed up. Labelling solves
-what banning only postponed — and where both exist, the comparison is itself useful
-("the reference expects 2.0x; your shop did 1.4x").
-
-The measurement is split in two, because averaging it was meaningless
---------------------------------------------------------------------
-The first version measured one mean over ``[festival - lead, festival + tail]`` and divided
-by a baseline. Run against real M5 data it reported Christmas at **0.84x** — demand falling
-at Christmas — which is nonsense until you look at the daily totals:
-
-* 24 Dec: 1,168 units.  **25 Dec: 0 units.**  26 Dec: 1,135.
-* Thanksgiving: 569 against a ~1,100 norm.
-
-The stores are shut. A single window mean was averaging stock-up demand rising against
-trading hours collapsing, and landing near 1.0 having cancelled two real and opposite
-effects. So:
-
-* ``lead_ratio`` — the run-up, **excluding the festival day**. This is what an order is
-  placed against; stock has to be on the shelf beforehand.
-* ``day_ratio`` — the day itself and its tail, reported separately so a closure is visible
-  rather than quietly averaged into someone's purchase order.
-
-``closed_days`` counts days inside the window with zero sales against a non-zero baseline.
-That is a supply fact, not a demand fact, and it is excluded from the demand ratios.
-
-What is still deliberately not here
------------------------------------
-Silent category assignment. The prior table matches on item keywords, and a keyword match is
-a suggestion shown to the user, never an assumption applied on their behalf — "milk" appears
-in both *milk* and *Milk Bikis* biscuits, and only one of them spikes at Holi.
-"""
+"""What a festival actually did to *this* SKU — measured first, assumed only as a fallback."""
 
 from __future__ import annotations
 
@@ -93,20 +45,7 @@ class Source(StrEnum):
 
 @dataclass(frozen=True)
 class Occurrence:
-    """One past instance of a festival, for one SKU.
-
-    Attributes:
-        year: Which instance.
-        baseline_mean: Mean daily units on comparable nearby days, same weekdays.
-        lead_mean: Mean daily units over the run-up, excluding the festival day.
-        lead_ratio: ``lead_mean / baseline_mean`` — the ordering signal.
-        day_mean: Mean daily units over the festival day and its tail.
-        day_ratio: ``day_mean / baseline_mean``. Near zero means the shop was shut.
-        n_lead: Observations behind ``lead_mean``.
-        n_baseline: Observations behind ``baseline_mean``.
-        closed_days: Zero-sales days inside the window against a non-zero baseline.
-
-    """
+    """One past instance of a festival, for one SKU."""
 
     year: int
     baseline_mean: float
@@ -131,9 +70,8 @@ class Uplift:
     prior_multiplier: float | None = None
     prior_reason: str = ""
     reason: str = ""
-    #: The calendar dates this festival in only some years, so a measurement rests on the
-    #: subset it happens to have. Carried through to :meth:`describe` rather than left in
-    #: the calendar module, because the caveat belongs next to the number it qualifies.
+    #: The calendar dates this festival in only some years, so a measurement rests on the subset it
+    #: happens to have.
     partial_calendar: bool = False
 
     @property
@@ -143,12 +81,7 @@ class Uplift:
 
     @property
     def multiplier(self) -> float:
-        """The number to act on, whatever its source. NaN when unavailable.
-
-        Measured uses the **median** across years rather than the mean: with two or three
-        observations one unusual year should not drag a purchase order, and the median is
-        the order statistic that resists it.
-        """
+        """The number to act on, whatever its source."""
         if self.source is Source.MEASURED and self.occurrences:
             return float(np.median([o.lead_ratio for o in self.occurrences]))
         if self.source is Source.PRIOR and self.prior_multiplier is not None:
@@ -203,11 +136,7 @@ class Uplift:
 
 
 def _baseline_mask(index: pd.DatetimeIndex, festival: Festival, weekdays: set[int]) -> np.ndarray:
-    """Nearby days on matching weekdays, outside the window and its buffer.
-
-    Matching weekday matters: a window containing two weekends compared against a mostly
-    weekday baseline would report an uplift that is partly just the weekend.
-    """
+    """Nearby days on matching weekdays, outside the window and its buffer."""
     outer_start = festival.window_start - timedelta(days=BUFFER_DAYS + BASELINE_DAYS)
     outer_end = festival.window_end + timedelta(days=BUFFER_DAYS + BASELINE_DAYS)
     inner_start = festival.window_start - timedelta(days=BUFFER_DAYS)
@@ -220,18 +149,7 @@ def _baseline_mask(index: pd.DatetimeIndex, festival: Festival, weekdays: set[in
 
 
 def measure(series: pd.Series, festival: Festival) -> Occurrence | None:
-    """Measure one occurrence, or ``None`` when the history cannot support it.
-
-    Args:
-        series: Daily units for one SKU, date-indexed, NaN where unobserved.
-        festival: The dated occurrence to measure.
-
-    Returns:
-        An :class:`Occurrence`, or ``None`` if the run-up or the baseline has too few
-        observations, or the baseline is zero — a SKU with no normal demand has no
-        meaningful ratio, and dividing by it would invent one.
-
-    """
+    """Measure one occurrence, or ``None`` when the history cannot support it."""
     index = pd.DatetimeIndex(series.index)
     as_date = index.date
 
@@ -268,21 +186,14 @@ def measure(series: pd.Series, festival: Festival) -> Occurrence | None:
     )
 
 
-#: Used when a festival is flagged partial in SOURCES but has no row in PARTIAL. The two
-#: are separate dicts, so they can disagree; degrading to a general sentence keeps a
-#: mismatch from raising inside the worker, where it would fail a whole forecast run.
+#: Used when a festival is flagged partial in SOURCES but has no row in PARTIAL.
 PARTIAL_FALLBACK: Final = "Our calendar has gaps for this festival."
 
 
 def measure_sku(
     sku: str, series: pd.Series, festival_key: str, *, region: str = DEFAULT_REGION
 ) -> Uplift:
-    """Measure one festival's effect on one SKU across every year its history covers.
-
-    Returns an ``UNAVAILABLE`` uplift with a specific reason when it cannot be measured.
-    The caller decides whether to fall back to a prior — this function never does it
-    silently.
-    """
+    """Measure one festival's effect on one SKU across every year its history covers."""
     if is_prior_only(festival_key):
         # Independence Day and Republic Day. Refused here rather than at each call site, so
         # one place decides and there is no way to route around it.
@@ -363,10 +274,6 @@ def measure_all(sku: str, series: pd.Series, *, region: str = DEFAULT_REGION) ->
 def relevant_for(
     last_observed: date, horizon: int, *, region: str = DEFAULT_REGION
 ) -> list[Festival]:
-    """Festivals whose window overlaps the forecast horizon.
-
-    The only ones worth mentioning: a Diwali uplift measured beautifully in March is a fact
-    about the past, not a reason to order anything today.
-    """
+    """Festivals whose window overlaps the forecast horizon."""
     start = last_observed + timedelta(days=1)
     return windows_in(start, last_observed + timedelta(days=horizon), region)

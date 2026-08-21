@@ -1,34 +1,4 @@
-"""E5-S2 — forecast accuracy metrics.
-
-Why these four
---------------
-**MASE** and **RMSSE** are scale-free: they divide the error by how well a naive forecast
-would have done *on that series' own training history*. That matters here because the
-panel spans SKUs selling 40 units a day and SKUs selling 40 units a year, and an unscaled
-error would simply rank series by volume.
-
-**Bias / ME** is signed, and the sign is the entire point of this project. An over-forecast
-becomes dead stock and, for fresh food, spoilage; an under-forecast becomes a stockout and
-lost margin. They cost different amounts, so an unsigned error metric throws away the
-information the newsvendor layer in E7 is built to act on.
-
-**Pinball loss** scores a quantile rather than a point, which is what E7 actually consumes.
-A model can have excellent MASE and a useless 95th percentile.
-
-Why not MAPE
-------------
-MAPE divides by the actual. 61.6% of this panel is zero-demand days, so the denominator is
-zero on most rows and the metric is undefined -- and on the near-zero rows that remain it
-explodes to arbitrarily large values, so any average is dominated by the quietest days.
-It is not a defensible metric on intermittent demand and is deliberately absent.
-
-The scale denominator
----------------------
-Both scaled metrics divide by the mean 1-step naive error over the **training** window,
-measured from each series' first non-zero sale (the M5 convention). A series that never
-sells during training has no defined scale; those series are excluded and the exclusion is
-counted and reported rather than silently dropped.
-"""
+"""E5-S2 — forecast accuracy metrics."""
 
 from __future__ import annotations
 
@@ -40,20 +10,7 @@ EPS = 1e-12
 
 
 def naive_scale(train: np.ndarray, seasonality: int = 1) -> float:
-    """Mean absolute ``seasonality``-step naive error over the training window.
-
-    Measured from the first non-zero observation, per the M5 convention: the leading zeros
-    of a not-yet-introduced SKU are not demand history, and including them deflates the
-    denominator, which inflates the apparent skill of every model scored against it.
-
-    Args:
-        train: Training actuals for one series, in date order.
-        seasonality: Step size for the naive comparison. 1 is standard for M5.
-
-    Returns:
-        The scale, or ``nan`` if the series has no usable variation in training.
-
-    """
+    """Mean absolute ``seasonality``-step naive error over the training window."""
     train = np.asarray(train, dtype=float)
     nz = np.nonzero(train)[0]
     if nz.size == 0:
@@ -74,15 +31,7 @@ def mase(actual: np.ndarray, predicted: np.ndarray, scale: float) -> float:
 
 
 def rmsse(actual: np.ndarray, predicted: np.ndarray, scale_sq: float) -> float:
-    """Root mean squared scaled error -- the per-series component of M5's WRMSSE.
-
-    Args:
-        actual: Realised units over the test window.
-        predicted: Forecast units over the same window.
-        scale_sq: Mean squared 1-step naive error over training, from
-            :func:`naive_scale_squared`.
-
-    """
+    """Root mean squared scaled error -- the per-series component of M5's WRMSSE."""
     if not np.isfinite(scale_sq):
         return float("nan")
     err = np.asarray(actual, float) - np.asarray(predicted, float)
@@ -108,16 +57,7 @@ def bias(actual: np.ndarray, predicted: np.ndarray) -> float:
 
 
 def pinball(actual: np.ndarray, predicted: np.ndarray, quantile: float) -> float:
-    """Pinball (quantile) loss at level ``quantile``.
-
-    Penalises under-forecasting by ``q`` and over-forecasting by ``1 - q``, so a high
-    quantile is punished mostly for being too low -- which is the asymmetry a service-level
-    target is meant to encode.
-
-    Raises:
-        ValueError: If ``quantile`` is not strictly between 0 and 1.
-
-    """
+    """Pinball (quantile) loss at level ``quantile``."""
     if not 0.0 < quantile < 1.0:
         raise ValueError(f"quantile must be in (0, 1), got {quantile}")
     diff = np.asarray(actual, float) - np.asarray(predicted, float)
@@ -143,15 +83,7 @@ def score_series(
     predicted: np.ndarray,
     seasonality: int = 1,
 ) -> SeriesScore:
-    """Score one series over one fold.
-
-    Args:
-        train: Training actuals up to the fold origin, in date order.
-        actual: Realised units over the test window.
-        predicted: Forecast units over the same window.
-        seasonality: Naive step for MASE's denominator.
-
-    """
+    """Score one series over one fold."""
     return SeriesScore(
         mase=mase(actual, predicted, naive_scale(train, seasonality)),
         rmsse=rmsse(actual, predicted, naive_scale_squared(train)),
@@ -160,14 +92,7 @@ def score_series(
 
 
 def aggregate(values: np.ndarray) -> tuple[float, int, int]:
-    """Mean over scorable series.
-
-    Returns:
-        ``(mean, n_scored, n_unscorable)``. The unscorable count is returned rather than
-        hidden so that a model scored on fewer series than another is visible rather than
-        flattering.
-
-    """
+    """Mean over scorable series."""
     values = np.asarray(values, dtype=float)
     finite = np.isfinite(values)
     mean = float(values[finite].mean()) if finite.any() else float("nan")

@@ -1,53 +1,4 @@
-"""The reference demand table: what to suggest when there is nothing to measure.
-
-Where this sits
----------------
-:mod:`inventory_engine.service.uplift` measures a festival's effect from a SKU's own history
-and is always preferred. It needs roughly 13 months of data. This module covers the gap for
-everyone else -- a shop that signed up last month, or a product introduced last week -- by
-matching the SKU's name against ``inventory_engine/data/india_festival_demand.csv`` and
-offering that row's multiplier as a **suggestion**.
-
-:func:`resolve` is the only function most callers want. It tries the measurement, falls back
-to the prior, and labels which one it returned. Nothing here ever silently upgrades a
-suggestion into a measurement.
-
-Why keyword matching is a suggestion and not a decision
--------------------------------------------------------
-"Amul Taaza 1L" is recognisably milk. "AT-1L-BLU" and "SKU-88213" are not, and *"Milk Bikis"*
-is a biscuit that matches the keyword ``milk`` perfectly while behaving nothing like dairy at
-Holi. The failure is silent and expensive: double stock on the wrong product, no error
-anywhere.
-
-So every match carries the keyword that produced it. The intended presentation is
-"matched **paneer** -> Holi, suggested 1.6x", which a buyer can reject at a glance. That is a
-different thing from a taxonomy applied on their behalf, and it is the only form of name
-inference this codebase will do.
-
-More than groceries
--------------------
-The table used to be food only, which made the arithmetic true and useless: the thing a
-shopper buys *because* it is Diwali is a diya, and the thing they buy because it is Holi is
-gulal. Those categories are in here now, and they behave differently from food -- a larger
-multiple, because the baseline week sells almost none, and a shallower cost of being wrong,
-because a leftover string of lights keeps until next year while leftover paneer does not.
-The ``notes`` column says so per row, since the multiplier alone cannot.
-
-Direction
----------
-A festival is not one blanket lift. Maha Shivratri raises fasting foods and *suppresses*
-onion, garlic and non-veg, so the table carries one row per category per direction and
-multipliers below 1.0 are ordinary. A SKU matching both directions at the same festival is
-resolved by specificity, and a genuine tie is reported as ambiguous rather than guessed --
-"onion" and "onion masala" want different answers and a coin flip is not one of them.
-
-Two festivals that are only ever suggestions
---------------------------------------------
-Independence Day and Republic Day are :attr:`~inventory_engine.service.festivals.Source.
-prior_only`. Their rows cover snacks, soft drinks and flags and nothing else: a civic
-holiday does not move atta, and giving it a food-staple row would attach a multiplier to
-every grocery in the catalogue on the strength of a long weekend.
-"""
+"""The reference demand table: what to suggest when there is nothing to measure."""
 
 from __future__ import annotations
 
@@ -61,18 +12,8 @@ from typing import Final
 from inventory_engine.service.festivals import SOURCES
 from inventory_engine.service.uplift import Source, Uplift
 
-#: The reference table. Data, not code, so it can be corrected without a release.
-#:
-#: Resolved relative to the *package*, not to a repository root. It used to be
-#: ``PROJECT_ROOT / "data" / ...``, where ``PROJECT_ROOT`` is ``parents[2]`` of
-#: ``config.py`` -- the repo root from a source checkout, and ``/usr/local/lib/python3.11``
-#: from site-packages. The deployed service therefore looked for the table one directory
-#: above the standard library and raised ``FileNotFoundError`` on every forecast. Caught by
-#: the first end-to-end run against the deployment, not by any test, because every test
-#: runs from a checkout where the old path happened to be right.
-#:
-#: Living inside the package means it ships with the wheel, which is what the sentence
-#: below has always claimed.
+#: The reference table. Data, not code, so it can be corrected without a release. Resolved relative
+#: to the *package*, not to a repository root. It used to be ``PROJECT_ROOT / "data" / ...``, where
 DEFAULT_PATH: Final[Path] = (
     Path(__file__).resolve().parents[1] / "data" / "india_festival_demand.csv"
 )
@@ -102,11 +43,7 @@ class PriorRow:
 
 @dataclass(frozen=True)
 class PriorMatch:
-    """A matched row, with the keyword that caused the match.
-
-    The keyword is not decoration. It is what lets a buyer see *why* their product was
-    classified, and reject it when the answer is "because 'Milk Bikis' contains 'milk'".
-    """
+    """A matched row, with the keyword that caused the match."""
 
     row: PriorRow
     keyword: str
@@ -131,11 +68,7 @@ def _normalise(text: str) -> list[str]:
 
 
 def _phrase_at(tokens: list[str], phrase: list[str]) -> bool:
-    """Whether ``phrase`` appears as a contiguous run inside ``tokens``.
-
-    Contiguous rather than "all words present anywhere": "dry fruits" should match
-    *Haldiram Dry Fruits Mix* and not *dry roasted peanuts with fruit juice*.
-    """
+    """Whether ``phrase`` appears as a contiguous run inside ``tokens``."""
     if not phrase or len(phrase) > len(tokens):
         return False
     return any(tokens[i : i + len(phrase)] == phrase for i in range(len(tokens) - len(phrase) + 1))
@@ -143,16 +76,7 @@ def _phrase_at(tokens: list[str], phrase: list[str]) -> bool:
 
 @lru_cache(maxsize=4)
 def load(path: str | None = None) -> tuple[PriorRow, ...]:
-    """Read the reference table.
-
-    Raises:
-        FileNotFoundError: If the table is missing. It ships with the repository, so its
-            absence is a packaging fault worth failing on rather than degrading past.
-        ValueError: If a row names a festival the calendar has no dates for, or uses a
-            direction other than up/down. Both would produce a suggestion that could never
-            be attached to a date, which is worse than a missing row.
-
-    """
+    """Read the reference table."""
     source = Path(path) if path else DEFAULT_PATH
     if not source.is_file():
         raise FileNotFoundError(f"festival demand table not found at {source}")
@@ -180,10 +104,13 @@ def load(path: str | None = None) -> tuple[PriorRow, ...]:
                     f"than zero, got {multiplier!r} -- a zero or negative multiplier would "
                     "drive the order to nothing while the row still reads as advice."
                 )
-            # The words come from `direction` and the arithmetic from `multiplier`, so a row
-            # where they disagree tells the buyer demand falls while raising their order.
-            # Neither value can be trusted over the other; the row is simply wrong.
-            if (direction == "up") != (multiplier > 1.0):
+            # The words come from `direction` and the arithmetic from `multiplier`, so a row where
+            # they disagree tells the buyer demand falls while raising their order.
+            expected_up = multiplier > 1.0
+            expected_down = multiplier < 1.0
+            if (direction == "up" and not expected_up) or (
+                direction == "down" and not expected_down
+            ):
                 raise ValueError(
                     f"{source.name} line {line_no}: direction {direction!r} contradicts "
                     f"suggested_multiplier {multiplier!r}. 'up' needs a multiplier above "
@@ -209,13 +136,7 @@ def load(path: str | None = None) -> tuple[PriorRow, ...]:
 
 
 def match(sku: str, festival_key: str, *, path: str | None = None) -> PriorMatch | None:
-    """Best keyword match for ``sku`` at ``festival_key``, or ``None``.
-
-    The longest matching keyword wins, because a longer phrase is a more specific claim:
-    *onion masala* should not be classified by *onion*. A tie between two rows pulling in
-    opposite directions is ambiguous and returns ``None`` -- the caller then has no prior,
-    which is the correct answer when the table genuinely cannot tell.
-    """
+    """Best keyword match for ``sku`` at ``festival_key``, or ``None``."""
     tokens = _normalise(sku)
     if not tokens:
         return None
@@ -244,10 +165,7 @@ def match(sku: str, festival_key: str, *, path: str | None = None) -> PriorMatch
 
 
 def prior_uplift(sku: str, festival_key: str, *, path: str | None = None) -> Uplift:
-    """Return a prior-sourced :class:`~inventory_engine.service.uplift.Uplift`.
-
-    Unavailable when the product name matches nothing in the table.
-    """
+    """Return a prior-sourced :class:`~inventory_engine.service.uplift.Uplift`."""
     festival_name = SOURCES[festival_key].name if festival_key in SOURCES else festival_key
     found = match(sku, festival_key, path=path)
     if found is None:
@@ -271,20 +189,7 @@ def prior_uplift(sku: str, festival_key: str, *, path: str | None = None) -> Upl
 
 
 def resolve(sku, series, festival_key, *, region: str = "IN", path: str | None = None) -> Uplift:
-    """Measured uplift if the history supports one, otherwise the reference suggestion.
-
-    The one function most callers want. The order is the whole point and is not
-    configurable: a shop's own sales always outrank a table someone wrote down, and a
-    suggestion is only ever a stand-in for a measurement that could not be made.
-
-    Args:
-        sku: Product identifier, used both for the result and for keyword matching.
-        series: Daily units, date-indexed.
-        festival_key: Which festival.
-        region: Calendar region.
-        path: Override the reference table, for tests.
-
-    """
+    """Measured uplift if the history supports one, otherwise the reference suggestion."""
     from inventory_engine.service.uplift import measure_sku
 
     measured = measure_sku(sku, series, festival_key, region=region)
@@ -294,12 +199,7 @@ def resolve(sku, series, festival_key, *, region: str = "IN", path: str | None =
 
 
 def coverage_report(skus: list[str], festival_key: str, *, path: str | None = None) -> dict:
-    """How many of ``skus`` the reference table can speak about at all.
-
-    Useful before showing anything: "we can suggest for 12 of your 60 products" is the
-    honest headline, and it is also the number that says whether keyword matching is
-    carrying its weight for this catalogue or not.
-    """
+    """How many of ``skus`` the reference table can speak about at all."""
     matched = {s: m for s in skus if (m := match(s, festival_key, path=path)) is not None}
     return {
         "festival_key": festival_key,

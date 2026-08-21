@@ -3,9 +3,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
 /* Vendored faces, embedded as data URIs by scripts/build_dashboard.py from
-   dashboard/fonts/*.woff2. Not a CDN link: this page is served both from the forecast
-   service and as a Claude Artifact, and the Artifact CSP blocks font CDNs outright -- a
-   <link> would fall back to system faces there with no error to notice. */
+   dashboard/fonts/*.woff2. */
 __FONTS__
   :root {
     --ground: #0C1211;
@@ -22,19 +20,15 @@ __FONTS__
     --jade-hi: #69DBAA;
     --ink-4: #5F6F69;
     --jade-dim: rgba(47, 169, 124, .14);
-    /* Callout grounds. The design tints each callout with its own accent rather than
-       seating them all on one surface, so the semantic colour reads before the text does.
-       Jade and amber are the source's values; the blue is derived on the same logic --
-       the source has no blue callout to copy. */
+    /* Callout grounds. The design tints each callout with its own accent rather than seating
+       them all on one surface, so the semantic colour reads before the text does. Jade and amber */
     --callout-jade: #101A17;
     --callout-amber: #150F06;
     --callout-blue: #0D121D;
     --amber-dim: rgba(196, 134, 43, .16);
     --blue-dim: rgba(79, 134, 212, .16);
-    /* Dual-font strategy from the design: Barlow carries the interface, JetBrains Mono
-       carries every number. The mono face is not decoration -- tabular figures are what
-       keep the order-quantity and MASE columns readable down a table. System stacks stay
-       as the fallback for the seconds before the embedded face parses. */
+    /* Dual-font strategy from the design: Barlow carries the interface, JetBrains Mono carries
+       every number. */
     --mono: "JetBrains Mono", ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
     --sans: Barlow, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     --cond: "Barlow Condensed", "Barlow", system-ui, sans-serif;
@@ -93,9 +87,7 @@ __FONTS__
     letter-spacing: .04em
   }
 
-  /* `margin-left:auto` rather than a flex spacer element. A spacer only right-aligns the
-     switch while everything fits on one line -- once the subtitle wraps, the spacer stays
-     behind on line 1 and the switch lands hard against the left margin on line 2. */
+  /* `margin-left:auto` rather than a flex spacer element. */
   .fx {
     display: flex;
     align-items: center;
@@ -190,12 +182,7 @@ __FONTS__
   }
 
   /* ---------- structure ---------- */
-  /* The source gives every tab 48px under the sticky nav and 96px before the footer.
-     Written as `main.wrap` with longhands, and both parts matter. `.wrap` is a class, so it
-     outranks a bare `main` selector -- its `padding: 0 32px` was quietly zeroing the
-     vertical padding, which is why raising the numbers on a `main {}` rule changed nothing
-     at all. Longhands then leave `.wrap`'s horizontal gutter alone instead of resetting it
-     to zero. Home looked fine throughout only because .home-hero brings its own padding. */
+  /* The source gives every tab 48px under the sticky nav and 96px before the footer. */
   main.wrap {
     padding-top: 48px;
     padding-bottom: 96px
@@ -235,9 +222,8 @@ __FONTS__
     margin: 0 0 10px
   }
 
-  /* Condensed headings are the design's loudest signal: a narrow, tall face set against
-     the wide monospaced figures. Sized from the source rather than nudged -- at 40px a
-     heading reads as a section break without needing a rule under it. */
+  /* Condensed headings are the design's loudest signal: a narrow, tall face set against the wide
+     monospaced figures. */
   h2 {
     font-family: var(--cond);
     font-size: 40px;
@@ -532,10 +518,7 @@ __FONTS__
     line-height: 1.5
   }
 
-  /* Charts scale to their container; icons must not. This used to be a bare `svg` rule,
-     and since a CSS width overrides the HTML width attribute it silently blew every inline
-     icon up to the full width of its button. Anything that should fill its box now says so
-     by carrying .fluid. */
+  /* Charts scale to their container; icons must not. */
   svg.fluid {
     display: block;
     width: 100%;
@@ -547,13 +530,7 @@ __FONTS__
   .dl-btn svg.arrow { width: 13px; height: 13px }
   .drop-ico svg { width: 18px; height: 18px }
 
-  /* ---------- full forecast tab ----------
-     One hue for the demand series. History and forecast are the same quantity at
-     different times, so they share jade and are separated by a non-colour channel --
-     solid for what happened, dashed for what is projected. Trying it the other way
-     (muted grey history against jade forecast) failed the palette validator at
-     dE 14.8 normal-vision, under the floor of 15; and borrowing amber or blue would
-     have collided with their fixed meanings on every other figure here. */
+  /* ---------- full forecast tab ---------- One hue for the demand series. */
   .ff-chart-head {
     display: flex;
     align-items: flex-start;
@@ -585,9 +562,7 @@ __FONTS__
     position: relative
   }
 
-  /* Three states, three visual weights. The adjusted tag is the only one that carries a
-     colour, because it is the only one attached to a number that moved -- an advisory that
-     shouted as loudly as an adjustment would train the reader to ignore both. */
+  /* Three states, three visual weights. */
   .fest-tag {
     display: inline-block;
     padding: 1px 7px;
@@ -723,10 +698,7 @@ __FONTS__
 
 
   /* ---------- prose ---------- */
-  /* Barlow, not the serif this used to set. The design carries exactly three faces --
-     Barlow, Barlow Condensed and JetBrains Mono -- and no serif at all; a fourth family
-     here would be the page disagreeing with its own system. 65ch keeps the measure
-     readable now that the container is 1320px rather than 1140px. */
+  /* Barlow, not the serif this used to set. */
   .prose {
     font-family: var(--sans);
     font-size: 16px;
@@ -804,9 +776,8 @@ __FONTS__
     white-space: nowrap
   }
 
-  /* Steps 01 and 02 sit side by side, and the order list runs full width beneath them --
-     the results are the widest thing on the page and were previously squeezed into a
-     column beside the inputs. */
+  /* Steps 01 and 02 sit side by side, and the order list runs full width beneath them -- the
+     results are the widest thing on the page, and were previously squeezed into a narrow column. */
   .steps {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -919,11 +890,7 @@ __FONTS__
     transition: border-color .15s, background .15s
   }
 
-  /* The glyph sits in its own square, as the mock draws it. The stroke is set here rather
-     than as an SVG presentation attribute: a var() that fails to compute in an attribute
-     leaves stroke at its `none` initial value, and the icon renders invisible with no
-     error anywhere -- which is precisely how it shipped. In a stylesheet it is a normal
-     custom-property lookup and cannot fail this way. */
+  /* The glyph sits in its own square, as the mock draws it. */
   .drop-ico {
     width: 38px;
     height: 38px;
@@ -1175,9 +1142,7 @@ __FONTS__
     letter-spacing: .04em
   }
 
-  /* Centred so it reads the same under every tab. The content columns above it are
-     deliberately different widths -- 1000px on Why, 1200px on Proof, full width on the
-     calculator -- and a left-aligned footer picks a fight with whichever one it is under. */
+  /* Centred so it reads the same under every tab. */
   footer.wrap {
     border-top: 1px solid var(--line);
     padding-top: 30px;
@@ -1206,11 +1171,7 @@ __FONTS__
       }
     }
   }
-  /* ---------- home ----------
-     Transcribed from "Just Enough v2.dc.html". The source sets every rule inline on a
-     1280px canvas; the values here are its values, moved into classes and onto our own
-     tokens. Nothing on this tab is hardcoded arithmetic -- every figure is written by
-     renderHome() from DATA, so the page cannot drift from the warehouse it describes. */
+  /* ---------- home ---------- Transcribed from "Just Enough v2.dc.html". */
   .home-block { margin-top: 72px }
 
   .home-hero {
@@ -1275,9 +1236,8 @@ __FONTS__
   .btn-ghost:hover { border-color: var(--jade) }
   .btn-ghost.blue:hover { border-color: var(--blue) }
 
-  /* Corner ticks. The source draws four crossed hairlines just outside the box, which reads
-     as a machined plate rather than a card -- the one piece of ornament in the whole design,
-     so it is worth keeping exactly. */
+  /* Corner ticks. The source draws four crossed hairlines just outside the box, which reads as a
+     machined plate rather than a card -- the one piece of ornament in the whole design, so it. */
   .bracket { position: relative }
 
   .bracket::before, .bracket::after,
@@ -1728,9 +1688,8 @@ __FONTS__
     .cpanel-cap .hint { text-align: left }
   }
 
-  /* ---------- why these numbers ----------
-     A reading column, not a dashboard: the source narrows this tab to 1000px because the
-     whole page is one argument read top to bottom, and a 1320px measure would break it. */
+  /* ---------- why these numbers ---------- A reading column, not a dashboard: the source
+     narrows this tab to 1000px because the whole page is one argument read top to bottom. */
   .reading { max-width: 1000px; margin: 0 auto; padding-bottom: 24px }
 
   .why-eye {
@@ -2045,11 +2004,8 @@ __FONTS__
   .ff-cols code { color: var(--ink); background: var(--surface-2); padding: 1px 5px; border-radius: 2px }
   .ff-cols .lose code { background: transparent; padding: 0 }
   /* ---------- narrow screens ----------
-     Last in the file, and that placement is the rule rather than tidiness. Every override
-     here has the same specificity as its base rule, so the cascade falls back to source
-     order: declared above those base rules, as this block originally was, none of it
-     applied and the page kept desktop sizes on a phone. Anything added below this point
-     must be a base rule, never a narrow-screen override. */
+     Last in the file, and that is the rule: equal specificity means source order decides.
+     Anything added below this point must be a base rule, never a narrow-screen override. */
   @media (max-width: 700px) {
     .wrap { padding-left: 18px; padding-right: 18px }
     main.wrap { padding-top: 32px; padding-bottom: 64px }
@@ -2771,17 +2727,8 @@ __FONTS__
   // line -- the full-forecast crosshair marker needs it to stay legible where it crosses.
   const C = { jade: '#2FA97C', amber: '#C4862B', blue: '#4F86D4', ink3: '#7A8A84', line: '#222E2A', ink2: '#A6B5AF', surface: '#131A18' };
 
-  /* ---------------- currency: ONE source of truth ----------------
-     Every amount in this app is stored in USD and converted only for display. `FX` below is
-     the single definition of the alternate currency -- its rate, symbol, code and locale.
-     The header label, the toggle button text, the money formatter and the calculator's cost
-     inputs all read from it, so changing `FX.rate` here updates every number on the page and
-     nothing else needs touching.
-  
-     A live rate is not possible here: the page is a self-contained artifact under a strict
-     CSP that blocks all outbound requests, so there is nothing to fetch from. The rate is
-     therefore a fixed constant and is labelled as one in the header rather than presented as
-     a market quote. */
+  /* ---------------- currency: ONE source of truth ---------------- Every amount in this app is
+     stored in USD and converted only for display. */
   const FX = {
     code: 'INR',
     symbol: '₹',
@@ -2806,9 +2753,7 @@ __FONTS__
   };
 
   /* Whole units read better for headline figures, but rounding a $0.68 saving to "$1" both
-     overstates it and makes the currency toggle look broken -- $1 next to the same figure
-     shown as INR 65 implies a rate of 50, not 95.21. So the choice of precision follows the
-     magnitude *as displayed*, which keeps the two currencies in exact proportion. */
+     overstates it and makes the currency toggle look broken -- $1 next to the same figure shown */
   const moneySmart = n =>
     Math.abs(CURRENCY === 'USD' ? n : n * FX.rate) < 100 ? moneyFine(n) : money(n);
 
@@ -2824,9 +2769,7 @@ __FONTS__
     `1 USD = ${FX.symbol}${FX.rate} <span style="color:var(--ink-3)">(${FX.note})</span>`;
   $('#curINR').textContent = `${FX.code} ${FX.symbol}`;
 
-  /* Anything outside the calculator that renders money registers here. setCurrency has no
-     business knowing what those things are, and a tab that forgets to subscribe shows stale
-     currency -- which is exactly what the Full forecast tab did. */
+  /* Anything outside the calculator that renders money registers here. */
   const CURRENCY_LISTENERS = [];
 
   function setCurrency(code) {
@@ -2844,10 +2787,7 @@ __FONTS__
   $('#curUSD').addEventListener('click', () => setCurrency('USD'));
   $('#curINR').addEventListener('click', () => setCurrency('INR'));
 
-  /* Results currently blink into existence. Replaying the page's existing .fade keyframe
-     on the blocks that just changed gives the same 350ms settle the tab switch already has,
-     so the eye is led to what appeared instead of having to find it. Honours
-     prefers-reduced-motion for free, because .fade is already inside that media query. */
+  /* Results currently blink into existence. */
   function reveal(...nodes) {
     nodes.forEach(n => {
       if (!n) return;
@@ -2857,10 +2797,8 @@ __FONTS__
     });
   }
 
-  /* ---------------- tabs ----------------
-     One tab can own several sections: the M5 cost sensitivity belongs with the proof, and
-     the example forecasts belong with the technical detail. Mapping tab -> sections keeps
-     that grouping without reshuffling the markup. */
+  /* ---------------- tabs ---------------- One tab can own several sections: the M5 cost
+     sensitivity belongs with the proof, and the example forecasts belong with the technical */
   const TAB_SECTIONS = {
     home: ['home'],
     calculator: ['calculator'],
@@ -2882,10 +2820,7 @@ __FONTS__
     window.scrollTo({ top: 0, behavior: 'instant' });
     if (name === 'full') window.__ffProbe?.();
   }
-  /* Remember which tab you were on. A reload used to drop you back on the calculator,
-     which is wrong after you have just run a forecast: the results are still there, you
-     simply cannot see them. The hash is authoritative so a link to #full works and can be
-     shared; localStorage covers a plain reload with no hash. */
+  /* Remember which tab you were on. */
   const TAB_KEY = 'ioe.tab';
   tabs.forEach(t => t.addEventListener('click', () => {
     show(t.dataset.t);
@@ -2913,12 +2848,8 @@ __FONTS__
   const naiveM = byPolicy('Current'), fixedM = byPolicy('Fixed'), newsM = byPolicy('Newsvendor');
   const savedAbs = naiveM.total_cost - newsM.total_cost;
 
-  /* ---------------- home ----------------
-     Every figure the landing page asserts is computed here from DATA. The design file
-     states them as literals -- 28.6%, 73%, 41%, 2.5x -- and all of them happened to be
-     correct when it was drawn. Hardcoding them anyway would mean the one page that makes
-     the project's central claim is the one page that cannot notice when the claim stops
-     being true. */
+  /* ---------------- home ---------------- Every figure the landing page asserts is computed
+     here from DATA. */
   function renderHome() {
     const set = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
     const pct1 = x => (x * 100).toFixed(1) + '%';
@@ -2990,9 +2921,7 @@ __FONTS__
     set('pStockFlow', pct1(naiveM.stockout_rate) + ' → ' + pct1(newsM.stockout_rate));
     set('pSpoiled', fmt(fixedM.waste_units));
 
-    /* Five columns, as the design draws it. The old table had seven and split the cost into
-       its understock and overstock halves; that breakdown now lives on the calculator tab,
-       where it is priced on the reader's own figures rather than on M5's. */
+    /* Five columns, as the design draws it. */
     const vs = m => m === naiveM
       ? '<td class="muted">—</td>'
       : `<td class="${m.total_cost > naiveM.total_cost ? 'amber' : 'jade'}">`
@@ -3024,14 +2953,8 @@ __FONTS__
   const cost = (p, cu, co) => p.short * cu + p.left * co;
 
 
-  /* Fig. 03. The design's model, not the old one: spoilage is the assumption you move, and
-     the in-stock target is a number you *pick* so the page can price picking it wrong. The
-     margin stays at the money table's 30% so this figure and that table stay comparable.
-
-     The old version exposed the two unit costs directly, in currency. That made the axis
-     read in dollars, put three policy lines and a legend on one chart, and needed a
-     paragraph to explain the gap between the arithmetic and the sweep. Cost here is indexed
-     instead: the shape is the finding, not the height. */
+  /* Fig. 03. The design's model, not the old one: spoilage is the assumption you move, and the
+     in-stock target is a number you *pick* so the page can price picking it wrong. The margin */
   const SIM_MARGIN = naiveM.margin_rate;
 
   /** Cu and Co per unit of price at a given spoilage rate. Mirrors costs.py. */
@@ -3135,37 +3058,13 @@ __FONTS__
      for. This is the single place that reacts to #csv changing, whoever wrote it. */
   $('#csv').addEventListener('input', () => armCalculator());
 
-  /* ================= ORDER CALCULATOR =================
-     Works entirely on data the user pastes in, in the browser. Nothing is uploaded.
-  
-     Why this doesn't use the trained LightGBM model: that model takes item_id as an input
-     and needs a year of history per series, so it can only score the 180 M5 products it was
-     fitted on -- it has no way to represent a product it has never seen. What transfers is
-     the ordering rule, which is where Phase 7 measured most of the saving coming from
-     (fixing the policy cut cost 71%; improving the forecast cut it 18%).
-  
-     So demand is taken straight from the user's own history as an empirical distribution of
-     H-day totals, and the newsvendor rule picks the quantile. No distributional assumption,
-     which matters for slow movers where most days are zero and a fitted curve would invent
-     fractional daily demand that never occurs. */
+  /* ================= ORDER CALCULATOR ================= Works entirely on data the user pastes
+     in, in the browser. */
 
   const CAL = { skus: new Map() };
 
-  /* ---- the cost model, ported from src/inventory_engine/optimize/costs.py ----
-     Two flat cash amounts cannot price a mixed product list: the same missed sale is worth
-     far more on a $6 item than on a $1 one. So the inputs are *rates* and each product's
-     costs come off its own shelf price, which is exactly what `CostModel` does server-side:
-
-         unit_cost = price x (1 - margin)
-         Cu        = price x margin                              (lost gross margin)
-         Co        = unit_cost x (spoilage + holding)            (write-off + carrying)
-
-     Note `Co` is a fraction of what you *paid*, not of the shelf price -- you can only write
-     off your own cost, never the margin you never earned. That is why the second slider is
-     labelled "of what you paid for it".
-
-     Rates are pure numbers, so unlike the cash amounts they replace they need no currency
-     conversion at all. Only the money they produce does. */
+  /* ---- the cost model, ported from src/inventory_engine/optimize/costs.py ---- Two flat cash
+     amounts cannot price a mixed product list: the same missed sale is worth far more on a $6 */
   const RATES = { margin: 0.30, spoilage: 0.60 };
 
   /** Daily carrying cost as a fraction of unit cost. `DEFAULT_HOLDING_RATE` in costs.py. */
@@ -3180,25 +3079,15 @@ __FONTS__
     return { cu: price * RATES.margin, co: cost * (RATES.spoilage + HOLDING_RATE) };
   }
 
-  /* CR = Cu / (Cu + Co). Price cancels out of that fraction -- both costs scale linearly
-     with price -- so the *service level* is shared across products while the *cash* at stake
-     is not. costs.py says the same thing in `critical_ratio`'s docstring. This is worth
-     knowing when reading the table: two products at the same service level still order very
-     different quantities, because each is a quantile of its own demand history. */
+  /* CR = Cu / (Cu + Co). Price cancels out of that fraction -- both costs scale linearly with
+     price -- so the *service level* is shared across products while the *cash* at stake is not. */
   function criticalRatio() {
     const { cu, co } = unitCosts(1);
     return cu + co > 0 ? cu / (cu + co) : 0.5;
   }
 
 
-  /* The Why tab states the derivation in words. Every percentage in it is read back out of
-     unitCosts(), so moving a slider on the calculator tab rewrites the argument here too --
-     and so the page cannot end up explaining a ratio it is no longer using.
-
-     Deliberately *not* the design's figures. The source file works the overage cost out as
-     `spoilage x cost + holding x price` and lands on 44% / 40.5%; costs.py works it out as
-     `cost x (spoilage + holding)` and lands on 43.4% / 40.9%. The engine that produces every
-     other number on this site is the one that wins. */
+  /* The Why tab states the derivation in words. */
   function renderWhy() {
     const set = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
     const { cu, co } = unitCosts(1);
@@ -3241,12 +3130,8 @@ __FONTS__
     if (lines.length < 2) return { error: 'Not enough rows — paste a header row and some sales.' };
     const split = l => l.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
     const head = split(lines[0]).map(h => h.toLowerCase());
-    /* Exact header names win before any substring is considered, and a column already
-       claimed by an earlier field cannot be claimed again. Without the first rule
-       `product,sales_date,units_sold` read its units from `sales_date`, because that header
-       contains "sales"; without the second, `date,store_name,item_name,units` read every
-       product as its store, because `store_name` contains "name". Both files are ordinary
-       POS exports and both failed silently. */
+    /* Exact header names win before any substring is considered, and a column already claimed by
+       an earlier field cannot be claimed again. */
     const taken = new Set();
     const find = (...names) => {
       const free = (i) => i >= 0 && !taken.has(i);
@@ -3286,13 +3171,7 @@ __FONTS__
     return { rows, skipped, hasDate: iDate >= 0 };
   }
 
-  /** A sortable number for a date cell, or null when the format is not recognised.
-   *
-   * ISO is taken as written. Slash and dash formats are disambiguated by looking for a
-   * component above 12, which settles DD/MM against MM/DD for every date except the first
-   * twelve days of a month -- where the two orderings agree on the month anyway, so a
-   * mistake cannot move a row outside its own month.
-   */
+  /* A sortable number for a date cell, or null when the format is not recognised. */
   function dateKey(v) {
     const t = String(v).trim();
     let m = /^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/.exec(t);
@@ -3303,9 +3182,8 @@ __FONTS__
       const [d, mo] = a > 12 ? [a, b] : b > 12 ? [b, a] : [a, b];
       return (+m[3]) * 10000 + mo * 100 + d;
     }
-    // Date.parse accepts things no user would call a date -- "week 3" becomes a real
-    // timestamp -- so it is only consulted for strings carrying a four-digit year or a
-    // month name. Anything else returns null and the file's own order is kept.
+    // Date.parse accepts things no user would call a date -- "week 3" becomes a real timestamp
+    // -- so it is only consulted for strings carrying a four-digit year or a month name.
     if (!/\d{4}/.test(t) && !/jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec/i.test(t)) return null;
     const ms = Date.parse(t);
     if (!Number.isFinite(ms)) return null;
@@ -3335,10 +3213,7 @@ __FONTS__
     return out;
   }
 
-  /* Whether the order has been worked out at least once for the file now loaded. The
-     sliders, the currency switch and a fresh upload all used to re-render results the user
-     had never asked for, which is what made the button look like decoration. They now only
-     refresh a result that is already on screen. */
+  /* Whether the order has been worked out at least once for the file now loaded. */
   let CALC_RAN = false;
   const EMPTY_HTML = '<div class="calc-empty-eye">Waiting for figures</div>'
     + '<div class="calc-empty-t">Load your sales history, then work out the order</div>';
@@ -3388,9 +3263,7 @@ __FONTS__
 
     const results = []; let thin = 0, unpriced = 0;
     bySku.forEach((rows, sku) => {
-      /* Sorted by parsed date, not by text. When a format cannot be parsed the file's
-         own order is kept -- exports are chronological in practice, and leaving them alone
-         is strictly better than imposing a text order that is wrong in a different way. */
+      /* Sorted by parsed date, not by text. */
       if (parsed.hasDate) {
         rows.sort((a, b) => {
           const x = dateKey(a.date), y = dateKey(b.date);
@@ -3403,9 +3276,7 @@ __FONTS__
       if (totals.length < 4) { thin++; return; }
 
       // Latest quoted price, not the mean: the order being costed is a future one, and M5-style
-      // data reprices weekly. A product with no usable price anywhere falls back to the same
-      // constant the server-side model uses, and is counted so the page can say so out loud --
-      // silently pricing it at zero would make its costs and saving vanish without explanation.
+      // data reprices weekly.
       const priced = rows.map(r => r.price).filter(p => Number.isFinite(p) && p > 0);
       if (!priced.length) unpriced++;
       const price = priced.length ? priced[priced.length - 1] : FALLBACK_PRICE_USD;
@@ -3421,16 +3292,11 @@ __FONTS__
       const costOf = q => totals.reduce(
         (a, t) => a + Math.max(t - q, 0) * cu + Math.max(q - t, 0) * co, 0) / totals.length;
 
-      // Baseline: order the average demand and stop thinking about it. This is the honest
-      // comparison for "what does optimising actually buy me" -- it uses the same demand
-      // history and the same cost formula, so the only difference is the order quantity.
+      // Baseline: order the average demand and stop thinking about it.
       const naiveOrder = Math.round(expected);
       const recCost = costOf(ordered), naiveCost = costOf(naiveOrder);
 
-      /* The order list shows product and store in separate columns. A file with its own
-         store column is believed; otherwise a trailing "-CA_1"-style suffix is split off,
-         which is how the M5 example data names its series. Anything else keeps the whole
-         string as the product and leaves the store blank rather than inventing one. */
+      /* The order list shows product and store in separate columns. */
       const ownStore = rows.find(r => r.store)?.store || '';
       const m = ownStore ? null : /^(.*)-([A-Za-z]{2}_\d+)$/.exec(sku);
       const meanOf = f => totals.reduce((a, t) => a + f(t), 0) / totals.length;
@@ -3472,9 +3338,7 @@ __FONTS__
     const totUnits = results.reduce((a, r) => a + r.order, 0);
     const totCost = results.reduce((a, r) => a + r.expCost, 0);
 
-    /* Three policies, priced the same way on the same windows. The only thing that differs
-       between the rows is the order quantity, which is the whole claim: the saving comes
-       from choosing a different quantity, not from a different cost model. */
+    /* Three policies, priced the same way on the same windows. */
     const ways = ['last', 's95', 'target'].map(key => {
       let units = 0, wasted = 0, missed = 0;
       results.forEach(r => {
@@ -3489,9 +3353,7 @@ __FONTS__
     const deltaPct = base.total > 0 ? (mine.total - base.total) / base.total : 0;
     const deltaAbs = base.total - mine.total;
 
-    /* The first tile is signed and keeps its sign. Ordering to the target is not guaranteed
-       to be cheaper on every file -- on a fat-margin, low-spoilage product it is not -- and a
-       tile that could only ever show a saving would be advertising, not arithmetic. */
+    /* The first tile is signed and keeps its sign. */
     const cheaper = deltaPct <= 0;
     const targetPct = Math.round(cr * 100);
     tiles.innerHTML = [
@@ -3573,10 +3435,8 @@ __FONTS__
   }
 
   $('#loadDemo').addEventListener('click', () => { $('#csv').value = DATA.demoCsv; armCalculator(); });
-  /* No 'change' handler for #csvFile here: the drop-zone block binds one, and two
-     readers racing on the same pick made the outcome depend on which promise settled
-     first. That block writes #csv and dispatches 'input', which is what armCalculator
-     below responds to. */
+  /* No 'change' handler for #csvFile here: the drop-zone block binds one, and two readers racing
+     on the same pick made the outcome depend on which promise settled first. */
   ['input', 'change'].forEach(ev => {
     ['#csv', '#cover'].forEach(sel => $(sel).addEventListener(ev, runCalculator));
     // Sliders write back to canonical rates before recalculating, so the readout beside the
@@ -3616,24 +3476,11 @@ __FONTS__
     setTimeout(() => URL.revokeObjectURL(url), 10000);
   });
 
-  /* ================= FULL FORECAST (tier 2) =================
-     Talks to the FastAPI service. Everything else on this page is self-contained; this
-     is the one part that needs a backend, and it is kept in its own closure so a failure
-     here -- including the service simply not running -- cannot take the rest down.
-
-     The chart draws ONE series in ONE hue. History and forecast are the same quantity at
-     different times, distinguished by line style rather than colour, so the reader with
-     any form of colour vision gets the past/future split for free. */
+  /* ================= FULL FORECAST (tier 2) ================= Talks to the FastAPI service. */
   (function fullForecast() {
     const $$ = s => document.querySelector(s);
-    /* The service that answers these calls is the one that served this page, so the origin
-       is not a thing to ask the reader for -- there used to be a text field here, which
-       made sense only while the page was hosted apart from its own API.
-
-       The literal fallback covers the one case where there is no origin to inherit: opening
-       the built index.html straight off disk, where location.origin is "null". Anywhere the
-       page is genuinely served, same-origin is both correct and immune to the CORS and CSP
-       problems that hosting it elsewhere creates. */
+    /* The service that answers these calls is the one that served this page, so the origin is
+       not a thing to ask the reader for -- there used to be a text field here, which made sense */
     const HOSTED = location.protocol === 'https:' || location.protocol === 'http:';
     const API_BASE = (HOSTED ? location.origin : 'https://inventory-optimization-engine.fly.dev')
       .replace(/\/+$/, '');
@@ -3705,11 +3552,7 @@ __FONTS__
           : `<span class="lose">Degraded</span> — ${bits.join(', ')}. A forecast needs both.`;
         return h.status === 'ok';
       } catch (e) {
-        /* Two different situations, and telling them apart is the whole value of the
-           message. Served over http(s), the service is the origin this page came from, so a
-           failure means it is asleep or down -- and asleep is the common one, because it
-           suspends when idle to keep hosting near free. Opened off disk there is no service
-           at all yet, which is a different instruction. Either way, name the offline path. */
+        /* Two different situations, and telling them apart is the whole value of the message. */
         $$('#ffHealth').innerHTML = HOSTED
           ? `<span class="lose">The service didn't answer.</span> It sleeps when nobody is
              using it and takes a second or two to wake — try again shortly. The
@@ -3724,9 +3567,7 @@ __FONTS__
     const reqId = () => 'ui-' + Math.random().toString(36).slice(2, 10);
 
     /* An anonymous, per-browser id so the service can count users and active users without
-       accounts. It identifies a browser and nothing else -- no name, no email, no company --
-       and it is generated here rather than server-side so it never has to be reconstructed
-       from an IP address. Clearing site data resets it, which is the correct behaviour. */
+       accounts. */
     function clientId() {
       const KEY = 'ioe.clientId';
       try {
@@ -3767,18 +3608,10 @@ __FONTS__
         msg(esc(d.detail || 'Upload rejected.') + columnReport(d), 'msg');
         renderGate(d.excluded || [], true);
 
-        /* Forget the previous dataset. Without this, a rejected upload left S.dataset
-           pointing at whatever was accepted before it and left Run enabled, so pressing
-           Run forecast the OLD file while the screen showed a rejection for the new one.
-           Results for a file the user believes was refused is the worst possible outcome
-           here -- worse than an error, because it looks like it worked. */
+        /* Forget the previous dataset. */
         S.dataset = null; S.job = null; S.results = []; S.sku = null; S.lastJob = null;
         S.gate = null; S.status = null; S.fileLabel = null;
-        /* NOT hidden here, though every other line in this block is a reset. The refusal
-           that msg() just wrote lives inside this card, so hiding it threw the explanation
-           away a line after producing it -- the file was rejected and the page went blank,
-           which is the exact failure the detailed message exists to prevent. The card is
-           hidden on delete instead, where there genuinely is nothing to say. */
+        /* NOT hidden here, though every other line in this block is a reset. */
         steps();
         clearInterval(S.poll);
         $$('#ffRun').disabled = true;
@@ -3786,9 +3619,7 @@ __FONTS__
         $$('#ffTable').innerHTML = '';
         return null;
       }
-      /* A new file supersedes the last one completely. Everything below is still
-         describing the previous dataset until it is cleared, and the gate summary for the
-         new file renders directly above it. */
+      /* A new file supersedes the last one completely. */
       clearInterval(S.poll);
       S.job = null; S.results = []; S.sku = null; S.lastJob = null; S.status = null;
       $$('#ffChartWrap').hidden = true;
@@ -3801,8 +3632,7 @@ __FONTS__
       S.gate = { admitted: data.admitted || [], excluded: data.excluded || [] };
       steps();
       // Published for the data-and-deletion panel, which lives in its own script block and
-      // cannot see this closure. The retention window travels from the API rather than
-      // being hardcoded in the page, so the date shown is the one the purge job enforces.
+      // cannot see this closure.
       window.__ffDataset = { id: data.dataset_id, retentionDays: data.retention_days };
       window.dispatchEvent(new CustomEvent('ioe:dataset'));
       const warn = (data.warnings || []).map(esc).join('<br>');
@@ -3814,11 +3644,7 @@ __FONTS__
     }
 
     /* A refusal arrives in three shapes and only one of them is ours: our own structured
-       UploadRefusal, a plain string from the reader (not UTF-8, unparseable CSV, too big),
-       and FastAPI's own validation array when the request never reached the handler. The
-       array is the one that mattered -- rendering it produced "[object Object]", so a file
-       with the wrong shape looked like a bug in the page rather than a problem with the
-       file. */
+       UploadRefusal, a plain string from the reader (not UTF-8, unparseable CSV, too big). */
     function refusalText(detail) {
       if (typeof detail === 'string') return detail;
       if (Array.isArray(detail)) {
@@ -3940,12 +3766,7 @@ __FONTS__
     }
 
     /* ---- results ---- */
-    /* Products a festival is coming for that we could not match, named together above the
-       table. One tag per row is easy to miss and the full sentence only shows for whichever
-       product happens to be charted -- so the case the user most needs to act on, "this is
-       probably seasonal and we have no pattern for it", was the least visible thing on the
-       page. Naming them is deliberately cheaper than growing the reference table: no amount
-       of category coverage makes an arbitrary product name resolvable. */
+    /* Products a festival is coming for that we could not match, named together above the table. */
     function renderAdvisories() {
       const box = $$('#ffAdvice');
       const advisory = S.results.filter(r => r.festival && r.festival.state === 'advisory');
@@ -4008,11 +3829,7 @@ __FONTS__
       ? 'Repeat last week'
       : 'Fitted model';
 
-    /* The per-row festival state. Three outcomes and all three are shown, because the
-       interesting one is the middle: "a festival is coming and we could not tell whether
-       this product cares" is a thing the buyer has to decide, and a blank cell would hide
-       the question rather than ask it. Only the adjusted tag names a number, because it is
-       the only state where a number moved. */
+    /* The per-row festival state. */
     function festTag(r) {
       const f = r.festival;
       if (!f || f.state === 'none') return '<span class="fest-none">—</span>';
@@ -4021,9 +3838,7 @@ __FONTS__
           + `nearby. No festival pattern found for this item, so the quantity is unchanged.">`
           + `no pattern found</span>`;
       }
-      // A factor the server declined to apply is not an adjustment to announce. adjust.py
-      // keeps state="adjusted" for the audit trail, but below its materiality threshold the
-      // quantity did not move, and a "+0%" chip beside two identical numbers reads as a bug.
+      // A factor the server declined to apply is not an adjustment to announce.
       const pct = Math.round((f.factor - 1) * 100);
       if (pct === 0) {
         return `<span class="fest-tag advisory" title="${esc((f.matches || []).map(m => m.festival_name).join(', '))} `
@@ -4037,17 +3852,12 @@ __FONTS__
         + `${esc(m.festival_name || 'festival')} ${pct >= 0 ? '+' : ''}${pct}%</span>`;
     }
 
-    /* The full explanation for the charted product, under the chart rather than in a
-       tooltip: this is the thing we are asking the user to check, and something you have
-       to hover to discover has not really been shown to you. */
+    /* The full explanation for the charted product, under the chart rather than in a tooltip:
+       this is the thing we are asking the user to check. */
     function renderFestival(r) {
       const box = $$('#ffFestival'), f = r.festival;
       if (!f) { box.innerHTML = ''; return; }
-      /* A `none` state normally has nothing to say. The exception is a window past the end
-         of the calendar: the server reports it as `none` because no festival could be
-         dated, and says why in `unresolved`. Rendering nothing there would turn "we cannot
-         see that far" into "nothing is coming", which is the failure the server-side branch
-         exists to prevent -- and the page would undo it on the last hop. */
+      /* A `none` state normally has nothing to say. */
       if (f.state === 'none') {
         const why = (f.unresolved || [])[0];
         box.innerHTML = why
@@ -4086,10 +3896,8 @@ __FONTS__
       if (r) drawChart(r);
     }
 
-    /* ---- the chart ----
-       Marks follow the house spec: 2px lines, 1px solid recessive gridlines, a 10%
-       wash for the band, no number on every point. A single series carries no legend
-       box; the dropdown above names what is plotted and the key sits in the caption. */
+    /* ---- the chart ---- Marks follow the house spec: 2px lines, 1px solid recessive gridlines,
+       a 10% wash for the band, no number on every point. */
     function drawChart(r) {
       const hist = r.series.history || [], fc = r.series.forecast || [];
       if (!hist.length && !fc.length) { $$('#ffChart').innerHTML = ''; return; }
@@ -4101,9 +3909,8 @@ __FONTS__
         ...fc.map(p => ({ d: p.d, v: p.point, lo: p.lo, hi: p.hi, kind: 'f' })),
       ];
       const rate = r.series.order && r.series.order.daily_rate;
-      // Round the top of the scale to a 1/2/5 x 10^n step so the ticks land on numbers a
-      // reader recognises. Scaling the raw maximum by 1.08 gave axes labelled 17 / 34 / 52,
-      // which are three arbitrary numbers wearing the costume of an axis.
+      // Round the top of the scale to a 1/2/5 x 10^n step so the ticks land on numbers a reader
+      // recognises.
       const peak = Math.max(1, ...pts.map(p => p.hi != null ? p.hi : p.v), rate || 0);
       const step = niceStep(peak / 3);
       const maxV = Math.ceil(peak / step) * step;
@@ -4231,20 +4038,12 @@ __FONTS__
       if (await upload(blob, 'example.csv')) $$('#ffRun').disabled = false;
     });
 
-    /* The USD/INR toggle lives in the header and re-renders the calculator; this tab has
-       its own money columns (unit price) and was left showing the old currency until the
-       next forecast run. Registering here keeps that coupling explicit rather than making
-       setCurrency reach into this closure. */
+    /* The USD/INR toggle lives in the header and re-renders the calculator; this tab has its own
+       money columns (unit price) and was left showing the old currency until the next forecast */
     CURRENCY_LISTENERS.push(() => { if (S.lastJob) renderResults(S.lastJob); });
 
     /* Probe once, the first time this tab is shown -- not on page load, which would fire a
-       failing request at every visitor who never opens it.
-
-       Hung off the tab CLICK it used to be, and that missed every other way of arriving:
-       a #full link, or a reload restoring the tab from localStorage. Nobody noticed while
-       there was a "Check connection" button to fall back on. With the button gone the
-       automatic probe is the only health readout there is, so it has to cover every route
-       in, which is what exposing it as a hook on `show` does. */
+       failing request at every visitor who never opens it. */
     let probed = false;
     window.__ffProbe = () => { if (!probed) { probed = true; ping(); } };
     if (!document.querySelector('#full').hidden) window.__ffProbe();
@@ -4257,15 +4056,7 @@ __FONTS__
 </script>
 <script>
 /* ---------------- how much to order: drop zone and the derived target ----------------
-   Additive. The calculator's own script is untouched: this writes the CSV text into the
-   hidden #csv holder it already reads, then fires the same 'input' event a paste used to,
-   so runCalculator() runs unchanged.
-
-   The derived target is recomputed here rather than in renderRateInputs so that function
-   stays as it was. The arithmetic is CostModel's, with price cancelled out:
-       Cu = price x margin            Co = price x (1 - margin) x (spoilage + holding)
-       CR = Cu / (Cu + Co) = margin / (margin + (1 - margin)(spoilage + holding))
-   The division is printed because a number you can check beats a number you are told. */
+   Additive. */
 (function orderTab() {
   const $ = s => document.querySelector(s);
   const HOLDING = 0.02;                       // DEFAULT_HOLDING_RATE in costs.py
@@ -4281,9 +4072,7 @@ __FONTS__
     stats(text);
   };
 
-  /* Rows, products and the zero-sale share, read off the same text the calculator parses.
-     Counted here rather than exported from runCalculator so that function stays untouched;
-     the arithmetic is a count, not a second opinion about the data. */
+  /* Rows, products and the zero-sale share, read off the same text the calculator parses. */
   function stats(text) {
     const rows = text.trim().split(NEWLINE).filter(l => l.trim());
     if (rows.length < 2) return;
@@ -4350,19 +4139,8 @@ __FONTS__
 </script>
 
 <script>
-/* ---------------- your data: what is kept, and getting rid of it ----------------
-   A separate block on purpose. The forecast tab's own script is left alone; this reads
-   only what that block publishes on `window.__ffDataset` and talks to the API itself.
-
-   This closes a real gap rather than restyling one. The service has hard-deleted an upload
-   and everything derived from it since DELETE /datasets/{id} shipped, and destroys uploads
-   after a retention window regardless -- and none of that was ever said on screen, or
-   reachable. The CORS preflight was even fixed to permit DELETE, and still nothing called
-   it. A tool that stores a shopkeeper's sales history owes them both facts and the button.
-
-   Every string the user reads on success comes from the API's own DeleteResponse.message,
-   never from a sentence invented here: the page must not claim a deletion the service did
-   not perform. */
+/* ---------------- your data: what is kept, and getting rid of it ---------------- A separate
+   block on purpose. */
 (function yourData() {
   const $$ = s => document.querySelector(s);
   const esc = x => { const d = document.createElement('div'); d.textContent = x; return d.innerHTML; };
@@ -4376,9 +4154,7 @@ __FONTS__
   let error = '';
   let done = '';
 
-  /* The retention date is computed from the window the API reported, not from a literal.
-     Hardcoding 30 here would put the policy in two places and the copy would be the one
-     that drifts. */
+  /* The retention date is computed from the window the API reported, not from a literal. */
   const retireDate = days => {
     const d = new Date(Date.now() + days * 864e5);
     return d.toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' });

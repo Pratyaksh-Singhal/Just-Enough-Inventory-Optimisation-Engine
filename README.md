@@ -45,7 +45,7 @@ Two tiers:
 ## Stack
 
 Python 3.11 · DuckDB · LightGBM · statsforecast · Nixtla hierarchicalforecast · FastAPI ·
-Postgres · Redis + arq · Alembic · Fly.io · 611 tests
+Postgres · Redis + arq · Alembic · Fly.io
 
 ## Running it
 
@@ -83,6 +83,4 @@ never file names, product names or figures.
   the first time. None crashed; every one returned a confident, plausible, wrong answer.
 - [`docs/design-system.md`](docs/design-system.md) — the dashboard's tokens, and the CSS
   rules whose violation each shipped a visible bug.
-- [`docs/test-coverage.md`](docs/test-coverage.md) — what the suite covers and what it does
-  not.
 - [`docs/BACKLOG.md`](docs/BACKLOG.md) — epics and their status.

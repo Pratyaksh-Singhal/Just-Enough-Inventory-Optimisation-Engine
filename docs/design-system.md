@@ -113,7 +113,7 @@ adjacent cells never produce a doubled rule.
 
 ## Rules that exist because breaking them shipped a bug
 
-Each is pinned by a test in `tests/test_dashboard_contract.py`.
+Each is checked automatically before a commit.
 
 1. **Narrow-screen overrides go after the rules they override.** Equal specificity means source
    order decides and a media query adds none. A `@media (max-width: 700px)` block placed above

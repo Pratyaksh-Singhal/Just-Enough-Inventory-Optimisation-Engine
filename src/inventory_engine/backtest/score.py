@@ -1,12 +1,4 @@
-"""E5-S3/S4/S5 — score stored forecasts and persist fold-level metrics.
-
-Reads the shared ``forecast`` table, so baselines and the GBM go through one code path and
-"model A beats model B" cannot become "model A was scored differently".
-
-Reports **mean and spread across folds**, never mean alone. A model that wins on average
-while losing badly on one fold is a different proposition from one that wins consistently,
-and only the second is safe to put behind an ordering decision.
-"""
+"""E5-S3/S4/S5 — score stored forecasts and persist fold-level metrics."""
 
 from __future__ import annotations
 
@@ -60,11 +52,7 @@ class ModelSummary:
 
 
 def _series_scales(con: duckdb.DuckDBPyConnection, origin: date) -> pd.DataFrame:
-    """Per-series naive scales from training data up to ``origin``.
-
-    Computed once per fold and shared by every model scored on that fold, so the
-    denominator is provably identical across models rather than incidentally so.
-    """
+    """Per-series naive scales from training data up to ``origin``."""
     train = con.execute(
         f"""
         SELECT item_id, store_id, units
@@ -155,28 +143,11 @@ def score_forecasts(
     *,
     replace: bool = True,
 ) -> pd.DataFrame:
-    """Score every stored base forecast and write ``backtest_fold_metrics``.
-
-    Args:
-        con: Open warehouse connection.
-        folds: The folds the forecasts were produced on.
-        replace: Clear existing metric rows first, so re-running is idempotent.
-
-    Returns:
-        The metric rows written, as a DataFrame.
-
-    """
+    """Score every stored base forecast and write ``backtest_fold_metrics``."""
     con.execute(BACKTEST_METRICS_DDL)
     if replace:
-        # Delete exactly what this function writes: point metrics, at the forecasting
-        # grain, for base (non-reconciled) models. Nothing else.
-        #
-        # This scope has been wrong twice. First it deleted the whole table, which wiped
-        # score_quantile_forecasts' pinball rows. Narrowing it to "everything except
-        # pinball" fixed that symptom but not the cause -- it still swept up E6's
-        # aggregate-level rows and the WRMSSE figure, so re-running the GBM silently
-        # destroyed the reconciliation metrics. An allowlist of what this function owns
-        # cannot have that failure mode; a denylist of what it recognises always can.
+        # Delete exactly what this function writes: point metrics, at the forecasting grain, for
+        # base (non-reconciled) models.
         con.execute(
             f"""
             DELETE FROM {BACKTEST_METRICS}
@@ -224,22 +195,7 @@ def score_quantile_forecasts(
     *,
     monotone: bool = True,
 ) -> pd.DataFrame:
-    """Score stored quantile forecasts with pinball loss, per level and fold.
-
-    Quantiles are monotonized before scoring by default, because that is how E7 reads them:
-    scoring the raw crossed values would report a loss for a forecast nothing downstream
-    actually uses.
-
-    Args:
-        con: Open warehouse connection.
-        folds: The folds the forecasts were produced on.
-        monotone: Apply rearrangement before scoring. ``False`` scores raw fitted values,
-            which is what the before/after audit uses.
-
-    Returns:
-        The metric rows written.
-
-    """
+    """Score stored quantile forecasts with pinball loss, per level and fold."""
     con.execute(BACKTEST_METRICS_DDL)
     rows: list[tuple] = []
 
@@ -336,11 +292,7 @@ def summarise(con: duckdb.DuckDBPyConnection, metric: str = "mase") -> pd.DataFr
 
 
 def summarise_by_stratum(con: duckdb.DuckDBPyConnection, metric: str = "mase") -> pd.DataFrame:
-    """Cross-fold mean per intermittency band.
-
-    The breakdown that matters most for E3: methods built for intermittent demand should
-    earn their place on the sparse band specifically, not on the panel average.
-    """
+    """Cross-fold mean per intermittency band."""
     return con.execute(
         f"""
         SELECT stratum,

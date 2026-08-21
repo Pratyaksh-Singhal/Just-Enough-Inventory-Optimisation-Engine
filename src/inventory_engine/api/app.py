@@ -1,10 +1,4 @@
-"""E8 — the API. Every handler reads precomputed tables; none trains or fits anything.
-
-That constraint is checked, not just claimed: ``test_no_handler_imports_a_trainer`` in
-``tests/test_api.py`` asserts this module does not import ``lightgbm``, ``statsforecast``
-or ``hierarchicalforecast`` -- the training-time dependencies -- so a future handler that
-started calling ``run-gbm`` logic would fail a test before it shipped.
-"""
+"""E8 — the API. Every handler reads precomputed tables; none trains or fits anything."""
 
 from __future__ import annotations
 
@@ -51,13 +45,7 @@ def health(con=Depends(get_connection)) -> HealthResponse:
 
 @app.post("/forecast", response_model=ForecastResponse)
 def forecast(req: ForecastRequest, con=Depends(get_connection)) -> ForecastResponse:
-    """Point + quantile forecast for one SKU/store at a given horizon.
-
-    Reads precomputed rows only. There is no live production forecast (E8-S4's nightly job
-    owns that gap); this serves the most recently completed backtest fold, which is the
-    closest analogue this project has to "the current forecast" until a real clock-driven
-    run exists.
-    """
+    """Point + quantile forecast for one SKU/store at a given horizon."""
     latest_fold = con.execute(
         f"SELECT max(fold) FROM {FORECAST} "
         "WHERE model_name = ? AND level = ? AND reconciled = FALSE",
@@ -85,10 +73,8 @@ def forecast(req: ForecastRequest, con=Depends(get_connection)) -> ForecastRespo
     point = rows[rows["quantile"].isna()]
     if point.empty:
         raise HTTPException(status_code=500, detail="point forecast missing for this row set")
-    # Fitted quantiles are independent per-level models and are not guaranteed ordered --
-    # E4/E5 measured a ~1.3% crossing rate inside the CR band. Every consumer of stored
-    # quantiles reads them through monotonize() rather than raw; this endpoint is no
-    # exception, or the dashboard would occasionally render q0.9 above q0.95.
+    # Fitted quantiles are independent per-level models and are not guaranteed ordered -- E4/E5
+    # measured a ~1.3% crossing rate inside the CR band.
     quantile_rows = monotonize(rows[rows["quantile"].notna()]).sort_values("quantile")
 
     return ForecastResponse(
@@ -107,29 +93,14 @@ def forecast(req: ForecastRequest, con=Depends(get_connection)) -> ForecastRespo
     )
 
 
-#: The newsvendor problem is inherently single-period, and the brief's request shape has no
-#: date or horizon field to pick one. horizon=1 -- "tomorrow", relative to the latest
-#: completed fold's origin -- is the only reading that both matches the classic newsvendor
-#: framing and needs no field the brief didn't ask for.
+#: The newsvendor problem is inherently single-period, and the brief's request shape has no date or
+#: horizon field to pick one.
 OPTIMIZE_HORIZON = 1
 
 
 @app.post("/optimize", response_model=OptimizeResponse)
 def optimize(req: OptimizeRequest, con=Depends(get_connection)) -> OptimizeResponse:
-    """Recommended order quantity and expected cost for a SKU, at caller-chosen Cu/Co.
-
-    Aggregated across every store that carries the SKU: the brief's request shape omits
-    store, and summing the per-store newsvendor recommendation is the natural reading of
-    "how many units of this SKU should be ordered". Cost assumptions arrive per-request as
-    a ratio (Cu, Co); only the interpolation is computed here, over quantiles that were
-    already fit -- no training, no refitting.
-
-    Pinned to :data:`OPTIMIZE_HORIZON`. Fetching every horizon for the SKU without a date
-    filter would mix 28 days' worth of quantile curves per store into one array before
-    interpolating -- a first draft of this endpoint did exactly that, and it produced
-    plausible-looking numbers over a structurally meaningless (duplicated, unsorted)
-    demand distribution. Caught by inspecting row counts, not by the output looking wrong.
-    """
+    """Recommended order quantity and expected cost for a SKU, at caller-chosen Cu/Co."""
     latest_fold = con.execute(
         f"SELECT max(fold) FROM {FORECAST} "
         "WHERE model_name = ? AND level = ? AND reconciled = FALSE",
@@ -166,9 +137,6 @@ def optimize(req: OptimizeRequest, con=Depends(get_connection)) -> OptimizeRespo
             qty = float(np.clip(interpolate_quantile(levels, values[None, :], cr)[0], 0.0, None))
         except ValueError as exc:
             # A caller-chosen Cu/Co can legitimately push CR outside the fitted grid (e.g.
-            # Cu >> Co drives CR -> 1). That is a request the model cannot answer, not a
-            # server fault; surface it as a client error with the grid bounds attached
-            # rather than a bare 500.
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         expected = _expected_cost(levels, values, qty, req.cu, req.co)
         by_store.append(StoreOrder(store=store_id, order_qty=qty, expected_cost=expected))
@@ -187,13 +155,7 @@ def optimize(req: OptimizeRequest, con=Depends(get_connection)) -> OptimizeRespo
 def _expected_cost(
     levels: np.ndarray, values: np.ndarray, order_qty: float, cu: float, co: float
 ) -> float:
-    """Return the expected newsvendor cost of ``order_qty`` under the fitted quantile distribution.
-
-    Unlike :func:`inventory_engine.optimize.newsvendor.expected_cost_from_distribution`,
-    ``cu``/``co`` here are the caller's raw per-unit costs from the request body, not rates
-    scaled by a ``CostModel`` and price -- the brief's ``/optimize`` request shape supplies
-    them directly.
-    """
+    """Return the expected newsvendor cost of ``order_qty``."""
     probs = quantile_bin_probabilities(levels)
     shortfall = np.maximum(values - order_qty, 0.0)
     leftover = np.maximum(order_qty - values, 0.0)
@@ -207,12 +169,7 @@ def backtest(
     level: str = PRODUCTION_LEVEL,
     con=Depends(get_connection),
 ) -> list[BacktestMetricRow]:
-    """Fold-level metrics -- every fold, not just the mean.
-
-    Returning per-fold rows rather than a pre-aggregated summary is deliberate: the project
-    ground rule is to report spread alongside the mean, and a client can always average
-    what it's given, but cannot recover the spread from an average alone.
-    """
+    """Fold-level metrics -- every fold, not just the mean."""
     clauses = ["stratum IS NULL", "level = ?"]
     params: list[object] = [level]
     if model_name:
@@ -232,12 +189,7 @@ def backtest(
 
 @app.get("/hierarchy", response_model=list[HierarchyNode])
 def hierarchy(con=Depends(get_connection)) -> list[HierarchyNode]:
-    """Drill-down tree: State -> Store -> Dept -> Item.
-
-    Built from `fact_sales` distinct combinations with plain GROUP BY -- not
-    `hierarchicalforecast.aggregate`, which builds the full summing matrix and is overkill
-    for a UI tree with no reconciliation happening in this request.
-    """
+    """Drill-down tree: State -> Store -> Dept -> Item."""
     rows = con.execute(
         f"SELECT DISTINCT state_id, store_id, dept_id, item_id FROM {FACT_SALES} "
         "ORDER BY 1, 2, 3, 4"
@@ -266,11 +218,7 @@ def _find_or_add(
 
 @app.get("/cost-sensitivity")
 def cost_sensitivity(con=Depends(get_connection)) -> list[dict]:
-    """Precomputed Cu/Co sensitivity sweep, for E9's cost simulator curve.
-
-    Serving the E7 sweep directly means the dashboard slider never round-trips through a
-    fresh computation per pixel -- see E9-S4's "precompute the sweep" requirement.
-    """
+    """Precomputed Cu/Co sensitivity sweep, for E9's cost simulator curve."""
     return (
         con.execute("SELECT * FROM cost_sensitivity ORDER BY spoilage_rate, policy")
         .df()

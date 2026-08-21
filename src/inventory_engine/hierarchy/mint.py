@@ -1,46 +1,4 @@
-"""E6 — MinT reconciliation, the technical differentiator.
-
-The problem
------------
-Forecast each level of a retail hierarchy independently and the numbers will not add up.
-The 720 SKU forecasts will not sum to the store forecasts; the store forecasts will not sum
-to the state forecast. That is not a rounding nuisance — it means a replenishment planner
-and a regional manager reading the same system get answers that contradict each other, and
-only one of them can be acted on.
-
-MinT (Minimum Trace, Wickramasuriya et al. 2019) finds the coherent forecast that minimises
-the trace of the reconciliation error covariance. Unlike bottom-up (which throws away the
-aggregate forecasts) or top-down (which throws away the bottom ones), it uses information
-from every level and is guaranteed to produce forecasts that sum exactly.
-
-The hierarchy, and a deviation from the brief
----------------------------------------------
-The brief specifies ``State -> Store -> Category -> Dept -> Item``. Phase 1's scope fixes
-``cat_id = FOODS``, which makes the Category level **identical** to the Store level: every
-store has exactly one category, so aggregating to store-x-category returns the same four
-series as aggregating to store.
-
-Including it anyway would put duplicate rows in the summing matrix `S`, leaving the
-residual covariance rank-deficient and MinT's inverse ill-conditioned — a numerical problem
-created purely by encoding a level that carries no information. So the Category level is
-**dropped**, and the deviation is recorded here rather than silently applied. On a scope
-spanning multiple categories it would be restored unchanged.
-
-What is left is a genuine four-level tree over 737 series.
-
-Base forecasts
---------------
-MinT needs a base forecast at *every* level, and those forecasts must be produced
-**independently** — their mutual incoherence is exactly what reconciliation corrects and
-what the before/after table measures.
-
-Bottom level (item x store) uses the production LightGBM forecasts from E4. Aggregate
-levels use AutoETS, and that is a considered choice rather than expedience: aggregating
-hundreds of SKUs washes out the intermittency that made the bottom level hard, leaving
-dense, strongly seasonal series that a classical method handles well. Building the full
-E2 feature panel at each aggregation level would be a large amount of work to arrive at a
-worse fit on easier data.
-"""
+"""E6 — MinT reconciliation, the technical differentiator."""
 
 from __future__ import annotations
 
@@ -68,19 +26,6 @@ HIERARCHY_SPEC: Final[list[list[str]]] = [
 LEVEL_NAMES: Final[tuple[str, ...]] = ("state", "store", "store_dept", "item_store")
 
 #: MinT covariance estimator, and this choice needed a correction mid-build.
-#:
-#: ``mint_shrink`` (Schafer-Strimmer shrinkage toward a diagonal target) is the textbook
-#: default and is what this module first used. It cannot be used here: it estimates the
-#: residual covariance from **in-sample** one-step residuals, which requires fitted values
-#: for all 737 series in every fold. E4 persists forecasts, not models, so those residuals
-#: do not exist, and regenerating them would mean refitting the GBM on every training
-#: window purely to obtain them.
-#:
-#: ``wls_struct`` is the honest alternative rather than a silent fallback. It weights each
-#: node by the number of bottom series aggregated into it — structural information taken
-#: from ``S`` alone — which is the case Wickramasuriya et al. (2019) propose it for when
-#: residuals are unavailable. ``ols`` (identity covariance) is scored alongside it so the
-#: estimator choice is evidenced rather than asserted.
 MINT_METHOD: Final = "wls_struct"
 
 #: Estimators compared in the report. Both need only ``S``, so both are available here.
@@ -129,15 +74,7 @@ class ReconciliationRun:
 
 
 def build_hierarchy(con: duckdb.DuckDBPyConnection) -> tuple[pd.DataFrame, pd.DataFrame, dict]:
-    """Aggregate actuals up the tree and build the summing matrix.
-
-    Args:
-        con: Open warehouse connection.
-
-    Returns:
-        ``(Y_df, S_df, tags)`` as produced by ``hierarchicalforecast.utils.aggregate``.
-
-    """
+    """Aggregate actuals up the tree and build the summing matrix."""
     from hierarchicalforecast.utils import aggregate
 
     panel = con.execute(f"""
@@ -148,16 +85,7 @@ def build_hierarchy(con: duckdb.DuckDBPyConnection) -> tuple[pd.DataFrame, pd.Da
 
 
 def validate_hierarchy(y_df: pd.DataFrame, s_df: pd.DataFrame, tags: dict) -> None:
-    """Fail unless aggregated actuals genuinely sum up the tree.
-
-    The summing matrix is the object every reconciled number depends on. If it is wrong,
-    MinT still returns coherent-looking output — coherent with respect to the wrong
-    structure. So it is checked against the actuals rather than trusted.
-
-    Raises:
-        ValueError: If any level's aggregated actuals fail to match the sum of its children.
-
-    """
+    """Fail unless aggregated actuals genuinely sum up the tree."""
     wide = y_df.pivot(index="ds", columns="unique_id", values="y")
     bottom_ids = list(tags[LEVEL_KEY_BY_NAME["item_store"]])
 
@@ -199,12 +127,7 @@ def _level_of(unique_id: str) -> str:
 def base_forecasts(
     con: duckdb.DuckDBPyConnection, y_df: pd.DataFrame, tags: dict, fold: Fold
 ) -> pd.DataFrame:
-    """Produce independent base forecasts at every level for one fold.
-
-    Bottom level reuses the stored LightGBM forecasts; aggregate levels are fit fresh with
-    AutoETS. They are deliberately not made to agree — that incoherence is what E6-S4
-    measures before and after.
-    """
+    """Produce independent base forecasts at every level for one fold."""
     from statsforecast import StatsForecast
     from statsforecast.models import AutoETS
 
@@ -238,20 +161,7 @@ def base_forecasts(
 
 
 def _fill_unlisted_series(bottom: pd.DataFrame, tags: dict, fold: Fold) -> pd.DataFrame:
-    """Give every bottom series a forecast, filling not-yet-listed ones with zero.
-
-    MinT needs a base forecast for **every** column of the summing matrix; a gap is not
-    something it can reconcile around. LightGBM produces no rows for a SKU that was not yet
-    on shelf during a fold, because E2 drops pre-listing rows from the feature panel — so
-    `FOODS_3_595` at two stores is missing from fold 0, which is enough to abort the whole
-    reconciliation.
-
-    Zero is the correct fill, not a placeholder: an item with no shelf presence has no
-    demand, which is exactly what the raw actuals show for those dates. This is the fix for
-    the data-source asymmetry recorded as open in E4 — E6 turned it from numerically inert
-    into structurally fatal, which is the reason to fix it properly rather than intersect
-    the series and quietly shrink the hierarchy.
-    """
+    """Give every bottom series a forecast, filling not-yet-listed ones with zero."""
     expected = list(tags[LEVEL_KEY_BY_NAME["item_store"]])
     targets = pd.to_datetime(pd.Series(fold.target_dates()))
     full = pd.MultiIndex.from_product([expected, targets], names=["unique_id", "ds"])
@@ -267,17 +177,7 @@ def _fill_unlisted_series(bottom: pd.DataFrame, tags: dict, fold: Fold) -> pd.Da
 
 
 def coherence_gap(frame: pd.DataFrame, tags: dict, value: str) -> pd.DataFrame:
-    """Measure how far each parent is from the sum of its children.
-
-    Args:
-        frame: Forecasts with ``unique_id``, ``ds`` and a value column.
-        tags: Level tags from ``aggregate``.
-        value: Column holding the forecast.
-
-    Returns:
-        One row per (parent_level, child_level) with mean and max absolute gap.
-
-    """
+    """Measure how far each parent is from the sum of its children."""
     wide = frame.pivot_table(index="ds", columns="unique_id", values=value)
     rows = []
     for parent_name, child_name in (
@@ -315,22 +215,7 @@ def reconcile(
     method: str = MINT_METHOD,
     replace: bool = True,
 ) -> ReconciliationRun:
-    """Reconcile base forecasts with MinT and persist the coherence evidence.
-
-    Args:
-        con: Open warehouse connection.
-        folds: Rolling-origin folds.
-        model_name: Model whose bottom-level forecasts to reconcile.
-        method: MinT covariance estimator.
-        replace: Clear existing reconciled rows first.
-
-    Returns:
-        A :class:`ReconciliationRun` summary.
-
-    Raises:
-        ValueError: If the hierarchy fails validation or no base forecasts exist.
-
-    """
+    """Reconcile base forecasts with MinT and persist the coherence evidence."""
     from hierarchicalforecast.core import HierarchicalReconciliation
     from hierarchicalforecast.methods import MinTrace
 
@@ -340,9 +225,8 @@ def reconcile(
         con.execute(
             f"DELETE FROM {FORECAST} WHERE model_name = ? AND reconciled = TRUE", [model_name]
         )
-        # Aggregate-level base rows are also owned by this function and would otherwise
-        # accumulate on every re-run. Scoped by level so E4's bottom-level forecasts --
-        # which this function reads rather than produces -- are left untouched.
+        # Aggregate-level base rows are also owned by this function and would otherwise accumulate
+        # on every re-run.
         con.execute(
             f"""
             DELETE FROM {FORECAST}

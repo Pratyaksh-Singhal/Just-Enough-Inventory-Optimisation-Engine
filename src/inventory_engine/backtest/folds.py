@@ -1,28 +1,4 @@
-"""E5-S1 — rolling-origin fold definitions, shared by every model in the project.
-
-Defined once, here, and imported by baselines, the GBM and the scorer alike. If each model
-derived its own folds, "model A beats model B" would silently become "model A was
-evaluated on easier weeks", which is the kind of bug that never surfaces as an error.
-
-The scheme
-----------
-Five folds, 28-day horizon, origins stepping backwards from the end of the panel::
-
-    ... training ................ | origin | <- 28-day test window ->
-                        fold 0:   2016-01-03   2016-01-04 .. 2016-01-31
-                        fold 1:   2016-01-31   2016-02-01 .. 2016-02-28
-                        fold 2:   2016-02-28   2016-02-29 .. 2016-03-27
-                        fold 3:   2016-03-27   2016-03-28 .. 2016-04-24
-                        fold 4:   2016-04-24   2016-04-25 .. 2016-05-22
-
-Test windows are contiguous and non-overlapping, and together they cover exactly the last
-:data:`~inventory_engine.config.BACKTEST_DAYS` days -- the same region Phase 1's item
-sampler was forbidden from seeing. Training is expanding, not sliding: fold 4 trains on
-everything before its origin, including the weeks fold 0 tested on. That is the honest
-production analogue, where you would refit on all history available at the time.
-
-Never a random split. Never a single holdout.
-"""
+"""E5-S1 — rolling-origin fold definitions, shared by every model in the project."""
 
 from __future__ import annotations
 
@@ -37,17 +13,7 @@ from inventory_engine.data.schema import FACT_SALES
 
 @dataclass(frozen=True)
 class Fold:
-    """One rolling-origin evaluation window.
-
-    Attributes:
-        index: Fold number, 0-based. Fold 0 is the earliest test window.
-        origin_date: Last date of training data. A model for this fold may use
-            observations up to and including this date, and nothing after it.
-        test_start: First date being forecast, always ``origin_date + 1``.
-        test_end: Last date being forecast, ``horizon`` days after the origin.
-        horizon: Length of the test window in days.
-
-    """
+    """One rolling-origin evaluation window."""
 
     index: int
     origin_date: date
@@ -60,12 +26,7 @@ class Fold:
         return [self.test_start + timedelta(days=i) for i in range(self.horizon)]
 
     def horizon_of(self, target: date) -> int:
-        """Days ahead ``target`` sits from this fold's origin (1-based).
-
-        Raises:
-            ValueError: If ``target`` is outside the test window.
-
-        """
+        """Days ahead ``target`` sits from this fold's origin (1-based)."""
         h = (target - self.origin_date).days
         if not 1 <= h <= self.horizon:
             raise ValueError(
@@ -89,24 +50,7 @@ def make_folds(
     *,
     first_date: date | None = None,
 ) -> tuple[Fold, ...]:
-    """Build the rolling-origin folds ending at ``last_date``.
-
-    Args:
-        last_date: Final date of the panel. The last fold's test window ends here, so no
-            evaluation day is wasted.
-        n_folds: Number of folds.
-        horizon: Forecast horizon in days; also the length of each test window.
-        first_date: Optional panel start, used only to check there is training data left
-            in front of fold 0.
-
-    Returns:
-        Folds ordered earliest test window first.
-
-    Raises:
-        ValueError: If ``n_folds`` or ``horizon`` is below 1, or if the panel is too short
-            to leave any training data before the first origin.
-
-    """
+    """Build the rolling-origin folds ending at ``last_date``."""
     if n_folds < 1:
         raise ValueError(f"n_folds must be >= 1, got {n_folds}")
     if horizon < 1:
@@ -149,16 +93,7 @@ def describe_folds(folds: tuple[Fold, ...]) -> str:
 
 
 def assert_no_training_leak(folds: tuple[Fold, ...]) -> None:
-    """Fail if any fold's training window reaches into its own test window.
-
-    Trivially true by construction here, but asserted because the cost of it silently
-    becoming false -- after someone "simplifies" the arithmetic -- is every metric in the
-    project quietly becoming optimistic.
-
-    Raises:
-        ValueError: If a fold's origin is not strictly before its test window.
-
-    """
+    """Fail if any fold's training window reaches into its own test window."""
     for f in folds:
         if f.origin_date >= f.test_start:
             raise ValueError(

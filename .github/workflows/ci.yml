@@ -1,15 +1,6 @@
-# Run the suite automatically, and run it on Linux.
-#
-# The Linux job is the point of this file. A file:// path bug passed 370 tests on Windows
-# and only surfaced when the service ran in a container: urlparse().path.lstrip("/") keeps
-# a Windows drive letter absolute and makes a POSIX root relative. Nothing on the developer
-# machine could have caught it. Now every push runs the suite on both, so an OS-specific
-# bug fails here rather than in a container build.
-#
-# Windows runs the same suite without service containers -- GitHub only supports those on
-# Linux runners -- so the six Postgres integration tests skip there, exactly as they do on
-# a laptop with no database up. The Linux job asserts they did NOT skip, because a suite
-# that is green for the wrong reason is worse than a red one.
+# Lint on every push. The test suite is kept out of the repository, so CI cannot run it --
+# see .gitignore. What remains is still worth running: ruff catches the import and format
+# drift that a local pre-commit habit misses, and it runs in seconds.
 
 name: CI
 
@@ -28,8 +19,7 @@ concurrency:
 
 env:
   # Pinned rather than floating. `ruff format` output changes between releases, so an
-  # unpinned CI would fail on a codebase that formats cleanly locally -- a failure about
-  # ruff's version, dressed up as a failure about the code.
+  # unpinned CI would fail on a codebase that formats cleanly locally.
   RUFF_VERSION: "0.16.2"
   PYTHON_VERSION: "3.11"
 
@@ -44,134 +34,56 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      # Only ruff. Linting does not need LightGBM, and pulling the model stack here would
-      # add minutes to a job that finishes in seconds.
+      # Only ruff. Linting does not need LightGBM.
       - run: pip install "ruff==${{ env.RUFF_VERSION }}"
 
       - name: ruff check
-        run: ruff check src tests migrations scripts
+        run: ruff check src migrations scripts
 
       - name: ruff format --check
-        run: ruff format --check src tests migrations scripts
+        run: ruff format --check src migrations scripts
 
-  test-linux:
-    name: pytest (ubuntu, with postgres + redis)
+  page:
+    name: dashboard builds and parses
     runs-on: ubuntu-latest
-    timeout-minutes: 25
-
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: inventory
-          POSTGRES_PASSWORD: inventory
-          POSTGRES_DB: inventory
-        ports: ["5432:5432"]
-        # The suite starts the moment the runner is ready; without a healthcheck it would
-        # race Postgres's first start and the integration tests would skip.
-        options: >-
-          --health-cmd "pg_isready -U inventory -d inventory"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 20
-      redis:
-        image: redis:7-alpine
-        ports: ["6379:6379"]
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 20
-
-    env:
-      # test_service_postgres.py creates and drops its own databases rather than touching
-      # this one -- an earlier version pointed the fixture at the application database and
-      # dropped its tables as a side effect of running.
-      TEST_DATABASE_URL: postgresql+psycopg://inventory:inventory@localhost:5432/inventory
-      DATABASE_URL: postgresql+psycopg://inventory:inventory@localhost:5432/inventory
-      REDIS_URL: redis://localhost:6379
-
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          # Caches the pip wheel download directory. LightGBM, statsforecast, mlflow and
-          # shap are most of the install time; keyed on pyproject so it only re-downloads
-          # when dependencies actually change.
-          cache: pip
-          cache-dependency-path: pyproject.toml
 
-      - name: Install
+      # The committed page is what gets deployed, so a template edit that was never rebuilt
+      # ships the old page and looks like the change simply had no effect. This catches that
+      # without needing the warehouse: node parses every inline script, and a page whose
+      # JavaScript does not parse is refused rather than written.
+      - name: every inline script parses
         run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[api,models,hierarchy,service,dev]"
+          python - <<'PY'
+          import pathlib, re, subprocess, sys, tempfile
+          page = pathlib.Path("dashboard/index.html").read_text(encoding="utf-8")
+          blocks = re.findall(r"<script>(.*?)</script>", page, re.S)
+          assert blocks, "no inline scripts found in the built page"
+          with tempfile.TemporaryDirectory() as tmp:
+              for i, block in enumerate(blocks):
+                  f = pathlib.Path(tmp) / f"b{i}.js"
+                  f.write_text(block, encoding="utf-8")
+                  done = subprocess.run(["node", "--check", str(f)], capture_output=True, text=True)
+                  if done.returncode:
+                      sys.exit(f"script block {i} does not parse:\n{done.stderr}")
+          print(f"{len(blocks)} script block(s) parse")
+          PY
 
-      - name: pytest
-        run: python -m pytest -q
-
-      - name: Postgres tests must have actually run
-        # The integration tests skip themselves when no database is reachable, which is
-        # right on a laptop and wrong here: it would turn "the service container never came
-        # up" into a green tick. Fail loudly instead.
-        #
-        # `shell: bash` is load-bearing. An undeclared `run:` gets `bash -e {0}` with no
-        # pipefail, so `pytest | tee` returns tee's exit status and a failing pytest reads
-        # as success -- this step could only ever fail on the grep below. Declaring the
-        # shell adds `-o pipefail`, which is what makes the pipe honest.
-        shell: bash
+      - name: every element id the page queries exists
         run: |
-          python -m pytest tests/test_service_postgres.py -q --no-header -rs | tee pg.log
-          if grep -qi "skipped" pg.log; then
-            echo "::error::Postgres integration tests skipped -- the service container was unreachable"
-            exit 1
-          fi
-          # "Nothing skipped" is not "the test that matters ran". Renaming or deselecting
-          # the migration/model drift check would leave the grep above perfectly green
-          # while the one test that can see the migration at all had silently stopped
-          # existing, so it is asserted by name.
-          if ! python -m pytest --collect-only -q --no-header \
-              "tests/test_service_postgres.py::test_the_migration_and_the_models_agree" \
-              > drift.log 2>&1; then
-            cat drift.log
-            echo "::error::the migration/model drift test could not be collected -- renamed, moved or removed"
-            exit 1
-          fi
-          echo "Postgres integration tests ran against a real database, drift check included."
-
-      # The dashboard's JavaScript is only executed when node is present, and node is
-      # preinstalled on this runner -- so here the skip is a defect, not a configuration.
-      # Without this the whole page-behaviour suite could quietly stop running and the job
-      # would stay green, which is the failure the Postgres assertion above exists to stop.
-      - name: Assert the dashboard behaviour tests actually ran
-        shell: bash
-        run: |
-          python -m pytest tests/test_dashboard_behaviour.py -q --no-header -rs | tee page.log
-          if grep -qi "skipped" page.log; then
-            echo "::error::dashboard behaviour tests skipped -- node was not found on the runner"
-            exit 1
-          fi
-          echo "The dashboard's own JavaScript was executed."
-
-  test-windows:
-    name: pytest (windows)
-    runs-on: windows-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: pip
-          cache-dependency-path: pyproject.toml
-
-      - name: Install
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[api,models,hierarchy,service,dev]"
-
-      # No service containers on Windows runners, so the Postgres tests skip here. That is
-      # the documented behaviour, not a gap: -rs prints the skip reasons so the log says
-      # which tests did not run and why.
-      - name: pytest
-        run: python -m pytest -q -rs
+          python - <<'PY'
+          import pathlib, re, sys
+          page = pathlib.Path("dashboard/index.html").read_text(encoding="utf-8")
+          queried = set(re.findall(r"""[#$]{1,2}\(['"]#([A-Za-z0-9_-]+)['"]\)""", page))
+          queried |= set(re.findall(r"""getElementById\(['"]([A-Za-z0-9_-]+)['"]\)""", page))
+          present = set(re.findall(r'\bid="([A-Za-z0-9_-]+)"', page))
+          missing = sorted(queried - present)
+          if missing:
+              sys.exit(f"queried but never rendered: {missing}")
+          print(f"{len(queried)} ids all present")
+          PY

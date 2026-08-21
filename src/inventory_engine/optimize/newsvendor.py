@@ -1,37 +1,4 @@
-"""E7-S2 — newsvendor order quantities from the forecast distribution.
-
-Which forecast this consumes, and why
--------------------------------------
-**Base LightGBM quantiles at ``item_store``, deliberately not the MinT-reconciled ones.**
-
-This is a decision, not a default, and it is worth stating because the reconciled forecasts
-were computed more recently and would be the lazy pick.
-
-E6 measured what reconciliation costs: every aggregate level improves, and the bottom level
-degrades ~1.5% on MASE (1.0192 -> 1.0348) and ~0.5% on RMSSE. MinT trades bottom-level
-accuracy for cross-level coherence. That is a good trade for a planning view, where a
-regional number that disagrees with the sum of its stores is useless.
-
-It is the wrong trade here. **Orders are placed at ``item_store``.** Every unit of stockout
-and every unit of spoilage is realised at that grain, so the cost function should optimise
-against the most accurate forecast available *there* — which is the unreconciled one.
-Coherence with the store total buys nothing at the moment of deciding how many units of one
-SKU to put on one shelf.
-
-So: newsvendor consumes base forecasts; E9's aggregate and planning views consume
-reconciled ones. Both are in the ``forecast`` table, discriminated by ``reconciled``.
-
-Interpolating the critical ratio
---------------------------------
-LightGBM fits a fixed grid of quantiles, but ``CR`` is a continuous function of the cost
-assumptions and will rarely land on a fitted level. The order quantity is therefore linearly
-interpolated between the two bracketing quantiles.
-
-The grid was extended downward to 0.10 for exactly this reason: with fresh-food spoilage,
-``CR`` lands between 0.25 and 0.63, **below** the 0.5 the brief's original grid started at.
-Every order would have been clamped to the median, and the headline finding — that optimal
-service level is far below 95% — could not have been demonstrated at all.
-"""
+"""E7-S2 — newsvendor order quantities from the forecast distribution."""
 
 from __future__ import annotations
 
@@ -68,21 +35,7 @@ CREATE TABLE IF NOT EXISTS {ORDER_POLICY_TABLE} (
 
 
 def interpolate_quantile(levels: np.ndarray, values: np.ndarray, target: float) -> np.ndarray:
-    """Interpolate the forecast at quantile ``target`` from a fitted grid.
-
-    Args:
-        levels: Fitted quantile levels, ascending. Shape ``(n_levels,)``.
-        values: Forecasts at those levels. Shape ``(n_rows, n_levels)``.
-        target: The quantile to interpolate, typically the critical ratio.
-
-    Returns:
-        Interpolated forecasts, shape ``(n_rows,)``.
-
-    Raises:
-        ValueError: If ``target`` falls outside the fitted grid, which would mean
-            extrapolating a tail the model was never asked to estimate.
-
-    """
+    """Interpolate the forecast at quantile ``target`` from a fitted grid."""
     levels = np.asarray(levels, dtype=float)
     if not levels.size or target < levels.min() - 1e-9 or target > levels.max() + 1e-9:
         raise ValueError(
@@ -100,13 +53,7 @@ def load_quantile_panel(
     *,
     reconciled: bool = USE_RECONCILED,
 ) -> tuple[pd.DataFrame, np.ndarray]:
-    """Load monotonized quantile forecasts joined to realised demand and price.
-
-    Returns:
-        ``(panel, levels)`` where ``panel`` is wide over quantile levels and carries
-        ``demand`` and ``price``, and ``levels`` is the ascending fitted grid.
-
-    """
+    """Load monotonized quantile forecasts joined to realised demand and price."""
     raw = con.execute(
         f"""
         SELECT fold, item_id, store_id, target_date, quantile, yhat
@@ -141,17 +88,7 @@ def load_quantile_panel(
 
 
 def order_quantities(panel: pd.DataFrame, levels: np.ndarray, costs: CostModel) -> pd.DataFrame:
-    """Compute the newsvendor order quantity for every forecast row.
-
-    Args:
-        panel: Wide quantile panel from :func:`load_quantile_panel`.
-        levels: Fitted quantile grid.
-        costs: The cost assumptions.
-
-    Returns:
-        ``panel`` with ``cu``, ``co``, ``critical_ratio`` and ``order_qty`` added.
-
-    """
+    """Compute the newsvendor order quantity for every forecast row."""
     out = panel.copy()
     cr = costs.critical_ratio()
     out["cu"] = costs.understock_cost(out["price"])
@@ -162,22 +99,7 @@ def order_quantities(panel: pd.DataFrame, levels: np.ndarray, costs: CostModel) 
 
 
 def quantile_bin_probabilities(levels: np.ndarray) -> np.ndarray:
-    """Probability mass assigned to each fitted quantile under the midpoint rule.
-
-    Turns a set of quantile *levels* into a discrete probability *distribution*: level
-    ``q_i`` is treated as representative of the interval halfway to its neighbours, with
-    the outermost intervals closed off at 0 and 1. This is what lets E8's ``/optimize``
-    endpoint compute an expected cost from a fitted quantile curve alone, with no access to
-    realised demand -- which is the situation a live request for a future period is
-    actually in, unlike Phase 7's backtest scoring.
-
-    Args:
-        levels: Ascending fitted quantile levels.
-
-    Returns:
-        Probabilities, same shape as ``levels``, summing to 1.
-
-    """
+    """Probability mass assigned to each fitted quantile under the midpoint rule."""
     levels = np.asarray(levels, dtype=float)
     edges = np.concatenate([[0.0], (levels[:-1] + levels[1:]) / 2.0, [1.0]])
     return np.diff(edges)
@@ -186,25 +108,7 @@ def quantile_bin_probabilities(levels: np.ndarray) -> np.ndarray:
 def expected_cost_from_distribution(
     levels: np.ndarray, values: np.ndarray, order_qty: float, costs: CostModel, price: float
 ) -> float:
-    """Return the expected newsvendor cost of ``order_qty`` under the fitted quantile distribution.
-
-    This is an **estimate for a period with no realised demand yet** -- the situation a
-    live API request is actually in -- and is not comparable to Phase 7's money table,
-    which prices policies against demand that already happened. Both are legitimate; they
-    answer different questions ("what should I expect to pay" vs "what did this policy
-    actually cost").
-
-    Args:
-        levels: Ascending fitted quantile levels.
-        values: Forecast value at each level.
-        order_qty: The quantity being evaluated.
-        costs: Cost assumptions.
-        price: Shelf price, for converting the cost rates into money.
-
-    Returns:
-        Expected cost in the same currency as ``price``.
-
-    """
+    """Return the expected newsvendor cost of ``order_qty``."""
     probs = quantile_bin_probabilities(levels)
     values = np.asarray(values, dtype=float)
     shortfall = np.maximum(values - order_qty, 0.0)

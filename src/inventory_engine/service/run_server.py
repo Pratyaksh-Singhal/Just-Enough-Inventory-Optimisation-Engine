@@ -1,11 +1,4 @@
-"""``run-service`` — start the tier 2 API.
-
-Separate entry point from ``run-api`` (tier 1). Both can run at once, and
-:data:`DEFAULT_PORT` is what makes that true: tier 1's ``run-api`` defaults to 8000, so
-tier 2 defaults to 8001. They collided until a ``run-api`` already listening on 8000
-refused this process a socket -- the two tiers are meant to be independent, and sharing a
-default port is the one way to make them not be.
-"""
+"""``run-service`` — start the tier 2 API."""
 
 from __future__ import annotations
 

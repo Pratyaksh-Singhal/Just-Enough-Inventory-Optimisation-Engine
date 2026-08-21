@@ -41,11 +41,7 @@ class ForecastResponse(BaseModel):
 
 
 class OptimizeRequest(BaseModel):
-    """Body for ``POST /optimize``.
-
-    Deliberately store-less, matching the brief's request shape. A SKU can be listed at
-    several stores; see :func:`inventory_engine.api.app.optimize` for how that is resolved.
-    """
+    """Body for ``POST /optimize``."""
 
     sku: str
     cu: float = Field(..., gt=0, description="Understock cost per unit (lost margin)")

@@ -1,41 +1,4 @@
-"""Phase 2 feature builder: ``fact_sales`` + ``dim_calendar`` -> ``feature_panel``.
-
-The leakage rule
-----------------
-**No feature on a row targeting date _t_ may use any observation from _t_ or later.**
-
-This project forecasts 28 days ahead, so the rule is stronger than "not today": a
-forecast for _t_ is produced at origin ``t0 = t - horizon``, and the last actual anyone
-could have seen is the one at ``t0``. Every units-derived feature is therefore computed
-on the series *shifted by ``horizon``*.
-
-That shift is not applied feature-by-feature and remembered. It is folded into the window
-frame by exactly two functions, :func:`_lag_sql` and :func:`_rolling_sql`, and every
-units-derived feature in this module is emitted by one of them. A new lag or rolling
-feature cannot be added without going through the shift; there is no other code path that
-reads ``units``.
-
-Concretely, with ``horizon = 28``:
-
-===================  ===================================  ==========================
-Feature              Window frame                         Reads
-===================  ===================================  ==========================
-``units_lag_7``      ``lag(units, 35)``                   units at ``t - 35``
-``units_roll_mean_7``  ``rows 34 preceding .. 28 preceding``  units at ``t-34 .. t-28``
-===================  ===================================  ==========================
-
-Both stop at ``t - horizon``. Lags are numbered relative to the **forecast origin**, so
-``units_lag_7`` means "units 7 days before the origin", not 7 days before the target.
-
-The known-in-advance exception
-------------------------------
-Calendar, event, SNAP and price columns are **not** shifted, and that is deliberate
-rather than an oversight. A retailer genuinely knows next month's calendar and its own
-future shelf prices at forecast time; refusing to use them would model a business that
-does not exist. The exception is fenced in :data:`KNOWN_IN_ADVANCE`, and
-``tests/test_no_leakage.py`` asserts that set against a hard-coded expectation — so
-widening it is a deliberate, reviewable edit rather than a quiet one.
-"""
+"""Phase 2 feature builder: ``fact_sales`` + ``dim_calendar`` -> ``feature_panel``."""
 
 from __future__ import annotations
 
@@ -80,9 +43,7 @@ UNITS_DERIVED: Final[frozenset[str]] = frozenset(
     + ["days_since_last_sale", "zero_share_90"]
 )
 
-#: Every feature a retailer genuinely knows before the target date. Deliberately NOT
-#: horizon-shifted. Widening this set is the one way to introduce leakage without the
-#: perturbation test noticing, which is why the test pins it explicitly.
+#: Every feature a retailer genuinely knows before the target date.
 KNOWN_IN_ADVANCE: Final[frozenset[str]] = frozenset(
     {
         "wday",
@@ -143,43 +104,17 @@ class FeatureReport:
         return "\n".join(lines)
 
 
-# ---------------------------------------------------------------------------
-# The only two places `units` is read. Both fold the horizon into the frame.
-# ---------------------------------------------------------------------------
+# --------------------------------------------------------------------------- The only two places
+# `units` is read.
 
 
 def _lag_sql(expr: str, lag: int, horizon: int) -> str:
-    """Value of ``expr`` ``lag`` days before the forecast origin.
-
-    Args:
-        expr: Column or expression to lag.
-        lag: Days before the origin. ``0`` is the last observable value.
-        horizon: Forecast horizon; shifts the read back off the target date.
-
-    Returns:
-        A DuckDB window expression reading strictly at or before ``t - horizon``.
-
-    """
+    """Value of ``expr`` ``lag`` days before the forecast origin."""
     return f"lag({expr}, {horizon + lag}) OVER ({_SERIES})"
 
 
 def _rolling_sql(agg: str, expr: str, window: int, horizon: int) -> str:
-    """Aggregate ``expr`` over ``window`` days ending at the forecast origin.
-
-    The frame runs from ``horizon + window - 1`` preceding to ``horizon`` preceding, so
-    the newest row it can touch is ``t - horizon``. There is no frame in this module that
-    ends closer to ``t`` than that.
-
-    Args:
-        agg: DuckDB aggregate name.
-        expr: Column or expression to aggregate.
-        window: Window length in days.
-        horizon: Forecast horizon.
-
-    Returns:
-        A DuckDB window expression reading strictly at or before ``t - horizon``.
-
-    """
+    """Aggregate ``expr`` over ``window`` days ending at the forecast origin."""
     return (
         f"{agg}({expr}) OVER ({_SERIES} "
         f"ROWS BETWEEN {horizon + window - 1} PRECEDING AND {horizon} PRECEDING)"
@@ -199,9 +134,7 @@ def _units_feature_sql(horizon: int) -> list[str]:
         f"{_rolling_sql('avg', 'CASE WHEN units = 0 THEN 1.0 ELSE 0.0 END', 90, horizon)}"
         " AS zero_share_90"
     )
-    # Days from the last non-zero sale to the origin. The running max is framed to end at
-    # `horizon PRECEDING`, so it cannot see a sale the forecaster could not have seen; the
-    # trailing subtraction re-bases the answer from the target date onto the origin.
+    # Days from the last non-zero sale to the origin.
     last_sale = _rolling_sql("max", "CASE WHEN units > 0 THEN date END", 10**6, horizon)
     parts.append(f"date_diff('day', {last_sale}, date) - {horizon} AS days_since_last_sale")
     return parts
@@ -228,19 +161,12 @@ def _known_in_advance_sql() -> list[str]:
     ]
 
 
-# ---------------------------------------------------------------------------
-# Build
-# ---------------------------------------------------------------------------
+# --------------------------------------------------------------------------- Build
+# ---------------------------------------------------------------------------.
 
 
 def _assert_rectangular(con: duckdb.DuckDBPyConnection) -> None:
-    """Fail unless every series has a row for every date in the panel.
-
-    Row-based window frames are only equivalent to day-based ones on a dense panel. M5 is
-    dense by construction, and Phase 1's ``UNPIVOT`` preserves that -- but the leakage
-    guarantee rests on it, so it is checked rather than assumed. A gap would silently make
-    every ``ROWS ... PRECEDING`` frame reach further back in time than intended.
-    """
+    """Fail unless every series has a row for every date in the panel."""
     rows, series, dates = con.execute(f"""
         SELECT count(*), count(DISTINCT (item_id, store_id)), count(DISTINCT date)
         FROM {FACT_SALES}
@@ -254,12 +180,7 @@ def _assert_rectangular(con: duckdb.DuckDBPyConnection) -> None:
 
 
 def _build_calendar_features(con: duckdb.DuckDBPyConnection) -> None:
-    """Derive date-level features, including distance to the nearest event.
-
-    Uses the full ``dim_calendar`` -- including the 28 days beyond the sales panel -- so
-    that ``days_to_event`` is defined for targets at the end of the window instead of
-    silently NULL.
-    """
+    """Derive date-level features, including distance to the nearest event."""
     con.execute(f"""
         CREATE OR REPLACE TEMP TABLE cal_feat AS
         WITH events AS (
@@ -288,22 +209,7 @@ def build_features(
     *,
     table: str = FEATURE_PANEL,
 ) -> FeatureReport:
-    """Build the feature panel from ``fact_sales`` and ``dim_calendar``.
-
-    Args:
-        con: Open connection to a warehouse holding the Phase 1 tables.
-        horizon: Forecast horizon in days. Every units-derived feature is computed on the
-            series shifted by this much, so the panel is valid for any horizon up to and
-            including this value.
-        table: Destination table name.
-
-    Returns:
-        A :class:`FeatureReport` describing the panel.
-
-    Raises:
-        ValueError: If ``horizon`` is below 1, or ``fact_sales`` is not rectangular.
-
-    """
+    """Build the feature panel from ``fact_sales`` and ``dim_calendar``."""
     if horizon < 1:
         raise ValueError(
             f"horizon must be >= 1, got {horizon}. A horizon of 0 would frame window"

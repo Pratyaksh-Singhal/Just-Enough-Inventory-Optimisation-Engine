@@ -1,10 +1,4 @@
-"""E7-S3/S4/S5 — simulate stocking policies against realised demand and price the gap.
-
-Policies are always evaluated against **actual** units sold, never against the forecast.
-Simulating a policy against the same forecast that produced it measures nothing: it would
-report that the model agrees with itself, and would make a badly biased forecast look
-perfectly stocked.
-"""
+"""E7-S3/S4/S5 — simulate stocking policies against realised demand and price the gap."""
 
 from __future__ import annotations
 
@@ -77,19 +71,7 @@ def simulate_policy(
     price: np.ndarray,
     costs: CostModel,
 ) -> PolicyResult:
-    """Price one stocking policy against realised demand.
-
-    Args:
-        policy: Label for the policy.
-        order_qty: Units stocked per (series, day).
-        demand: Units actually demanded.
-        price: Shelf price, for converting units into money.
-        costs: Cost assumptions.
-
-    Returns:
-        A :class:`PolicyResult`.
-
-    """
+    """Price one stocking policy against realised demand."""
     order_qty = np.asarray(order_qty, dtype=float)
     demand = np.asarray(demand, dtype=float)
     price = np.asarray(price, dtype=float)
@@ -118,12 +100,7 @@ def simulate_policy(
 
 
 def naive_orders(con: duckdb.DuckDBPyConnection, panel: pd.DataFrame) -> np.ndarray:
-    """Return current practice: stock what sold on the same weekday last week.
-
-    Read straight from actuals rather than from any model — this is the policy a store
-    without a forecasting system actually runs, and it is the baseline the money table
-    measures savings against.
-    """
+    """Return current practice: stock what sold on the same weekday last week."""
     lagged = con.execute(
         f"""
         SELECT item_id, store_id, date + INTERVAL 7 DAY AS target_date,
@@ -143,12 +120,7 @@ def money_table(
     *,
     replace: bool = True,
 ) -> pd.DataFrame:
-    """Build the three-policy cost comparison (E7-S3).
-
-    The middle row — a flat 95% service level — is kept deliberately. It is the policy most
-    people reach for, and showing that it costs *more* than optimising is the argument of
-    this project.
-    """
+    """Build the three-policy cost comparison (E7-S3)."""
     con.execute(COST_COMPARISON_DDL)
     if replace:
         con.execute(f"DELETE FROM {COST_COMPARISON_TABLE}")
@@ -205,12 +177,7 @@ def sensitivity(
     spoilage_grid: tuple[float, ...] = (0.0, 0.2, 0.4, 0.6, 0.8, 1.0),
     replace: bool = True,
 ) -> pd.DataFrame:
-    """Sweep the Cu/Co ratio and re-price every policy (E7-S4).
-
-    Spoilage is the sensitivity axis because it is both the most influential assumption and
-    the least observable one — M5 carries no shelf-life data at all. If the newsvendor
-    advantage only survives at one spoilage rate, that is something a reader needs to see.
-    """
+    """Sweep the Cu/Co ratio and re-price every policy (E7-S4)."""
     con.execute(COST_SENSITIVITY_DDL)
     if replace:
         con.execute(f"DELETE FROM {COST_SENSITIVITY_TABLE}")
@@ -265,23 +232,15 @@ def sensitivity(
 def attribution(
     con: duckdb.DuckDBPyConnection, orders: pd.DataFrame, levels: np.ndarray, costs: CostModel
 ) -> pd.DataFrame:
-    """Split the saving into forecast quality vs policy choice (E7-S5).
-
-    Four combinations of {naive forecast, our forecast} x {fixed 95%, newsvendor CR}. If
-    most of the gain comes from the policy rather than the model, that is the more
-    interesting and more likely finding, and it should be visible rather than folded into a
-    single headline number.
-    """
+    """Split the saving into forecast quality vs policy choice (E7-S5)."""
     demand = orders["demand"].to_numpy(dtype=float)
     price = orders["price"].to_numpy(dtype=float)
     grid = orders[levels].to_numpy(dtype=float)
     naive = naive_orders(con, orders)
     cr = costs.critical_ratio()
 
-    # The naive forecast has no distribution, so "applying a service level" to it means
-    # scaling last week's actuals by the same quantile ratio our model implies. Crude by
-    # construction, and labelled as such -- it exists to separate the two effects, not to
-    # be a serious policy.
+    # The naive forecast has no distribution, so "applying a service level" to it means scaling
+    # last week's actuals by the same quantile ratio our model implies.
     ratio_fixed = float(
         np.mean(interpolate_quantile(levels, grid, FIXED_SERVICE_LEVEL) + 1e-9)
         / np.mean(interpolate_quantile(levels, grid, 0.5) + 1e-9)

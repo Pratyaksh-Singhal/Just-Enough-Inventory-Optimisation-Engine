@@ -1,33 +1,4 @@
-"""The tier 2 schema.
-
-Postgres, not DuckDB
---------------------
-Tier 1 reads DuckDB through a fresh read-only connection per request because DuckDB gives a
-writer *exclusive* access to the file -- see ``api/deps.py``, which documents the constraint,
-and ``api/precompute.py``, which works around it with a shadow copy and an atomic swap. That
-design is sound for a single nightly writer and many readers of a static warehouse.
-
-It cannot survive this workload. Here the writers are concurrent and unscheduled: every
-upload writes, every job transition writes, every worker completion writes. A shadow-copy
-swap has no meaning when there is no quiet moment to swap in.
-
-Portable types on purpose
--------------------------
-``Uuid`` and ``JSON`` are declared through SQLAlchemy's dialect-neutral types with a
-Postgres variant attached, so the same models create native ``uuid``/``jsonb`` columns
-against Postgres and ordinary ones against SQLite. That is not hedging about the database
-choice -- production is Postgres -- it is what lets the endpoint tests run in-process
-without a container, while the Postgres-specific behaviour is still exercised by the
-integration tests that do use one.
-
-Why the gate's verdict is stored
---------------------------------
-``dataset_skus`` persists the per-SKU decision made at upload time. The worker then reads
-which SKUs to forecast instead of re-running the gate, so the API's answer to "which
-products were excluded and why" and the worker's idea of what to fit cannot drift apart.
-Re-deriving it in two places is exactly the class of bug ``test_metric_ownership`` exists to
-prevent in tier 1.
-"""
+"""The tier 2 schema."""
 
 from __future__ import annotations
 
@@ -71,12 +42,7 @@ class JobStatus(enum.StrEnum):
 
 
 class Dataset(Base):
-    """One uploaded CSV that passed the gate well enough to be worth storing.
-
-    The file itself is not in this table. ``storage_uri`` points at it -- on disk today,
-    S3 tomorrow, behind the same interface -- because holding a user's sales history as a
-    bytes column would put it in every database backup and every query plan.
-    """
+    """One uploaded CSV that passed the gate well enough to be worth storing."""
 
     __tablename__ = "datasets"
 
@@ -112,18 +78,11 @@ class Dataset(Base):
 
 
 class DatasetSku(Base):
-    """The gate's verdict on one SKU, with the numbers that produced it.
-
-    One row per SKU in the upload, admitted or not. The rejected rows are kept rather than
-    discarded: "which products did you drop, and why" is the question the gate exists to
-    answer, and it has to survive past the upload response to be answerable later.
-    """
+    """The gate's verdict on one SKU, with the numbers that produced it."""
 
     __tablename__ = "dataset_skus"
-    #: The gate produces exactly one verdict per product, so a second row for the same
-    #: ``(dataset, sku)`` means a bug upstream rather than legitimate data. Declared here
-    #: as well as in the migration: the two must agree, or ``alembic --autogenerate`` reads
-    #: the constraint as absent from the model and proposes dropping it.
+    #: The gate produces exactly one verdict per product, so a second row for the same ``(dataset,
+    #: sku)`` means a bug upstream rather than legitimate data.
     __table_args__ = (UniqueConstraint("dataset_id", "sku", name="uq_dataset_skus_dataset_sku"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -147,12 +106,7 @@ class DatasetSku(Base):
 
 
 class ForecastJob(Base):
-    """One enqueued forecast run over one dataset.
-
-    Created by the API in ``QUEUED`` and never advanced by it. Every later transition is
-    the worker's, which is what keeps "the API enqueues, the worker trains" true in the
-    data as well as in the import graph.
-    """
+    """One enqueued forecast run over one dataset."""
 
     __tablename__ = "forecast_jobs"
 
@@ -168,9 +122,7 @@ class ForecastJob(Base):
     )
 
     horizon: Mapped[int] = mapped_column(Integer, nullable=False)
-    #: The cost assumptions this run used, mirroring ``optimize.costs.CostModel``. Stored
-    #: per job because they are the caller's assumptions, not the service's, and the order
-    #: quantities are meaningless without them.
+    #: The cost assumptions this run used, mirroring ``optimize.costs.CostModel``.
     margin_rate: Mapped[float] = mapped_column(Float, nullable=False)
     spoilage_rate: Mapped[float] = mapped_column(Float, nullable=False)
     holding_rate: Mapped[float] = mapped_column(Float, nullable=False)
@@ -195,13 +147,7 @@ class ForecastJob(Base):
 
 
 class ForecastResult(Base):
-    """The forecast and order recommendation for one SKU in one job.
-
-    Scalars are columns because the results table sorts and filters on them. The chart
-    series is one JSONB blob because the chart reads a whole SKU at once: normalising it
-    would be roughly 28 dates x 7 quantile levels of rows per SKU, fetched together every
-    single time, joined back into the same shape on the way out.
-    """
+    """The forecast and order recommendation for one SKU in one job."""
 
     __tablename__ = "forecast_results"
     #: One result per SKU per job. A duplicate would mean the worker wrote the same SKU
@@ -215,8 +161,7 @@ class ForecastResult(Base):
     sku: Mapped[str] = mapped_column(String(256), nullable=False)
 
     #: Which method actually produced the numbers returned -- ``"quantile_gbm"`` or
-    #: ``"seasonal_naive"``. When the baseline wins on the user's own data, this says so
-    #: rather than the service quietly serving the loser.
+    #: ``"seasonal_naive"``.
     method_used: Mapped[str] = mapped_column(String(64), nullable=False)
     #: Why that method was chosen, in plain language, including the losing score.
     method_reason: Mapped[str] = mapped_column(Text, nullable=False)
@@ -233,15 +178,10 @@ class ForecastResult(Base):
 
     critical_ratio: Mapped[float] = mapped_column(Float, nullable=False)
     order_qty: Mapped[float] = mapped_column(Float, nullable=False)
-    #: What the newsvendor asked for before any festival adjustment. Nullable because rows
-    #: written before the festival feature existed genuinely do not have it, and a
-    #: back-filled copy of ``order_qty`` would assert that nothing was adjusted -- which is
-    #: unknowable for those rows and would be a lie for any that were.
+    #: What the newsvendor asked for before any festival adjustment.
     order_qty_before_festival: Mapped[float | None] = mapped_column(Float)
-    #: The festival decision: state, factor, and every match with the keyword and category
-    #: that produced it. A blob rather than columns because it is read whole with the row
-    #: and never filtered on -- and because the shape belongs to
-    #: ``service.adjust.FestivalPlan``, which is where it should be free to change.
+    #: The festival decision: state, factor, and every match with the keyword and category that
+    #: produced it.
     festival: Mapped[dict] = mapped_column(JsonBlob, nullable=False, default=dict)
     expected_cost: Mapped[float | None] = mapped_column(Float)
     unit_price: Mapped[float | None] = mapped_column(Float)

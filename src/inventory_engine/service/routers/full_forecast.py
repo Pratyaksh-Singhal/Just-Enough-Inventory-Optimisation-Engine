@@ -1,11 +1,4 @@
-"""Tier 2 endpoints: upload, health.
-
-``/forecast/run`` and ``/forecast/{job_id}`` land in steps 2 and 3.
-
-This module reads and writes rows and pushes work onto a queue. It does not fit anything,
-and it must not import anything that can -- the AST scan in ``tests/test_service_layering``
-fails the build if it does.
-"""
+"""Tier 2 endpoints: upload, health."""
 
 from __future__ import annotations
 
@@ -72,12 +65,7 @@ def health(
     storage: LocalDiskStorage = Depends(get_storage),
     settings: ServiceSettings = Depends(get_settings),
 ) -> ServiceHealth:
-    """Liveness and readiness for the service tier.
-
-    Each dependency is probed and reported separately. A cheap ``SELECT 1`` and a Redis
-    ``PING`` are enough to distinguish "cannot reach the database" from "cannot reach the
-    queue", which is the distinction that matters at 3am.
-    """
+    """Liveness and readiness for the service tier."""
     database = _probe(lambda: session.execute(text("SELECT 1")))
     queue = _probe(lambda: _ping_redis(settings.redis_url))
     writable = _probe(lambda: storage.root.mkdir(parents=True, exist_ok=True))
@@ -91,11 +79,7 @@ def health(
 
 
 def _probe(fn) -> bool:
-    """Run a health check, converting any failure into ``False``.
-
-    A health endpoint that raises is a health endpoint that cannot report which dependency
-    is down, which is the only thing it is for.
-    """
+    """Run a health check, converting any failure into ``False``."""
     try:
         fn()
     except Exception:  # noqa: BLE001 - the whole point is to report rather than propagate
@@ -127,22 +111,8 @@ def upload(
     storage: LocalDiskStorage = Depends(get_storage),
     settings: ServiceSettings = Depends(get_settings),
 ) -> UploadResponse:
-    """Validate a CSV against the data gate and store it.
-
-    Order of operations is deliberate: the bytes are streamed to storage **first**, then
-    parsed from disk. Parsing the ``UploadFile`` in memory to decide whether to keep it
-    would make peak memory a function of upload size for files we are about to reject,
-    which is exactly backwards.
-
-    Raises:
-        HTTPException: 413 if the file exceeds the configured ceiling; 422 if the gate
-            refuses it -- either fatally (missing columns, unreadable dates) or because
-            no SKU cleared the thresholds. The 422 body carries the per-SKU shortfall.
-
-    """
-    # Imported here rather than at module scope. Reading a CSV needs pandas; serving
-    # the dashboard, answering /health or polling a job does not, and paying 2.4s of
-    # import on a cold machine before the first page can render is the wrong trade.
+    """Validate a CSV against the data gate and store it."""
+    # Imported here rather than at module scope.
     import pandas as pd
 
     from inventory_engine.service.gate import evaluate, refusal_message
@@ -230,11 +200,7 @@ def upload(
 
 
 def _persist(session: Session, report: GateReport, blob, filename: str | None) -> Dataset:
-    """Write the dataset and one row per SKU, admitted or not.
-
-    Rejected SKUs are stored too. The upload response carries them once; the row is what
-    makes "which products did it skip, and why" answerable a week later.
-    """
+    """Write the dataset and one row per SKU, admitted or not."""
     everything = report.admitted + report.rejected
     dates = [v.first_date for v in everything if v.first_date] or [None]
     last = [v.last_date for v in everything if v.last_date] or [None]
@@ -279,22 +245,7 @@ def run_forecast(
     session: Session = Depends(get_session),
     settings: ServiceSettings = Depends(get_settings),
 ) -> ForecastRunResponse:
-    """Enqueue a forecast run and return immediately.
-
-    This handler writes one row and pushes one id. It does not read the CSV, does not build
-    a feature matrix, and does not import anything that could fit a model -- the whole
-    reason the job exists is that fitting takes minutes and a request must not.
-
-    The queued payload is the job id alone. Every parameter is already on the row, so the
-    worker reads its instructions from one place rather than reconciling a queue payload
-    against a database row that could have been written by a different version.
-
-    Raises:
-        HTTPException: 404 if the dataset is unknown; 409 if it has no admitted SKUs to
-            forecast; 503 if the queue cannot be reached, since a job accepted into a
-            queue that is down would sit in ``QUEUED`` forever looking merely slow.
-
-    """
+    """Enqueue a forecast run and return immediately."""
     dataset = session.get(Dataset, body.dataset_id)
     if dataset is None:
         raise HTTPException(status_code=404, detail=f"no dataset {body.dataset_id}")
@@ -305,10 +256,8 @@ def run_forecast(
             "there is nothing to forecast.",
         )
 
-    # Deferred: importing `costs` runs inventory_engine.optimize.__init__, which
-    # re-exports newsvendor and therefore imports pandas. Both handlers that need a
-    # cost model are already doing database work, so the import is free here and
-    # expensive at module scope.
+    # Deferred: importing `costs` runs inventory_engine.optimize.__init__, which re-exports
+    # newsvendor and therefore imports pandas.
     from inventory_engine.optimize.costs import CostModel
 
     costs = CostModel(
@@ -329,8 +278,6 @@ def run_forecast(
     )
     session.add(job)
     # Flushed before enqueueing so the row exists by the time a worker can pick the id up.
-    # A worker that got there first would look up an id that had not been committed yet and
-    # fail a job that was in fact fine.
     session.flush()
 
     try:
@@ -380,29 +327,13 @@ STATUS_MESSAGES = {
 def forecast_status(
     job_id: uuid.UUID, session: Session = Depends(get_session)
 ) -> ForecastStatusResponse:
-    """Job status, and the results once there are any.
-
-    One endpoint for all four states rather than a separate results resource. A client
-    polling this never has to guess when to switch URLs, and ``status`` is the single thing
-    it branches on.
-
-    The excluded SKUs travel with the results, not only with the upload response. By the
-    time someone is looking at order quantities they have usually forgotten which products
-    were dropped at the gate, and "why is this product missing from my order list" is
-    exactly the question the results view has to be able to answer.
-
-    Raises:
-        HTTPException: 404 if no such job.
-
-    """
+    """Job status, and the results once there are any."""
     job = session.get(ForecastJob, job_id)
     if job is None:
         raise HTTPException(status_code=404, detail=f"no forecast job {job_id}")
 
-    # Deferred: importing `costs` runs inventory_engine.optimize.__init__, which
-    # re-exports newsvendor and therefore imports pandas. Both handlers that need a
-    # cost model are already doing database work, so the import is free here and
-    # expensive at module scope.
+    # Deferred: importing `costs` runs inventory_engine.optimize.__init__, which re-exports
+    # newsvendor and therefore imports pandas.
     from inventory_engine.optimize.costs import CostModel
 
     costs = CostModel(
@@ -459,12 +390,7 @@ def forecast_status(
 
 
 def _status_message(job: ForecastJob, n_results: int) -> str:
-    """One line describing the job's current state.
-
-    A ``done`` job that also carries an error is a partial success -- some SKUs failed while
-    the rest produced results -- and says so, rather than showing a bare success next to an
-    unexplained error field.
-    """
+    """One line describing the job's current state."""
     if job.status is JobStatus.DONE:
         if job.error:
             return (
@@ -476,12 +402,7 @@ def _status_message(job: ForecastJob, n_results: int) -> str:
 
 
 def _result_of(row: ForecastResult, horizon: int) -> SkuResult:
-    """Map a stored result row onto the response model.
-
-    ``festival`` is left null rather than defaulted to a "none" state when the stored blob
-    is empty: rows written before the feature existed have nothing to say about festivals,
-    and "we did not look" is not the same claim as "we looked and there was nothing".
-    """
+    """Map a stored result row onto the response model."""
     return SkuResult(
         sku=row.sku,
         method_used=row.method_used,
@@ -514,28 +435,14 @@ def delete_dataset_endpoint(
     session: Session = Depends(get_session),
     storage: LocalDiskStorage = Depends(get_storage),
 ) -> DeleteResponse:
-    """Delete an upload and everything derived from it, now.
-
-    Hard delete, not a flag. A soft delete would leave the CSV on disk and the user's own
-    daily sales values in ``forecast_results.series``, which is not what "delete my data"
-    means to the person asking.
-
-    Idempotent: deleting an already-deleted dataset is a 404, but the second call has
-    nothing left to do either way.
-
-    Raises:
-        HTTPException: 404 if no such dataset.
-
-    """
+    """Delete an upload and everything derived from it, now."""
     dataset = session.get(Dataset, dataset_id)
     if dataset is None:
         raise HTTPException(status_code=404, detail=f"no dataset {dataset_id}")
 
     result = delete_dataset(session, storage, dataset)
-    # Counted because deletion is a feature, and one worth knowing is used: it is the only
-    # evidence that the retention promise on the page does something for anybody. Both
-    # properties are already on the allowlist -- an opaque id and a count -- so nothing
-    # about the file itself travels.
+    # Counted because deletion is a feature, and one worth knowing is used: it is the only evidence
+    # that the retention promise on the page does something for anybody.
     analytics().capture(
         EVENT_DATA_DELETED,
         getattr(request.state, "client_id", "anonymous"),
@@ -562,7 +469,11 @@ def delete_dataset_endpoint(
 
 
 @router.get("/datasets/{dataset_id}", response_model=UploadResponse)
-def get_dataset(dataset_id: uuid.UUID, session: Session = Depends(get_session)) -> UploadResponse:
+def get_dataset(
+    dataset_id: uuid.UUID,
+    session: Session = Depends(get_session),
+    settings: ServiceSettings = Depends(get_settings),
+) -> UploadResponse:
     """Re-read a stored dataset's gate verdict, without re-uploading the file."""
     dataset = session.get(Dataset, dataset_id)
     if dataset is None:
@@ -592,6 +503,10 @@ def get_dataset(dataset_id: uuid.UUID, session: Session = Depends(get_session)) 
         excluded=[v for v in to_out if not v.admitted],
         column_mapping=dataset.column_mapping,
         warnings=list(dataset.warnings),
+        # Read from settings, not left to the schema default. The field's own description
+        # promises it is the number the purge job enforces, which a hardcoded 30 breaks the
+        # moment the window is configured to anything else.
+        retention_days=settings.upload_retention_days,
         message=(
             f"{dataset.sku_count_admitted} SKU(s) admitted, "
             f"{dataset.sku_count_rejected} excluded from {dataset.rows_read} rows"

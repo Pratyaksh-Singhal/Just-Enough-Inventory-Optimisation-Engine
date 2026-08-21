@@ -1,46 +1,4 @@
-"""The data gate — refuse honestly rather than guess.
-
-Why a gate exists at all
-------------------------
-Tier 1's quick calculator works on whatever it is given: it takes the empirical distribution
-of H-day totals from the user's own history and reads a quantile off it. That degrades
-gracefully, because with four observations it is visibly a rough estimate and the page says
-so.
-
-Tier 2 does not degrade gracefully. It fits a model, backtests it on rolling origins, and
-returns a number with a measured error attached. On 21 days of history that error estimate
-is itself noise, and the output would be *more* confident and *less* trustworthy than the
-calculator's. A confident number from insufficient history is worse than a refusal, so the
-gate refuses -- and names the shortfall, so the refusal is actionable rather than a wall.
-
-What the gate does not do
--------------------------
-It never pads, interpolates, or resamples a series onto a regular grid to make it pass.
-Every transformation it *does* apply is counted and reported back to the caller:
-
-* duplicate ``(sku, date)`` rows are summed -- the obvious read of a transaction-level
-  export -- and the merge count is reported
-* negative units are treated as returns and clipped to zero, and the count is reported
-* rows with an unparseable date are dropped, and the count is reported
-
-None of those are silent. A caller can always reconstruct what happened to their file.
-
-Thresholds
-----------
-:data:`MIN_HISTORY_DAYS` (90) is the span the brief specifies, and it is a floor rather than
-a recommendation: at 90 days and a 28-day horizon the rolling-origin backtest can only fit
-two folds, so the fold spread is a range over two numbers. See
-:func:`inventory_engine.service.folds.fold_count_for`.
-
-:data:`MIN_OBSERVATIONS` (20) is separate from the span on purpose. A SKU can span 200 days
-with 6 rows in it; the span says the history is old enough and the count says there is
-something in it.
-
-:data:`MAX_GAP_DAYS` (14) is the "roughly contiguous" check. A fortnight of missing rows in
-a daily series is either a delisting, a stockout, or an export bug, and in all three cases
-the days are not zero-demand days -- treating them as such would bias every quantile down.
-The gate flags the gap rather than deciding which of the three it is.
-"""
+"""The data gate — refuse honestly rather than guess."""
 
 from __future__ import annotations
 
@@ -54,16 +12,10 @@ import pandas as pd
 REQUIRED_COLUMNS: Final[tuple[str, ...]] = ("sku", "date", "units_sold")
 
 #: Optional. Absent or null prices fall back to
-#: :data:`inventory_engine.optimize.costs.FALLBACK_PRICE`, exactly as tier 1 does -- the
-#: order *quantity* does not depend on price at all (price cancels out of the critical
-#: ratio), only the money columns do.
+#: :data:`inventory_engine.optimize.costs.FALLBACK_PRICE`, exactly as tier 1 does -- the order
 OPTIONAL_COLUMNS: Final[tuple[str, ...]] = ("unit_price",)
 
-#: Accepted spellings for each canonical column. Deliberately short: tier 1's calculator
-#: does loose substring matching because a wrong guess there costs the user one glance at a
-#: table, whereas here it would silently forecast the wrong column for twenty minutes on a
-#: worker. Whatever mapping is chosen is echoed back in :attr:`GateReport.column_mapping`,
-#: so it is visible rather than assumed.
+#: Accepted spellings for each canonical column.
 COLUMN_ALIASES: Final[dict[str, tuple[str, ...]]] = {
     "sku": ("sku", "product", "product_id", "item", "item_id"),
     "date": ("date", "day", "ds", "order_date", "sale_date"),
@@ -75,32 +27,14 @@ MIN_HISTORY_DAYS: Final = 90
 MIN_OBSERVATIONS: Final = 20
 MAX_GAP_DAYS: Final = 14
 
-#: Above this share of unparseable dates the file is rejected outright rather than
-#: per-SKU: it means the date column is in a format pandas cannot read, not that a few rows
-#: are dirty, and reporting it 300 times per SKU would bury the actual problem.
+#: Above this share of unparseable dates the file is rejected outright rather than per-SKU: it
+#: means the date column is in a format pandas cannot read, not that a few rows are dirty, and
 MAX_UNPARSEABLE_DATE_SHARE: Final = 0.5
 
 
 @dataclass(frozen=True)
 class SkuVerdict:
-    """The gate's decision about one SKU, with the numbers behind it.
-
-    Attributes:
-        sku: The product identifier as it appeared in the file.
-        admitted: Whether this SKU can support a real forecast.
-        n_days: Calendar span, ``last_date - first_date + 1``. This is the number the
-            90-day threshold is checked against -- not the row count, which can be larger
-            (duplicates) or much smaller (gaps).
-        n_obs: Rows surviving date parsing, after duplicate dates are merged.
-        n_nonnull: Rows whose ``units_sold`` is not null. Zero is *not* null: a
-            zero-demand day is an observation, and 61.6% of the M5 panel this project was
-            built on consists of them.
-        first_date: Earliest observation.
-        last_date: Latest observation.
-        max_gap_days: Largest run of consecutive missing calendar days inside the span.
-        reasons: Why the SKU was excluded. Empty when ``admitted`` is True.
-
-    """
+    """The gate's decision about one SKU, with the numbers behind it."""
 
     sku: str
     admitted: bool
@@ -115,24 +49,7 @@ class SkuVerdict:
 
 @dataclass(frozen=True)
 class GateReport:
-    """The gate's verdict on a whole upload.
-
-    Attributes:
-        admitted: SKUs that passed.
-        rejected: SKUs that failed, each carrying its own reasons.
-        fatal: Set when the file is unusable as a whole -- missing columns, unreadable
-            dates, no rows. When this is set both SKU lists are empty, because the gate
-            could not get far enough to form a per-SKU opinion.
-        column_mapping: Which file column was read as which canonical column. Echoed back
-            so an alias match is visible to the caller rather than assumed.
-        rows_read: Data rows in the file, before any cleaning.
-        rows_dropped_unparseable_date: Rows discarded because the date could not be read.
-        rows_merged_duplicate_date: Rows absorbed by summing duplicate ``(sku, date)``
-            pairs. ``0`` means every ``(sku, date)`` was unique.
-        negative_units_clipped: Rows whose ``units_sold`` was below zero and was treated as
-            a return, i.e. clipped to zero.
-
-    """
+    """The gate's verdict on a whole upload."""
 
     admitted: tuple[SkuVerdict, ...] = ()
     rejected: tuple[SkuVerdict, ...] = ()
@@ -178,16 +95,7 @@ class GateReport:
 
 
 def resolve_columns(columns: list[str]) -> tuple[dict[str, str], str | None]:
-    """Map the file's headers onto canonical names.
-
-    Args:
-        columns: Header row as it appears in the file.
-
-    Returns:
-        ``(mapping, fatal)`` where ``mapping`` is canonical name -> file column, and
-        ``fatal`` is a message naming every missing required column, or ``None``.
-
-    """
+    """Map the file's headers onto canonical names."""
     lowered = {str(c).strip().lower(): str(c) for c in columns}
     mapping: dict[str, str] = {}
     for canonical, aliases in COLUMN_ALIASES.items():
@@ -238,20 +146,7 @@ def _max_gap(dates: pd.Series) -> int:
 
 
 def evaluate(frame: pd.DataFrame) -> GateReport:
-    """Apply the gate to a parsed upload.
-
-    Pure: no I/O, no database, no config. This is the whole decision, and
-    ``tests/test_gate.py`` exercises it directly with hand-built frames -- including a
-    deliberately-too-small one -- so the refusal behaviour is proven without a server, a
-    queue or a Postgres running.
-
-    Args:
-        frame: The CSV as read, with its original column names.
-
-    Returns:
-        A :class:`GateReport`. Check ``.fatal`` first, then ``.admitted``.
-
-    """
+    """Apply the gate to a parsed upload."""
     mapping, fatal = resolve_columns(list(frame.columns))
     if fatal:
         return GateReport(fatal=fatal, column_mapping=mapping, rows_read=len(frame))
@@ -296,9 +191,8 @@ def evaluate(frame: pd.DataFrame) -> GateReport:
     negatives = int((work["units_sold"] < 0).sum())
     work.loc[work["units_sold"] < 0, "units_sold"] = 0.0
 
-    # Duplicate (sku, date) is summed rather than rejected: it is what a transaction-level
-    # export looks like when one product sold twice in a day. Nulls stay null -- summing a
-    # group that is entirely null must not turn "no record" into "zero sold".
+    # Duplicate (sku, date) is summed rather than rejected: it is what a transaction-level export
+    # looks like when one product sold twice in a day.
     before = len(work)
     grouped = work.groupby(["sku", "date"], as_index=False)["units_sold"].sum(min_count=1)
     merged = before - len(grouped)
@@ -338,11 +232,7 @@ def evaluate(frame: pd.DataFrame) -> GateReport:
 
 
 def refusal_message(report: GateReport) -> str:
-    """Return the message shown when nothing in the upload can be forecast.
-
-    Names the specific shortfall per SKU and points at the quick calculator, which genuinely
-    does work on this data -- the point of the gate is to redirect, not to stonewall.
-    """
+    """Return the message shown when nothing in the upload can be forecast."""
     if report.fatal:
         return report.fatal
 

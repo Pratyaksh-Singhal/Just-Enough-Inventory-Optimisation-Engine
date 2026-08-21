@@ -1,26 +1,4 @@
-"""E3 — baselines. The bar every later model has to clear.
-
-A model without a baseline is a number without meaning, so these run first and on exactly
-the folds E4 will use. Four families, chosen because each is the honest competitor for a
-different part of this panel:
-
-``seasonal_naive``
-    Last week, same weekday. The dumbest defensible forecast. On daily retail data with a
-    strong day-of-week cycle it is much harder to beat than it looks, and any model that
-    cannot clear it is not earning its complexity.
-
-``croston`` / ``tsb``
-    Built for zero-inflated demand. TSB is included alongside Croston specifically because
-    Croston does not decay its estimate during a long zero run -- it keeps forecasting the
-    last observed demand size forever. On a panel that is 61.6% zeros, that is not an
-    academic distinction.
-
-``ets``
-    The classical statistical bar, via AutoETS.
-
-Everything writes to the shared ``forecast`` table with ``reconciled = FALSE``, so E5
-scores baselines and the GBM through one code path.
-"""
+"""E3 — baselines. The bar every later model has to clear."""
 
 from __future__ import annotations
 
@@ -35,9 +13,7 @@ import pandas as pd
 from inventory_engine.backtest.folds import Fold
 from inventory_engine.data.schema import FACT_SALES, FORECAST, FORECAST_DDL
 
-#: Every baseline this module can run. ``seasonal_naive`` is implemented here rather than
-#: pulled from statsforecast so its definition is inspectable in one place -- it is the
-#: number every later result is quoted against.
+#: Every baseline this module can run.
 BASELINE_MODELS: Final[tuple[str, ...]] = ("seasonal_naive", "croston", "tsb", "ets")
 
 #: Day-of-week cycle. Retail demand's dominant seasonality at daily grain.
@@ -68,25 +44,7 @@ class BaselineRun:
 def seasonal_naive(
     train: np.ndarray, horizon: int, season_length: int = SEASON_LENGTH
 ) -> np.ndarray:
-    """Forecast each target day as the same weekday in the last complete training week.
-
-    For a 28-day horizon this reuses the final ``season_length`` training days four times
-    over, which is exactly the brief's "last week, same weekday". No averaging, no
-    smoothing -- the point of this baseline is that it has no parameters to tune and so
-    cannot be quietly improved until it flatters the comparison.
-
-    Args:
-        train: Training actuals for one series, in date order.
-        horizon: Days to forecast.
-        season_length: Seasonal cycle, 7 for day-of-week.
-
-    Returns:
-        Forecasts of length ``horizon``.
-
-    Raises:
-        ValueError: If ``train`` is shorter than one full season.
-
-    """
+    """Forecast each target day as the same weekday in the last complete training week."""
     train = np.asarray(train, dtype=float)
     if train.size < season_length:
         raise ValueError(
@@ -97,18 +55,12 @@ def seasonal_naive(
 
 
 def _statsforecast_models(names: tuple[str, ...]):
-    """Instantiate the requested statsforecast model objects.
-
-    Imported lazily: statsforecast pulls in numba and costs a few seconds to import, which
-    should not be paid by anyone merely importing this module for ``seasonal_naive``.
-    """
+    """Instantiate the requested statsforecast model objects."""
     from statsforecast.models import TSB, AutoETS, CrostonOptimized
 
     available = {
         "croston": lambda: CrostonOptimized(),
-        # alpha_d / alpha_p are the demand and probability smoothing parameters. 0.2 is the
-        # conventional default; TSB has no optimised variant in statsforecast, so this is a
-        # stated assumption rather than a fitted value.
+        # alpha_d / alpha_p are the demand and probability smoothing parameters.
         "tsb": lambda: TSB(alpha_d=0.2, alpha_p=0.2),
         "ets": lambda: AutoETS(season_length=SEASON_LENGTH),
     }
@@ -116,10 +68,7 @@ def _statsforecast_models(names: tuple[str, ...]):
 
 
 def _training_frame(con: duckdb.DuckDBPyConnection, origin: pd.Timestamp) -> pd.DataFrame:
-    """Long-format training panel up to and including ``origin``.
-
-    Shaped as statsforecast expects: ``unique_id``, ``ds``, ``y``.
-    """
+    """Long-format training panel up to and including ``origin``."""
     return con.execute(
         f"""
         SELECT item_id || '|' || store_id AS unique_id, date AS ds, CAST(units AS DOUBLE) AS y
@@ -165,9 +114,8 @@ def _forecast_rows(
             "store_id": ids[1],
             "dept_id": ids[0].map(dept_lookup),
             "quantile": np.nan,
-            # Demand cannot be negative, and ETS in particular will happily forecast below
-            # zero on a sparse series. Clipping here rather than at scoring time keeps the
-            # stored forecast the same one the optimizer in E7 would actually order against.
+            # Demand cannot be negative, and ETS in particular will happily forecast below zero on
+            # a sparse series.
             "yhat": predictions["yhat"].clip(lower=0.0),
             "reconciled": False,
         }
@@ -205,10 +153,7 @@ def _run_statsforecast(
 
     train = _training_frame(con, pd.Timestamp(fold.origin_date))
     models = _statsforecast_models(model_names)
-    # n_jobs=1 deliberately. statsforecast's process pool re-imports scipy and numba in
-    # every worker; at 1.3M training rows that exhausted the Windows paging file and the
-    # pool died with BrokenProcessPool. The models are numba-JIT'd, so single-process is
-    # fast enough here and the failure mode is worse than the speedup.
+    # n_jobs=1 deliberately.
     sf = StatsForecast(models=models, freq="D", n_jobs=1)
     wide = sf.forecast(df=train, h=fold.horizon)
     if wide.index.name == "unique_id":
@@ -226,9 +171,7 @@ def _run_statsforecast(
         if col is None or col not in wide.columns:
             continue
         preds = wide[["unique_id", "ds", col]].rename(columns={col: "yhat"})
-        # A model that fails to converge on a series yields NaN. Those rows are dropped
-        # here and counted by the caller, rather than being silently filled with zeros --
-        # a zero forecast is a real prediction and would flatter the model's bias.
+        # A model that fails to converge on a series yields NaN.
         preds = preds.dropna(subset=["yhat"])
         frames[name] = _forecast_rows(preds, fold, name, dept_lookup)
     return frames
@@ -241,22 +184,7 @@ def run_baselines(
     *,
     replace: bool = True,
 ) -> tuple[BaselineRun, ...]:
-    """Fit every baseline on every fold and write forecasts to the ``forecast`` table.
-
-    Args:
-        con: Open warehouse connection.
-        folds: Rolling-origin folds from :func:`~inventory_engine.backtest.folds.make_folds`.
-        models: Which baselines to run. See :data:`BASELINE_MODELS`.
-        replace: Delete any existing rows for these models first, so re-running is
-            idempotent rather than accumulating duplicates.
-
-    Returns:
-        One :class:`BaselineRun` per model.
-
-    Raises:
-        ValueError: If an unknown model name is requested.
-
-    """
+    """Fit every baseline on every fold and write forecasts to the ``forecast`` table."""
     unknown = set(models) - set(BASELINE_MODELS)
     if unknown:
         raise ValueError(f"unknown baseline(s): {sorted(unknown)}; expected {BASELINE_MODELS}")

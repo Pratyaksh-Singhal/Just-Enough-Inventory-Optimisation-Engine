@@ -1,35 +1,4 @@
-"""Table contracts for the DuckDB warehouse.
-
-Phases communicate through these tables rather than through function calls, so each one is
-a contract: a phase is done when its tables exist and match the shape declared here. See
-``docs/BACKLOG.md`` for which phase writes and reads each.
-
-``fact_sales``
-    The long-format panel every downstream phase reads. One row per
-    (date, item_id, store_id). This is the shape the brief specifies and the
-    only table feature engineering should touch.
-
-``dim_calendar``
-    The *full* M5 calendar, including the 28 days that extend past the end of
-    the sales data. Feature engineering needs those future rows to compute
-    "days until next event" for observations near the end of the training
-    window; truncating the calendar to the sales range would silently produce
-    NULLs there. This table is future-facing by design and is the one place
-    where reading "ahead" of ``t`` is legitimate, because event calendars are
-    genuinely known in advance.
-
-``dim_item_stratum``
-    Each item's intermittency band. Written once by Phase 1 and read by every phase that
-    reports accuracy per band, so the classification is never recomputed with a second
-    copy of the window logic that could drift from the first.
-
-``forecast``
-    Every forecast in the project -- baselines, the GBM, point and quantile, pre- and
-    post-reconciliation -- in one table, discriminated by columns.
-
-``backtest_fold_metrics``
-    Fold-level scores, long format.
-"""
+"""Table contracts for the DuckDB warehouse."""
 
 from __future__ import annotations
 
@@ -91,12 +60,7 @@ CREATE TABLE {DIM_CALENDAR} (
 );
 """
 
-#: One table carries every forecast in the project. Phases discriminate on columns rather
-#: than on table names, so adding a model never forces a downstream schema change.
-#:
-#: No primary key: a (model, fold, series, target_date) legitimately appears more than once
-#: -- once as a base forecast and again reconciled, and quantile rows multiply it further.
-#: Uniqueness is asserted per-write, where the intended grain is known.
+#: One table carries every forecast in the project.
 FORECAST_DDL: Final = f"""
 CREATE TABLE IF NOT EXISTS {FORECAST} (
     run_id       VARCHAR NOT NULL,  -- MLflow run id, or 'baseline:<name>'

@@ -9,10 +9,7 @@ from typing import TYPE_CHECKING, Literal
 from pydantic import BaseModel, Field
 
 if TYPE_CHECKING:  # pragma: no cover - import-time only
-    # Names used in annotations and nowhere else. Imported for real, they pull in
-    # `gate`, which imports pandas -- about 2.4s of cold start spent so a response
-    # model could describe its own type. `from __future__ import annotations` keeps
-    # the annotations as strings, so nothing here is needed at runtime.
+    # Names used in annotations and nowhere else.
     from inventory_engine.service.gate import GateReport, SkuVerdict
 
 
@@ -49,11 +46,7 @@ class SkuVerdictOut(BaseModel):
 
 
 class UploadResponse(BaseModel):
-    """``POST /upload`` when at least one SKU can be forecast.
-
-    A partial pass is still a success: the dataset exists, ``excluded`` says what was left
-    out and why, and the caller decides whether that is acceptable before running anything.
-    """
+    """``POST /upload`` when at least one SKU can be forecast."""
 
     dataset_id: uuid.UUID
     rows_read: int
@@ -76,11 +69,7 @@ class UploadResponse(BaseModel):
 
 
 class UploadRefusal(BaseModel):
-    """``POST /upload`` when the file cannot support a forecast at all.
-
-    Returned with 422. ``excluded`` carries the per-SKU shortfall so the caller can see how
-    far short they are, not merely that they are short.
-    """
+    """``POST /upload`` when the file cannot support a forecast at all."""
 
     detail: str
     excluded: list[SkuVerdictOut] = Field(default_factory=list)
@@ -103,13 +92,7 @@ class UploadRefusal(BaseModel):
 
 
 class ForecastRunRequest(BaseModel):
-    """Body for ``POST /forecast/run``.
-
-    The cost rates arrive per request rather than being service constants, because they are
-    the caller's business, not ours. Their defaults match
-    :mod:`inventory_engine.optimize.costs` exactly, so tier 1's calculator and tier 2 start
-    from the same assumptions -- and both label them as assumptions.
-    """
+    """Body for ``POST /forecast/run``."""
 
     dataset_id: uuid.UUID
     horizon: int = Field(default=28, ge=1, le=28, description="Days the order must cover, 1-28")
@@ -125,11 +108,7 @@ class ForecastRunRequest(BaseModel):
 
 
 class ForecastRunResponse(BaseModel):
-    """``POST /forecast/run`` — accepted, not completed.
-
-    Returns immediately with 202. Fitting happens on the worker; poll
-    ``GET /forecast/{job_id}``.
-    """
+    """``POST /forecast/run`` — accepted, not completed."""
 
     job_id: uuid.UUID
     status: Literal["queued"]
@@ -144,12 +123,7 @@ class ForecastRunResponse(BaseModel):
 
 
 class SkuAccuracy(BaseModel):
-    """How both methods scored on this SKU's own history.
-
-    Both are always present, whichever won. A service that reported only the winner's score
-    would be unfalsifiable: there would be no way to see that the "model" it is serving is
-    the seasonal naive it was supposed to beat.
-    """
+    """How both methods scored on this SKU's own history."""
 
     n_folds: int = Field(description="Rolling-origin folds this history supported")
     mase_model: float | None = None
@@ -165,13 +139,7 @@ class SkuAccuracy(BaseModel):
 
 
 class FestivalMatch(BaseModel):
-    """One festival that moved this product, and the evidence that let it.
-
-    ``keyword`` and ``category`` are the whole reason this model exists. A festival
-    adjustment that arrives without them is a number the user cannot check; with them it is
-    a claim they can reject at a glance -- "matched 'milk' as dairy" on a packet of Milk
-    Bikis biscuits is visibly wrong to the person who stocks it and invisible to us.
-    """
+    """One festival that moved this product, and the evidence that let it."""
 
     festival_key: str
     festival_name: str
@@ -192,15 +160,7 @@ class FestivalMatch(BaseModel):
 
 
 class FestivalNote(BaseModel):
-    """What the festival calendar did to this product's order, in one of three states.
-
-    ``adjusted`` -- matched a category, quantity moved, ``matches`` says what and why.
-    ``advisory`` -- a festival is near, nothing matched, **quantity unchanged**.
-    ``none`` -- nothing near, nothing shown.
-
-    ``factor`` is exactly 1.0 in the last two, which is the invariant the on/off test pins:
-    an unmatched product's order quantity is identical with this feature on or off.
-    """
+    """What the festival calendar did to this product's order, in one of three states."""
 
     state: Literal["adjusted", "advisory", "none"]
     factor: float = Field(
@@ -246,12 +206,7 @@ class SkuResult(BaseModel):
 
 
 class ForecastStatusResponse(BaseModel):
-    """``GET /forecast/{job_id}``.
-
-    One endpoint for all four states. ``results`` is populated only when ``status`` is
-    ``done``; the rest of the envelope is present throughout so a poller can render
-    progress without special-casing.
-    """
+    """``GET /forecast/{job_id}``."""
 
     job_id: uuid.UUID
     dataset_id: uuid.UUID
@@ -286,11 +241,7 @@ class DeleteResponse(BaseModel):
 
 
 class ServiceHealth(BaseModel):
-    """``GET /health`` for tier 2.
-
-    Reports each dependency separately rather than collapsing to one boolean: a queue that
-    is down and a database that is down need different responses from whoever is paged.
-    """
+    """``GET /health`` for tier 2."""
 
     status: Literal["ok", "degraded"]
     database: bool

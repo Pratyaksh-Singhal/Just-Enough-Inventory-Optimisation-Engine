@@ -1,39 +1,4 @@
-"""Logging, error tracking and product analytics — integrated, not built.
-
-Three separate concerns, deliberately kept separate:
-
-``configure_logging``
-    Structured JSON to stdout, every line carrying the request id. Ours, because a log
-    format is not a service.
-
-``init_sentry``
-    Error tracking on the API and the worker. Third-party, because writing an exception
-    aggregator is not this project's job.
-
-``analytics``
-    PostHog, for the upload -> forecast funnel. Third-party for the same reason.
-
-The privacy constraint that shapes all of this
-----------------------------------------------
-Users upload **their own sales history**: product names, daily volumes, prices. That is
-commercially sensitive, and none of it has any business leaving the operator's own
-infrastructure.
-
-So the rule is not "be careful what we send" — it is that the analytics layer **cannot**
-send it. :func:`Analytics.capture` filters every property through
-:data:`ALLOWED_PROPERTIES`, an explicit allowlist of non-identifying keys, and drops
-anything else. A future contributor adding ``sku=...`` to a capture call does not leak a
-product name; they get a dropped key and a warning, and
-``tests/test_service_observability`` fails.
-
-Sentry is the harder case and is described honestly rather than optimistically. Stack
-traces can contain fragments of whatever was being processed, and no ``before_send`` hook
-can reliably scrub an arbitrary exception message. What :func:`_scrub` does do is remove
-the channels that would *predictably* carry user data: request bodies, headers, cookies,
-local variables, and our own denied ``extra`` keys. The residual risk is stated in the
-README rather than papered over -- an operator who cannot accept it should leave
-``SENTRY_DSN`` unset, which disables the integration entirely.
-"""
+"""Logging, error tracking and product analytics — integrated, not built."""
 
 from __future__ import annotations
 
@@ -41,6 +6,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 import sys
 import uuid
 from contextvars import ContextVar
@@ -52,9 +18,7 @@ from inventory_engine.service.settings import ServiceSettings, get_settings
 
 log = logging.getLogger("inventory_engine.service")
 
-#: The id that joins an API log line to the worker log line it caused. Set by the API's
-#: middleware and re-bound by the worker from the job row, so one upload can be followed
-#: across two processes with a single grep.
+#: The id that joins an API log line to the worker log line it caused.
 request_id_var: ContextVar[str | None] = ContextVar("request_id", default=None)
 
 #: Which process a log line or Sentry event came from.
@@ -66,9 +30,20 @@ def new_request_id() -> str:
     return uuid.uuid4().hex
 
 
+#: An inbound X-Request-ID is echoed into logs and into every analytics event, so it is
+#: treated as untrusted input. Letters, digits and dashes only, bounded -- which keeps
+#: ordinary trace ids ("trace-42", a uuid) and rejects free text, addresses and payloads.
+_ID_SHAPE: Final = re.compile(r"\A[A-Za-z0-9-]{1,64}\Z")
+
+
+def _safe_request_id(value: str | None) -> str | None:
+    """Return the id only if it looks like one."""
+    return value if value and _ID_SHAPE.match(value) else None
+
+
 def bind_request_id(request_id: str | None) -> str:
     """Bind ``request_id`` for this context, generating one if absent. Returns it."""
-    resolved = request_id or new_request_id()
+    resolved = _safe_request_id(request_id) or new_request_id()
     request_id_var.set(resolved)
     return resolved
 
@@ -107,11 +82,7 @@ _STANDARD_ATTRS: Final = frozenset(
 
 
 class JsonFormatter(logging.Formatter):
-    """One JSON object per line, with the request id attached automatically.
-
-    Automatically rather than by convention: a call site that forgets to pass the id still
-    produces a joinable line, which is the whole point of putting it in a contextvar.
-    """
+    """One JSON object per line, with the request id attached automatically."""
 
     def format(self, record: logging.LogRecord) -> str:
         """Render ``record`` as a single JSON line."""
@@ -130,25 +101,7 @@ class JsonFormatter(logging.Formatter):
 
 
 def configure_logging(component: str, *, level: int = logging.INFO) -> None:
-    """Send structured JSON to stdout, and make it the *only* thing on stdout.
-
-    Every existing logger is stripped of its own handlers and set to propagate, so all
-    records converge on the single JSON handler installed on the root.
-
-    Naming the known-noisy loggers instead was not enough. Clearing ``arq.worker`` still
-    left every arq line printed twice -- once raw, once as JSON -- because the handler
-    responsible sits on the **parent** ``arq`` logger, which ``arq.worker`` propagates
-    through on its way to the root. A stream that is JSON except for occasional plain-text
-    lines is not parseable, which defeats the point of structured logging, so this sweeps
-    the whole hierarchy rather than playing whack-a-mole with library names.
-
-    **Known exception, stated:** arq prints two banner lines ("Starting worker for 1
-    functions", and the Redis version) before it calls ``on_startup``, the earliest hook a
-    worker gets. Nothing here can catch those. Moving this call to module-import time would
-    beat the banner, but would also wipe pytest's log capture the moment a test imports
-    ``worker`` -- so the trade is two plain-text lines per worker start, and a log shipper
-    should tolerate them.
-    """
+    """Send structured JSON to stdout, and make it the *only* thing on stdout."""
     component_var.set(component)
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(JsonFormatter())
@@ -171,12 +124,7 @@ DENIED_EXTRA_KEYS: Final = frozenset({"sku", "filename", "original_filename", "s
 
 
 def _scrub(event: dict, hint: dict) -> dict | None:
-    """Strip the channels that predictably carry user data.
-
-    Not a guarantee that no user data reaches Sentry -- an exception message can contain
-    anything -- but it removes request bodies, headers, cookies and our own denied keys,
-    which is where the data would otherwise arrive in bulk.
-    """
+    """Strip the channels that predictably carry user data."""
     event.pop("request", None)
     event.pop("breadcrumbs", None)
     extra = event.get("extra")
@@ -192,17 +140,7 @@ def _scrub(event: dict, hint: dict) -> dict | None:
 
 
 def init_sentry(component: str, settings: ServiceSettings | None = None) -> bool:
-    """Initialise error tracking for this process.
-
-    Args:
-        component: ``"api"`` or ``"worker"``, attached as a tag so the two are separable.
-        settings: Overrides the environment, for tests.
-
-    Returns:
-        Whether Sentry was enabled. An unset DSN disables it silently -- the local stack
-        must run with no accounts and no keys.
-
-    """
+    """Initialise error tracking for this process."""
     settings = settings or get_settings()
     if not settings.sentry_dsn:
         return False
@@ -231,9 +169,7 @@ EVENT_DATASET_CREATED: Final = "dataset_created"
 EVENT_FORECAST_ENQUEUED: Final = "forecast_enqueued"
 EVENT_FORECAST_COMPLETED: Final = "forecast_completed"
 EVENT_FORECAST_FAILED: Final = "forecast_failed"
-#: A dashboard page load. Counted server-side, because every other event on this list
-#: fires only once somebody uploads a file -- so the funnel could show four people and
-#: the site could have had four thousand readers, with no way to tell the two apart.
+#: A dashboard page load.
 EVENT_PAGE_VIEW: Final = "page_view"
 #: A deletion carried out. The one feature outside the funnel that already talks to the
 #: server, so counting it costs no new request and breaks no promise made on the page.
@@ -246,13 +182,7 @@ FUNNEL: Final[tuple[str, ...]] = (
     EVENT_FORECAST_COMPLETED,
 )
 
-#: The only property keys that may be sent. Counts, durations, enums and opaque ids --
-#: nothing a product name, a price or a sales figure could travel in.
-#:
-#: Adding a key here is the moment to ask whether it can identify a business or its
-#: products. ``rejection_reason`` is on the list because the gate's reasons are a fixed
-#: vocabulary about thresholds ("90 days of history needed"); the *rendered* message that
-#: names SKUs is not sent.
+#: The only property keys that may be sent.
 ALLOWED_PROPERTIES: Final = frozenset(
     {
         "component",
@@ -277,20 +207,14 @@ ALLOWED_PROPERTIES: Final = frozenset(
         # and `jobs_cancelled` is a count.
         "path",
         "jobs_cancelled",
-        # Host only, never the path or query. "news.ycombinator.com" says where the
-        # traffic came from; the full URL would say which thread, which post, and in
-        # a search referrer, what was typed to find it.
+        # Host only, never the path or query.
         "referrer_host",
     }
 )
 
 
 class Analytics:
-    """PostHog wrapper that can only send allowlisted, non-identifying properties.
-
-    Never raises. An analytics outage must not turn into a failed upload for a user who
-    did nothing wrong.
-    """
+    """PostHog wrapper that can only send allowlisted, non-identifying properties."""
 
     def __init__(self, settings: ServiceSettings | None = None) -> None:
         """Configure the client, or disable it when no key is set."""
@@ -314,11 +238,7 @@ class Analytics:
         return self._client is not None
 
     def capture(self, event: str, distinct_id: str | None = None, **properties: Any) -> dict:
-        """Send one event, after filtering its properties through the allowlist.
-
-        Returns the properties that were actually sent, so a test can assert on them
-        without a PostHog account.
-        """
+        """Send one event, after filtering its properties through the allowlist."""
         safe, dropped = self.filter_properties(properties)
         if dropped:
             # Loud, because a dropped key means someone tried to send business data and
@@ -366,24 +286,23 @@ def reset_analytics() -> None:
 
 # --------------------------------------------------------------------------- visitors
 
-#: Regenerated whenever the UTC date changes. Yesterday's identifiers cannot be recomputed
-#: once it rolls, which is the property that makes this a counting mechanism rather than a
-#: tracking one: there is no way, even for us, to link a visitor across two days.
+#: Regenerated whenever the UTC date changes.
 _salt: tuple[str, bytes] | None = None
 
 
 def _daily_salt(settings: ServiceSettings | None = None) -> bytes:
     """Return today's salt, rotating it when the date changes."""
     global _salt
+    settings = settings or get_settings()
     today = datetime.now(UTC).date().isoformat()
-    if _salt is None or _salt[0] != today:
-        settings = settings or get_settings()
-        # A configured seed keeps every process agreeing on the same identifier for the
-        # same visitor. Without one each process invents its own, which over-counts after a
-        # restart -- honest but blunter, and preferable to inventing a default seed that
-        # would be identical across every deployment of this code.
+    # Keyed on the seed as well as the date: keyed on the date alone, a caller passing
+    # a different seed silently got the cached one.
+    key = f"{today}|{settings.analytics_salt or ''}"
+    if _salt is None or _salt[0] != key:
+        # A configured seed keeps every process agreeing on the same identifier for the same
+        # visitor.
         seed = (settings.analytics_salt or os.urandom(32).hex()).encode()
-        _salt = (today, hashlib.sha256(seed + today.encode()).digest())
+        _salt = (key, hashlib.sha256(seed + today.encode()).digest())
     return _salt[1]
 
 
@@ -392,28 +311,17 @@ def visitor_id(
     user_agent: str | None,
     settings: ServiceSettings | None = None,
 ) -> str:
-    """Return an opaque, day-scoped identifier for one visitor.
-
-    Neither the address nor the user agent is stored or sent anywhere -- they are salted
-    and hashed here, and only the digest leaves this function. The digest changes at
-    midnight UTC, so "unique visitors" means unique *today* and nothing longer. That is the
-    honest limit of counting people who have not been asked to identify themselves, and it
-    is the same approach Plausible and similar tools take.
-    """
+    """Return an opaque, day-scoped identifier for one visitor."""
     material = _daily_salt(settings) + (ip or "-").encode() + b"|" + (user_agent or "-").encode()
     return hashlib.sha256(material).hexdigest()[:32]
 
 
-def referrer_host(referer: str | None) -> str | None:
-    """Return just the host of a referring URL, or None when there is nothing usable.
+#: Our own hostname, so a visitor moving between our pages is not counted as a referral.
+SELF_HOST: Final = "fly.dev"
 
-    Deliberately lossy. A full referrer carries the path and query string, which on a search
-    engine is the words somebody typed and on a forum is the specific thread -- neither is
-    needed to answer "where does traffic come from", and both are somebody else's business.
-    An empty or unparseable header is dropped rather than guessed at, and a referrer from
-    this service itself is dropped too, since a visitor moving between our own pages is not
-    a traffic source.
-    """
+
+def referrer_host(referer: str | None) -> str | None:
+    """Return just the host of a referring URL, or None when there is nothing usable."""
     if not referer:
         return None
     try:
@@ -423,7 +331,8 @@ def referrer_host(referer: str | None) -> str | None:
     if not host:
         return None
     host = host.lower()
-    return None if host.endswith("fly.dev") else host
+    # Boundary-aware: "myfly.dev" is somebody else's site, not this one.
+    return None if host == SELF_HOST or host.endswith("." + SELF_HOST) else host
 
 
 def reset_salt() -> None:

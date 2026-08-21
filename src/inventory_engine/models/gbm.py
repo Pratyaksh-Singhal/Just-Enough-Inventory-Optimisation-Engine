@@ -1,30 +1,4 @@
-"""E4 — the global LightGBM model.
-
-One model across all 720 series, with series identity as a feature, rather than 720
-per-series models. On a panel where the sparse third sells on fewer than one day in five,
-per-series fitting has almost nothing to learn from; a global model lets those series
-borrow the day-of-week and event structure the dense ones establish.
-
-**Why not deep learning.** At 720 series of daily data a global GBM wins on accuracy,
-trains in minutes rather than hours, needs no GPU, and its feature attributions are
-directly inspectable — which matters because E7 has to defend an ordering decision, not
-just a forecast. An LSTM or N-BEATS here would be a larger, slower, less explainable model
-fit to less data than it wants. This is a stated engineering judgement, and E4-S5 reports
-the honest comparison either way.
-
-The horizon-shift payoff
-------------------------
-No train/predict windowing logic is needed here, because E2 already did it. Every row of
-``feature_panel`` targeting date ``t`` has features computed only from data at or before
-``t - horizon``. So for a fold with origin ``o``:
-
-* training rows are simply ``date <= o``
-* prediction rows are simply ``o < date <= o + horizon``
-
-and the prediction rows' features are, by construction, derived from data no later than
-``o``. Correct by the panel's design rather than by a windowing routine that could drift
-from it.
-"""
+"""E4 — the global LightGBM model."""
 
 from __future__ import annotations
 
@@ -58,24 +32,12 @@ CATEGORICAL_FEATURES: Final[tuple[str, ...]] = ("item_id", "store_id", "dept_id"
 CATEGORICAL_COLUMNS: Final[tuple[str, ...]] = (*CATEGORICAL_FEATURES, "event_type")
 
 #: Quantile levels E7's newsvendor layer selects between.
-#:
-#: The brief specifies {0.5, 0.9, 0.95, 0.99}. That grid turned out to be unable to express
-#: its own premise: for fresh food with high spoilage the newsvendor critical ratio lands
-#: between 0.25 and 0.63 — **below** the lowest fitted level — so every order quantity would
-#: have been clamped at the median and the "optimal service level is not 0.95" result could
-#: not have been demonstrated at all. Extended downward so the CR can be interpolated rather
-#: than clipped.
 QUANTILES: Final[tuple[float, ...]] = (0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99)
 
-#: Untuned, and deliberately so. The question E4 answers is "does a global GBM beat the
-#: baselines", not "what is the best possible GBM"; tuning against the same folds used to
-#: report the result would make the comparison meaningless. Hyperparameter search on an
-#: inner split is listed under next steps.
+#: Untuned, and deliberately so.
 BASE_PARAMS: Final[dict] = {
     "objective": "tweedie",
-    # Tweedie handles zero-inflated non-negative counts, which is what 61.6%-zero retail
-    # demand is. It was the objective behind the strongest M5 solutions. Chosen from that
-    # literature rather than tuned here, and labelled as such.
+    # Tweedie handles zero-inflated non-negative counts, which is what 61.6%-zero retail demand is.
     "tweedie_variance_power": 1.1,
     "learning_rate": 0.05,
     "num_leaves": 63,
@@ -129,11 +91,7 @@ def _git_sha() -> str:
 
 
 def load_panel(con: duckdb.DuckDBPyConnection, table: str = FEATURE_PANEL) -> pd.DataFrame:
-    """Read the feature panel and type the categoricals for LightGBM.
-
-    Categories are fixed across the whole panel rather than per fold, so a series absent
-    from one fold's training data still maps to the same code in another's.
-    """
+    """Read the feature panel and type the categoricals for LightGBM."""
     panel = con.execute(f"SELECT * FROM {table}").df()
     for column in CATEGORICAL_COLUMNS:
         panel[column] = panel[column].astype("category")
@@ -141,13 +99,7 @@ def load_panel(con: duckdb.DuckDBPyConnection, table: str = FEATURE_PANEL) -> pd
 
 
 def feature_matrix(panel: pd.DataFrame) -> list[str]:
-    """Feature column names for training.
-
-    ``cat_id`` and ``state_id`` are excluded: the Phase 1 scope fixes them to FOODS and CA,
-    so they are constant and carry no signal. ``horizon`` is excluded for the same reason —
-    the panel is built at a single horizon. Both would be free variance for the model to
-    chase if left in.
-    """
+    """Feature column names for training."""
     return [*feature_columns(), *CATEGORICAL_FEATURES]
 
 
@@ -183,17 +135,7 @@ def _predict_rows(
 
 
 def _count_quantile_crossings(frame: pd.DataFrame) -> tuple[int, int]:
-    """Count rows where fitted quantiles are non-monotonic.
-
-    Independently fitted quantile models are not constrained to be ordered, so q0.9 can
-    land above q0.95. E7 selects a quantile by critical ratio and would silently pick a
-    nonsense number where that happens, so the rate is measured and reported rather than
-    quietly sorted away.
-
-    Returns:
-        ``(crossings, rows_checked)``.
-
-    """
+    """Count rows where fitted quantiles are non-monotonic."""
     wide = frame.pivot_table(
         index=["fold", "item_id", "store_id", "target_date"],
         columns="quantile",
@@ -217,22 +159,7 @@ def train_and_forecast(
     shap_sample: int = 20_000,
     replace: bool = True,
 ) -> GbmRun:
-    """Train the global GBM per fold, write point and quantile forecasts.
-
-    Args:
-        con: Open warehouse connection with ``feature_panel`` populated.
-        folds: Rolling-origin folds; the same ones the baselines used.
-        quantiles: Quantile levels to fit alongside the point model.
-        params: Override :data:`BASE_PARAMS`.
-        track: Log runs to MLflow.
-        shap_sample: Rows sampled for SHAP. SHAP over the full panel is far too slow, and
-            importance is stable well below this size.
-        replace: Clear existing ``lgbm`` rows first, so re-running is idempotent.
-
-    Returns:
-        A :class:`GbmRun` summary.
-
-    """
+    """Train the global GBM per fold, write point and quantile forecasts."""
     import lightgbm as lgb
 
     settings = {**BASE_PARAMS, **(params or {})}
@@ -241,9 +168,7 @@ def train_and_forecast(
     con.execute(FORECAST_DDL)
     con.execute(FEATURE_IMPORTANCE_DDL)
     if replace:
-        # Scoped to base rows at the forecasting grain. This function does not own E6's
-        # reconciled forecasts or its aggregate-level base rows, and wiping them here would
-        # silently invalidate the reconciliation without any error surfacing.
+        # Scoped to base rows at the forecasting grain.
         con.execute(
             f"""
             DELETE FROM {FORECAST}

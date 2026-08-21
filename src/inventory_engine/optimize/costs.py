@@ -1,34 +1,4 @@
-"""E7-S1 — the cost model. Every number here is an assumption, and is labelled as one.
-
-M5 ships unit *prices*, not margins, spoilage rates or holding costs. Everything below the
-price is therefore invented. That does not make the result meaningless — the newsvendor
-conclusion is driven by the **ratio** Cu/Co rather than either level, and E7-S4 sweeps that
-ratio across its plausible range so the finding can be judged rather than taken on trust.
-But it does mean no figure in this module should be quoted as a measurement.
-
-The two costs
--------------
-``Cu`` — **understock**. One unit of demand arrives, the shelf is empty, the sale is lost.
-The cost is the lost gross margin, not the price: the retailer keeps the unit it did not
-sell.
-
-``Co`` — **overstock**. One unit is stocked and not sold. For fresh food most of that unit
-is written off, and the cost approaches the full unit cost rather than a small carrying
-charge. This is what drives the counterintuitive result: when overstocking costs nearly a
-whole unit and understocking costs only the margin, the optimal service level is *low*.
-
-Why the answer is not 95%
--------------------------
-``CR = Cu / (Cu + Co)``. With a 30% gross margin and 60% of unsold units spoiling::
-
-    Cu = price x 0.30
-    Co = price x 0.70 x 0.60 = price x 0.42
-    CR = 0.30 / 0.72 = 0.417
-
-So the cost-optimal service level is roughly **42%**, not the 95% that gets picked by
-default. Ordering to a 95th percentile on a perishable thin-margin item is not cautious;
-it is systematically expensive, and E7-S3 prices exactly how expensive.
-"""
+"""E7-S1 — the cost model."""
 
 from __future__ import annotations
 
@@ -40,9 +10,6 @@ from typing import Final
 DEFAULT_MARGIN_RATE: Final = 0.30
 
 #: Fraction of unsold units written off rather than carried or marked down.
-#: **Assumption**, and the single most influential one in the model. 1.0 would be a
-#: same-day-perishable; 0.0 a tin that keeps forever. 0.6 represents fresh food where most
-#: unsold stock is lost but some is recovered through markdown.
 DEFAULT_SPOILAGE_RATE: Final = 0.60
 
 #: Daily holding cost as a fraction of unit cost — storage, capital, shrink. **Assumption**,
@@ -56,14 +23,7 @@ FALLBACK_PRICE: Final = 3.00
 
 @dataclass(frozen=True)
 class CostModel:
-    """Newsvendor cost parameters. Every field is a stated assumption, not a measurement.
-
-    Attributes:
-        margin_rate: Gross margin as a fraction of shelf price.
-        spoilage_rate: Fraction of unsold units written off.
-        holding_rate: Daily holding cost as a fraction of unit cost.
-
-    """
+    """Newsvendor cost parameters."""
 
     margin_rate: float = DEFAULT_MARGIN_RATE
     spoilage_rate: float = DEFAULT_SPOILAGE_RATE
@@ -92,12 +52,7 @@ class CostModel:
         return cost * self.spoilage_rate + cost * self.holding_rate
 
     def critical_ratio(self, price: float = 1.0) -> float:
-        """``CR = Cu / (Cu + Co)`` — the quantile of demand to stock to.
-
-        Price-invariant under this model, because both costs scale linearly with price. The
-        argument is kept so a per-item cost model can be substituted later without changing
-        every call site.
-        """
+        """``CR = Cu / (Cu + Co)`` — the quantile of demand to stock to."""
         cu = self.understock_cost(price)
         co = self.overstock_cost(price)
         total = cu + co

@@ -1,19 +1,4 @@
-"""Where uploaded CSVs live.
-
-Not in memory, and not in the database. An upload is streamed to a blob store in fixed
-chunks, hashed as it goes, and the row that references it carries only a URI. Two reasons,
-in order of how much they matter:
-
-1. A 50 MB CSV read with ``await file.read()`` is 50 MB of resident memory per concurrent
-   upload, plus whatever pandas allocates on top when it parses. Streaming makes the
-   memory cost of an upload independent of its size.
-2. The worker is a different process, and may be a different machine. A file the API held
-   in memory is a file the worker cannot see.
-
-``LocalDiskStorage`` is the implementation today. The interface is the small subset of S3
-semantics that this service needs, so an ``S3Storage`` is a drop-in: put bytes, get a
-readable handle, delete.
-"""
+"""Where uploaded CSVs live."""
 
 from __future__ import annotations
 
@@ -31,11 +16,7 @@ CHUNK_BYTES = 1024 * 1024
 
 
 class UploadTooLarge(Exception):
-    """Raised when an upload exceeds the configured ceiling, mid-stream.
-
-    Raised while streaming rather than after, so the ceiling is a real bound on what
-    touches the disk instead of a check that happens once the damage is done.
-    """
+    """Raised when an upload exceeds the configured ceiling, mid-stream."""
 
     def __init__(self, limit_bytes: int) -> None:
         """Record the ceiling that was breached, for the 413 response body."""
@@ -45,14 +26,7 @@ class UploadTooLarge(Exception):
 
 @dataclass(frozen=True)
 class StoredBlob:
-    """A stored upload.
-
-    Attributes:
-        uri: How to fetch it back. ``file://`` today; ``s3://`` under another backend.
-        sha256: Hex digest of the bytes, computed during the same pass that wrote them.
-        byte_size: Bytes written.
-
-    """
+    """A stored upload."""
 
     uri: str
     sha256: str
@@ -76,12 +50,7 @@ class BlobStorage(Protocol):
 
 
 class LocalDiskStorage:
-    """Blob storage on the local filesystem.
-
-    Adequate for a single API and a worker sharing a volume, which is what Compose gives
-    us. The moment those are on separate hosts this must become S3-compatible -- the
-    interface is unchanged, only the class swaps.
-    """
+    """Blob storage on the local filesystem."""
 
     def __init__(self, root: Path) -> None:
         """Create the store rooted at ``root``, making the directory if it is absent."""
@@ -89,13 +58,7 @@ class LocalDiskStorage:
         self.root.mkdir(parents=True, exist_ok=True)
 
     def put(self, source: BinaryIO, *, suffix: str = ".csv", limit_bytes: int) -> StoredBlob:
-        """Stream ``source`` to disk under a fresh name, hashing as it goes.
-
-        Raises:
-            UploadTooLarge: If ``limit_bytes`` is exceeded. The partial file is removed
-                before the exception propagates, so a rejected upload leaves nothing behind.
-
-        """
+        """Stream ``source`` to disk under a fresh name, hashing as it goes."""
         name = f"{uuid.uuid4().hex}{suffix}"
         path = self.root / name
         digest = hashlib.sha256()
@@ -125,28 +88,7 @@ class LocalDiskStorage:
 
     @staticmethod
     def _path_for(uri: str) -> Path:
-        """Resolve a ``file://`` URI back to a path, on Windows and POSIX alike.
-
-        The two platforms disagree about the leading slash, and getting it wrong is not a
-        cosmetic difference -- it turns an absolute path into a relative one.
-
-        * Windows: ``file:///D:/data/x.csv`` -> ``urlparse().path`` is ``/D:/data/x.csv``.
-          The slash is an artefact of the URI form and must go, leaving ``D:/data/x.csv``.
-        * POSIX: ``file:///data/uploads/x.csv`` -> ``urlparse().path`` is
-          ``/data/uploads/x.csv``. That slash is the root and must **stay**.
-
-        The first version stripped it unconditionally, which worked on the machine it was
-        written on and broke the moment the service ran in a Linux container: the API wrote
-        to ``/data/uploads/x.csv`` and then tried to read ``data/uploads/x.csv`` relative to
-        the working directory, giving ``FileNotFoundError`` on every single upload. Found by
-        building the image and running it, not by any test on Windows -- which is the point
-        of running it.
-
-        Raises:
-            ValueError: For any other scheme, rather than silently treating the URI as a
-                relative path and reading something unintended.
-
-        """
+        """Resolve a ``file://`` URI back to a path, on Windows and POSIX alike."""
         if not uri.startswith("file://"):
             raise ValueError(f"LocalDiskStorage cannot read {uri!r}; expected a file:// URI")
         from urllib.parse import unquote, urlparse

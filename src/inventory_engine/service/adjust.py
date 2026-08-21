@@ -1,56 +1,4 @@
-"""What the festival calendar does to one product's order quantity, and what it says about it.
-
-Three states, and the user sees all three
------------------------------------------
-Everything in :mod:`~inventory_engine.service.festivals`,
-:mod:`~inventory_engine.service.uplift` and :mod:`~inventory_engine.service.priors` produces
-*numbers about festivals*. None of it changes an order. This module is where it becomes a
-decision, so it is also where the decision has to be legible:
-
-**Adjusted.** The product matched a festival category and there is a ratio to apply — the
-shop's own measured run-up, or the reference figure where nothing could be measured. The
-order quantity moves, and the response names the festival, the category, the keyword that
-caused the match and which of the two sources drove it.
-
-**Advisory.** A festival falls in or near the order window and the product matched nothing.
-The order quantity is **not** touched. The user is told the festival is coming and told, in
-those words, that no festival pattern was found for this item. This is the state that makes
-the feature safe: the default answer to "is this product affected" is *we don't know*, and
-"we don't know" must never spend money.
-
-**None.** No festival anywhere near the order window. No banner, no adjustment, nothing —
-an inventory tool that mentions Diwali in June is one a buyer learns to ignore in October.
-
-Why matching is never silent
-----------------------------
-The whole feature rests on a keyword match against a product name, which is a guess. "Milk
-Bikis" is a biscuit that matches ``milk``; "AT-1L-BLU" is milk that matches nothing. A wrong
-match here is not a wrong number on a screen, it is twice as much paneer as anyone can sell.
-
-So a match is only ever allowed to *change* an order while it is simultaneously *shown*:
-:attr:`FestivalPlan.matches` carries the keyword and the category for every product it
-touched, and ``tests/test_service_adjust.py`` pins the other half — that an unmatched product
-gets a byte-identical order quantity whether this module runs or not.
-
-How a ratio over a fortnight becomes a factor on a month's order
-----------------------------------------------------------------
-The uplift is a **run-up ratio**: how much more this product sold over the days before the
-festival than over a comparable normal stretch. It is not a statement about the whole
-horizon, and applying it as one is the obvious mistake. A 28-day order covering Diwali's
-14-day run-up is 14 ordinary days and 14 festival days; multiplying the entire order by 2.0x
-would buy a month of Diwali.
-
-So the factor is the **mean of the per-day multipliers over the horizon**: each day inside a
-matched festival's run-up contributes that festival's ratio, every other day contributes
-1.0. For one festival this is exactly ``1 + (ratio - 1) * covered_days / horizon``. Where two
-run-ups overlap, the nearer festival owns the day, using the same tie-break the calendar
-applies in :func:`~inventory_engine.service.festivals.active` — the shopper buying on that
-day is buying for one of them, not both, and the two ratios must never multiply together.
-
-The festival day itself and its tail are deliberately excluded, because the ratio being
-applied was measured over the run-up excluding them. Stock has to be on the shelf *before*
-the festival; that is when the order is placed and that is the window the number describes.
-"""
+"""What the festival calendar does to one product's order quantity, and what it says about it."""
 
 from __future__ import annotations
 
@@ -72,10 +20,7 @@ from inventory_engine.service.festivals import (
 from inventory_engine.service.priors import match, resolve
 from inventory_engine.service.uplift import Source, Uplift
 
-#: Days past the end of the order window still worth mentioning. A festival three days
-#: after the horizon does not belong in this order, and a buyer placing it would still
-#: rather hear about it now than be surprised at the next cycle. Awareness only: nothing
-#: outside the horizon can move a quantity.
+#: Days past the end of the order window still worth mentioning.
 LOOKAHEAD_DAYS: Final = 14
 
 #: Below this, a factor is not worth showing as a change. 1.004x on a 28-day order is a
@@ -93,21 +38,7 @@ class State(StrEnum):
 
 @dataclass(frozen=True)
 class Match:
-    """One festival that moved this product, with everything needed to overrule it.
-
-    Attributes:
-        festival_key: Calendar key.
-        festival_name: Display name.
-        source: ``measured`` or ``prior`` — never inferred, always carried.
-        multiplier: The run-up ratio itself, before it is spread over the horizon.
-        category: The demand-table category this product was read as.
-        keyword: The word in the product name that caused the match, or ``None`` when the
-            ratio was measured from the product's own sales and no keyword was involved.
-        days_in_window: Days of this festival's run-up that fall inside the order window.
-        partial_calendar: The calendar can only date this festival in some years.
-        detail: The full sentence from the uplift, including its evidence.
-
-    """
+    """One festival that moved this product, with everything needed to overrule it."""
 
     festival_key: str
     festival_name: str
@@ -149,12 +80,7 @@ class Match:
 
 @dataclass(frozen=True)
 class FestivalPlan:
-    """What, if anything, the calendar does to one product's order.
-
-    ``factor`` is 1.0 in every state but :attr:`State.ADJUSTED`, and :meth:`apply` is the
-    only thing that touches a quantity. Both are true by construction rather than by
-    convention — see :meth:`unchanged`.
-    """
+    """What, if anything, the calendar does to one product's order."""
 
     state: State = State.NONE
     factor: float = 1.0
@@ -176,11 +102,7 @@ class FestivalPlan:
         return self.state is State.ADJUSTED and abs(self.factor - 1.0) >= MIN_MATERIAL_FACTOR
 
     def apply(self, order_qty: float) -> float:
-        """Return the order quantity this plan recommends.
-
-        Returns ``order_qty`` unchanged in every state except a material adjustment, which
-        is the property the on/off test pins.
-        """
+        """Return the order quantity this plan recommends."""
         return float(order_qty * self.factor) if self.adjusts else float(order_qty)
 
     def to_dict(self) -> dict:
@@ -196,11 +118,7 @@ class FestivalPlan:
 
 
 def _lead_days(festival: Festival, first: date, last: date) -> list[date]:
-    """Days of ``festival``'s run-up that fall inside ``[first, last]``.
-
-    The run-up is ``[window_start, day)`` — the festival day and its tail are excluded, for
-    the reason in the module docstring: the ratio being applied was measured without them.
-    """
+    """Days of ``festival``'s run-up that fall inside ``[first, last]``."""
     start = max(festival.window_start, first)
     end = min(festival.day - timedelta(days=1), last)
     if end < start:
@@ -209,12 +127,7 @@ def _lead_days(festival: Festival, first: date, last: date) -> list[date]:
 
 
 def _keyword_for(sku: str, festival_key: str, path: str | None) -> tuple[str | None, str]:
-    """Return the keyword and category the demand table read this product as, if any.
-
-    Looked up even when the uplift was *measured*, because "your own Diwali sales" is the
-    better number and "we think this is a dairy product" is still the fact the user needs in
-    order to disagree.
-    """
+    """Return the keyword and category the demand table read this product as, if any."""
     found = match(sku, festival_key, path=path)
     return (found.keyword, found.row.category) if found else (None, "")
 
@@ -227,21 +140,7 @@ def plan_for(
     region: str | None = DEFAULT_REGION,
     path: str | None = None,
 ) -> FestivalPlan:
-    """Decide which of the three states this product is in, and by how much.
-
-    Args:
-        sku: Product identifier, used for keyword matching as well as reporting.
-        series: Daily units, date-indexed. The last observation dates the order window.
-        horizon: Days the order must cover, starting the day after the last observation.
-        region: Festival calendar, or ``None`` for no calendar at all — which returns
-            :meth:`FestivalPlan.unchanged` and is what makes the feature switchable off.
-        path: Override the reference table, for tests.
-
-    Returns:
-        A :class:`FestivalPlan`. Never raises for a series the pipeline accepted; a
-        calendar that cannot speak about these dates is an unchanged plan, not an error.
-
-    """
+    """Decide which of the three states this product is in, and by how much."""
     observed = series.dropna()
     if region is None or observed.empty or horizon < 1:
         return FestivalPlan.unchanged()
@@ -258,26 +157,26 @@ def plan_for(
         # already been reported by anything that asked the calendar a direct question.
         return FestivalPlan.unchanged()
 
+    # Checked before `nearby` is consulted. Inside `if not nearby` a single festival at the
+    # very edge suppressed the warning -- and that straddling window is the case that most
+    # needs it, because _factor counts every uncoverable day as 1.0 and quietly dilutes.
+    gap_note = ()
+    gap_message = ""
+    if not covers(last_day, region):
+        first_known, last_known = coverage(region)
+        gap_note = (
+            f"our festival calendar runs {first_known.isoformat()} to "
+            f"{last_known.isoformat()} and cannot speak about {last_day.isoformat()}",
+        )
+        gap_message = (
+            f"Part of this order window falls past {last_known.isoformat()}, where our "
+            "festival calendar ends. That is a gap in what we know, not a statement that "
+            "nothing is coming."
+        )
+
     if not nearby:
-        # Two different facts, and only one of them is "nothing is coming". Past the last
-        # year the calendar holds, every product would report `none` for ever -- the exact
-        # silent failure this module's docstring says the design forbids, and the kind that
-        # gets quieter as it gets more wrong.
-        if not covers(last_day, region):
-            first_known, last_known = coverage(region)
-            return replace(
-                FestivalPlan.unchanged(),
-                unresolved=(
-                    f"our festival calendar runs {first_known.isoformat()} to "
-                    f"{last_known.isoformat()} and cannot speak about "
-                    f"{last_day.isoformat()}; no festival adjustment was considered",
-                ),
-                message=(
-                    "No festival adjustment was considered for this order window, because "
-                    f"our calendar ends on {last_known.isoformat()}. That is a gap in what "
-                    "we know, not a statement that nothing is coming."
-                ),
-            )
+        if gap_note:
+            return replace(FestivalPlan.unchanged(), unresolved=gap_note, message=gap_message)
         return FestivalPlan.unchanged()
 
     nearby_names = tuple(dict.fromkeys(f.name for f in nearby))
@@ -317,7 +216,7 @@ def plan_for(
             state=State.ADVISORY,
             factor=1.0,
             nearby=nearby_names,
-            unresolved=tuple(unresolved),
+            unresolved=tuple(unresolved) + gap_note,
             message=_advisory_message(nearby_names),
         )
 
@@ -326,7 +225,7 @@ def plan_for(
         factor=_factor(horizon_days, in_horizon, matches),
         matches=tuple(matches.values()),
         nearby=nearby_names,
-        unresolved=tuple(unresolved),
+        unresolved=tuple(unresolved) + gap_note,
     )
     # The message depends on the finished factor, so it is filled in on a copy rather than
     # recomputed from loose parts that could drift from the object being described.
@@ -341,12 +240,7 @@ def _category_of(uplift: Uplift) -> str:
 def _factor(
     horizon_days: list[date], in_horizon: list[Festival], matches: dict[str, Match]
 ) -> float:
-    """Mean per-day multiplier over the order window.
-
-    One day is owned by at most one festival. Where two run-ups overlap the nearer wins, by
-    the calendar's own tie-break, because a shopper on that day is buying for one of them —
-    multiplying 2.0x by 1.6x would order for a festival that does not exist.
-    """
+    """Mean per-day multiplier over the order window."""
     total = 0.0
     for day in horizon_days:
         owners = [f for f in in_horizon if f.key in matches and f.window_start <= day < f.day]

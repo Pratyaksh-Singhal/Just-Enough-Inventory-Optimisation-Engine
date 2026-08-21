@@ -1,33 +1,4 @@
-"""E8-S4 — nightly precompute job: refresh forecasts without ever blocking the API.
-
-The problem this exists to solve
----------------------------------
-DuckDB's single-writer model (see ``deps.py``) means a write connection needs the file to
-itself. The API opens and closes a connection per request, so in principle the write window
-is available between requests -- but "in principle" is not "safely", especially on Windows,
-where a rename over an open file handle can fail outright rather than merely block.
-
-The fix is to never write to the live file at all. The job builds a **complete copy** of the
-warehouse at a shadow path, runs every refresh step against the shadow, and only then
-attempts an atomic ``os.replace`` onto the canonical path. Two consequences fall out of that
-design directly:
-
-* **Idempotent and safely re-runnable** (an explicit E8-S4 requirement): every run starts
-  from a fresh copy of the last good warehouse, so there is no accumulated state to
-  reconcile between runs.
-* **Failure leaves the previous good results in place** (also required): if any refresh
-  step raises, or the swap itself fails because a reader still has the old file open, the
-  shadow file is discarded and the live file is untouched. There is no partial-write state
-  for a request to observe.
-
-What "refresh" actually runs
------------------------------
-The real pipeline -- GBM training, MinT reconciliation, the optimizer -- already exists as
-the ``run-gbm`` / ``run-mint`` / ``run-optimize`` CLIs from Phases 4, 6 and 7. This module
-does not reimplement them; it sequences them against the shadow copy. The step list is
-injected rather than hard-coded so tests can substitute fast fakes instead of a 13-minute
-GBM fit.
-"""
+"""E8-S4 — nightly precompute job: refresh forecasts without ever blocking the API."""
 
 from __future__ import annotations
 
@@ -62,10 +33,7 @@ class RefreshResult:
 
 
 def default_steps() -> tuple[RefreshStep, ...]:
-    """Return the real pipeline: GBM, MinT, optimizer.
-
-    Imported lazily -- see the module docstring.
-    """
+    """Return the real pipeline: GBM, MinT, optimizer."""
     from inventory_engine.backtest.folds import assert_no_training_leak, make_folds, panel_bounds
     from inventory_engine.hierarchy.mint import reconcile
     from inventory_engine.models.gbm import train_and_forecast
@@ -106,21 +74,7 @@ def nightly_refresh(
     max_swap_attempts: int = 5,
     swap_retry_seconds: float = 0.5,
 ) -> RefreshResult:
-    """Run a refresh against a shadow copy and atomically swap it into place.
-
-    Args:
-        steps: Refresh steps to run, each given an open read-write connection to the
-            shadow copy. Defaults to :func:`default_steps`.
-        live_path: The warehouse the API reads. Never written to directly.
-        max_swap_attempts: Retries for the final swap, in case a reader's connection is
-            open at the exact moment of the attempt.
-        swap_retry_seconds: Delay between swap attempts.
-
-    Returns:
-        A :class:`RefreshResult`. ``swapped=False`` means the live warehouse is untouched;
-        check ``.error`` for why.
-
-    """
+    """Run a refresh against a shadow copy and atomically swap it into place."""
     steps = tuple(steps) if steps is not None else default_steps()
     started = time.perf_counter()
 

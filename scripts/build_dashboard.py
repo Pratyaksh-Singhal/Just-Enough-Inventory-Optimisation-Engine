@@ -1,8 +1,4 @@
-"""Regenerate ``dashboard/index.html`` from the warehouse.
-
-Queries every table the page shows, computes the exact cost sweep, and inlines the result
-into the template as JSON. Run after any pipeline change that moves the numbers.
-"""
+"""Regenerate ``dashboard/index.html`` from the warehouse."""
 
 from __future__ import annotations
 
@@ -22,12 +18,7 @@ from inventory_engine.models.quantiles import monotonize  # noqa: E402
 
 
 def _sweep(con: duckdb.DuckDBPyConnection) -> dict:
-    """Precompute shortfall/leftover unit totals per service level.
-
-    Order quantity depends only on the critical ratio, so these two totals are all the page
-    needs: ``cost(Cu, Co) = shortfall * Cu + leftover * Co``, exactly. That is what lets the
-    slider be exact arithmetic rather than an interpolated approximation.
-    """
+    """Precompute shortfall/leftover unit totals per service level."""
     raw = con.execute("""
         SELECT fold, item_id, store_id, target_date, quantile, yhat FROM forecast
         WHERE model_name = 'lgbm' AND level = 'item_store' AND reconciled = FALSE
@@ -84,17 +75,7 @@ def _sweep(con: duckdb.DuckDBPyConnection) -> dict:
 
 
 def _demo_csv(con: duckdb.DuckDBPyConnection, days: int = 120) -> str:
-    """Real M5 sales history as a ready-to-load CSV for the order calculator.
-
-    Chosen by volume, not at random. A first-time visitor pressing "Load example data" needs
-    numbers they can read: sampling evenly across the intermittency bands filled the table
-    with products selling under one unit a day, where the mathematically correct answer is
-    "order zero" and the tool looks broken rather than right.
-
-    So this leads with six legible movers and appends **one** genuine slow-seller, which is
-    what makes the "order on request" row in the results a demonstrated case rather than an
-    unexercised branch.
-    """
+    """Real M5 sales history as a ready-to-load CSV for the order calculator."""
     fast = con.execute(
         """
         SELECT item_id, store_id FROM fact_sales
@@ -129,18 +110,7 @@ def _demo_csv(con: duckdb.DuckDBPyConnection, days: int = 120) -> str:
 
 
 def build() -> dict:
-    """Query the warehouse and assemble every figure the dashboard renders.
-
-    Deliberately narrow: this returns the six keys the page actually reads and nothing
-    else. It used to return fifteen -- fold metrics, per-stratum MASE, MinT level tables,
-    WRMSSE, coherence gaps, SHAP importances, the stratum profile and three example
-    series -- all of which fed the technical-details tab. That tab is gone, the material
-    lives in the README, and every one of those keys was still being queried, serialised
-    and shipped to every visitor to be read by nothing.
-
-    If a section comes back, so does its query. Inlining JSON nobody parses is the kind of
-    cost that never shows up as a failure, only as a slower page.
-    """
+    """Query the warehouse and assemble every figure the dashboard renders."""
     con = duckdb.connect(str(WAREHOUSE_PATH), read_only=True)
     try:
         data: dict = {"money": con.execute("SELECT * FROM cost_comparison").df().to_dict("records")}
@@ -164,23 +134,7 @@ FONT_FACES: tuple[tuple[str, str, str, str], ...] = (
 
 
 def _font_css() -> str:
-    """Build the ``@font-face`` block, with each woff2 inlined as a data URI.
-
-    Embedded rather than linked because the page is served from two places with different
-    rules. On Fly a Google Fonts ``<link>`` would work; published as a Claude Artifact the
-    CSP blocks font CDNs outright and the page would silently fall back to system faces --
-    losing half the design's identity with no error to notice. A self-contained page has
-    the same typography wherever it lands.
-
-    The cost is honest and worth stating: ~86 KB of woff2 becomes ~115 KB of base64. The
-    files are vendored in the repository rather than fetched during the build, so a build
-    does not depend on Google being reachable, and upgrading a face is a visible commit.
-
-    Raises:
-        FileNotFoundError: If a face is missing. A silent fallback to system fonts is the
-            exact failure this function exists to prevent, so it fails loudly instead.
-
-    """
+    """Build the ``@font-face`` block, with each woff2 inlined as a data URI."""
     rules = []
     for family, weight, style, filename in FONT_FACES:
         path = ROOT / "dashboard" / "fonts" / filename
@@ -198,19 +152,7 @@ def _font_css() -> str:
 
 
 def _check_scripts(html: str) -> None:
-    """Parse every inline ``<script>`` and fail the build on a syntax error.
-
-    Added after shipping a broken page. A stray newline inside a regex literal took out a
-    whole script block, and every check in place at the time passed: the build succeeded,
-    the JSON payload parsed, every element id the code queries existed, the tests were
-    green and the deploy went out. None of them execute JavaScript, so none of them could
-    see it. The calculator was simply dead on arrival, and the first thing that noticed was
-    a person clicking a button.
-
-    Uses ``node --check``, which parses without running. Node is not a dependency of this
-    project, so its absence warns rather than fails -- but where it exists, a page that
-    cannot parse never reaches a deploy.
-    """
+    """Parse every inline ``<script>`` and fail the build on a syntax error."""
     import re
     import shutil
     import subprocess

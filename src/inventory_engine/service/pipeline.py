@@ -1,33 +1,4 @@
-"""Worker-side: fit, backtest, choose honestly, and turn the distribution into an order.
-
-This module imports LightGBM. Nothing that serves an HTTP request may import *this* --
-``tests/test_service_layering`` enforces it.
-
-Two grains, because two different questions
--------------------------------------------
-**Daily** forecasts are what the chart draws and what MASE is quoted on, so the accuracy
-figure is comparable to tier 1's and to anything else the user has seen.
-
-**The horizon total** is what the order decision is made at. The newsvendor problem is
-single-period: the question is "how many units cover the next H days", and the quantile of
-a sum is not the sum of quantiles, so summing 28 daily q0.42 forecasts would understate the
-spread badly. Tier 1's calculator frames it as an H-day total for the same reason.
-
-Choosing between the model and the baseline
--------------------------------------------
-Selection is on **pinball loss at the critical ratio, at the total grain**, because that
-number is literally the loss function of the quantity being ordered. A model can win on
-MASE -- a point-accuracy metric -- while producing a worse q0.42, and it is q0.42 that
-becomes the purchase order.
-
-MASE is reported alongside, at the daily grain, because it is the interpretable one: 1.0
-means "as good as naive". When the two metrics disagree the response says so rather than
-quoting whichever flatters the model.
-
-If the baseline wins, the baseline is what gets served, and ``method_reason`` says by how
-much. A service that silently returns the loser of its own comparison is worse than one
-with no comparison at all, because it looks validated.
-"""
+"""Worker-side: fit, backtest, choose honestly, and turn the distribution into an order."""
 
 from __future__ import annotations
 
@@ -55,22 +26,15 @@ from inventory_engine.service.features import (
 )
 from inventory_engine.service.folds import fold_count_for, spread_caveat
 
-#: Quantile grid. Matches ``models.gbm.QUANTILES`` -- extended down to 0.10 because
-#: fresh-food critical ratios land near 0.42, below the 0.5 a default grid would start at.
-#: The critical ratio itself is added at fit time (see :func:`levels_for`), so the order
-#: quantity is always interpolated inside the fitted grid and never extrapolated.
+#: Quantile grid. Matches ``models.gbm.QUANTILES`` -- extended down to 0.10 because fresh-food
+#: critical ratios land near 0.42, below the 0.5 a default grid would start at. The critical ratio
 BASE_QUANTILES: Final[tuple[float, ...]] = (0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99)
 
 #: The interval the chart shades, labelled in plain language rather than as "q10-q90".
 BAND_LOW: Final = 0.1
 BAND_HIGH: Final = 0.9
 
-#: Small-data parameters, and deliberately nothing like tier 1's. The global M5 model
-#: trains on ~1M rows and can afford 63 leaves; a per-SKU model here sees 1,700 rows at the
-#: gate's minimum. 63 leaves on 1,700 rows memorises the training window and reports a
-#: beautiful in-sample fit that the rolling-origin backtest then demolishes. Untuned, for
-#: the same reason tier 1 leaves its GBM untuned: tuning against the folds used to report
-#: the result would make the baseline comparison meaningless.
+#: Small-data parameters, and deliberately nothing like tier 1's.
 SMALL_DATA_PARAMS: Final[dict] = {
     "objective": "quantile",
     "learning_rate": 0.06,
@@ -85,48 +49,27 @@ SMALL_DATA_PARAMS: Final[dict] = {
     "num_threads": 2,
 }
 
-#: Below this many usable daily rows the model is not fitted and the baseline is served
-#: outright. Fitting eight quantile models on fewer rows than that produces a
-#: confident-looking curve with nothing behind it.
+#: Below this many usable daily rows the model is not fitted and the baseline is served outright.
 MIN_TRAIN_ROWS: Final = 60
 
-#: Same idea at the total grain, which is far scarcer: one row per origin rather than one
-#: per (origin, horizon) pair, so a training window yielding 200 daily rows yields ~7 total
-#: rows. This is the binding constraint on short uploads, and it is why a 90-day file with a
-#: 28-day horizon is served by the baseline: fold 0 trains on ~34 days, leaving 6 origins.
-#: That is stated in the response rather than hidden -- and a shorter horizon (a weekly
-#: order cycle) clears it comfortably on the same file.
+#: Same idea at the total grain, which is far scarcer: one row per origin rather than one per
+#: (origin, horizon) pair, so a training window yielding 200 daily rows yields ~7 total rows.
 MIN_TOTAL_ROWS: Final = 24
 
 #: Ceiling on daily training rows per fit, enforced by striding origins in
-#: :func:`_training_origins`. 8,000 rows fits in about a second per quantile level, which
-#: keeps a 50-SKU upload inside the job timeout with room to spare.
+#: :func:`_training_origins`.
 MAX_TRAIN_ROWS: Final = 8_000
 
 MODEL_NAME: Final = "quantile_gbm"
 BASELINE_NAME: Final = "seasonal_naive"
 
-#: Relative margin in pinball loss below which the two methods are called a draw rather
-#: than a win for either.
-#:
-#: Without this the service reported "the baseline beat the model" off a 2% gap measured on
-#: a single fold -- 34.515 against 35.194 on a real 120-day upload -- while MASE said the
-#: model was clearly the better forecast (0.830 against 1.082). Both statements were
-#: arithmetically true and the conclusion was not supported by either. The simpler method
-#: still wins a draw, since equal evidence does not justify the extra machinery; what
-#: changes is that the response calls it a draw instead of a victory.
+#: Relative margin in pinball loss below which the two methods are called a draw rather than a win
+#: for either.
 DECISIVE_MARGIN: Final = 0.05
 
 
 def levels_for(critical_ratio: float) -> tuple[float, ...]:
-    """Return the quantile grid to fit, guaranteed to bracket ``critical_ratio``.
-
-    Adding the critical ratio to the grid removes an entire failure mode. Without it a
-    caller choosing a 90% margin and no spoilage drives CR to 0.998, outside the fitted
-    grid, and :func:`~inventory_engine.optimize.newsvendor.interpolate_quantile` correctly
-    refuses to extrapolate a tail nobody estimated -- returning a 422 for a request that is
-    perfectly reasonable. Fitting the level that was actually asked for answers it instead.
-    """
+    """Return the quantile grid to fit, guaranteed to bracket ``critical_ratio``."""
     return tuple(sorted({*BASE_QUANTILES, round(float(critical_ratio), 4)}))
 
 
@@ -156,14 +99,7 @@ class MethodScore:
 
     @property
     def n_scored(self) -> int:
-        """Folds this method actually produced a score on.
-
-        Distinct from the job's fold count, and the distinction matters. A 120-day upload
-        gets three folds, but the model cannot be fitted in the two earliest of them --
-        their training windows are too short -- so its "mean over 3 folds" is one number
-        wearing a plural. The caveat shown to the user is driven by this, not by the
-        nominal count.
-        """
+        """Folds this method actually produced a score on."""
         return sum(1 for v in self.pinball_folds if np.isfinite(v))
 
 
@@ -183,9 +119,7 @@ class SkuForecast:
     unit_price: float
     price_is_fallback: bool
     series: dict = field(default_factory=dict)
-    #: What the newsvendor asked for, before any festival adjustment. Equal to
-    #: ``order_qty`` whenever nothing was adjusted, and kept separately so the user can
-    #: always see both numbers rather than being handed one and told it moved.
+    #: What the newsvendor asked for, before any festival adjustment.
     order_qty_before_festival: float = 0.0
     #: The festival decision for this SKU: which of the three states, what matched it, and
     #: the sentence explaining it. See :mod:`inventory_engine.service.adjust`.
@@ -211,11 +145,7 @@ def _fit_one(train: pd.DataFrame, level: float):
 
 
 def fit_quantile_models(train: pd.DataFrame, levels: tuple[float, ...]) -> dict[float, object]:
-    """Fit one model per quantile level.
-
-    Independent fits, exactly as tier 1 does -- and with the same consequence: nothing
-    constrains them to come out ordered. :func:`_monotonize_rows` rearranges at read time.
-    """
+    """Fit one model per quantile level."""
     usable = train.dropna(subset=["y", *FEATURE_COLUMNS[:1]])
     return {level: _fit_one(usable, level) for level in levels}
 
@@ -223,13 +153,7 @@ def fit_quantile_models(train: pd.DataFrame, levels: tuple[float, ...]) -> dict[
 def predict_quantiles(
     models: dict[float, object], features: pd.DataFrame, levels: tuple[float, ...]
 ) -> np.ndarray:
-    """Predict every level for every row, rearranged into ascending order.
-
-    Returns:
-        Array of shape ``(n_rows, n_levels)``, non-negative and non-decreasing across the
-        level axis.
-
-    """
+    """Predict every level for every row, rearranged into ascending order."""
     raw = np.column_stack(
         [models[level].predict(features[list(FEATURE_COLUMNS)]) for level in levels]
     )
@@ -237,15 +161,7 @@ def predict_quantiles(
 
 
 def _monotonize_rows(values: np.ndarray) -> np.ndarray:
-    """Sort each row ascending and clip at zero.
-
-    The same rearrangement tier 1 applies in ``models.quantiles.monotonize``, done here
-    with a bare sort because that function's grain is hardcoded to the M5 key
-    ``(fold, item_id, store_id, target_date)`` and this data has no such columns. The
-    justification is unchanged: Chernozhukov, Fernandez-Val and Galichon (2010) show
-    rearranging a crossed quantile curve weakly reduces pinball loss at every level, so it
-    cannot make the forecast worse by the metric it is judged on.
-    """
+    """Sort each row ascending and clip at zero."""
     return np.clip(np.sort(np.asarray(values, dtype=float), axis=1), 0.0, None)
 
 
@@ -253,17 +169,7 @@ def _monotonize_rows(values: np.ndarray) -> np.ndarray:
 
 
 def baseline_daily(train: pd.Series, horizon: int, levels: tuple[float, ...]) -> np.ndarray:
-    """Seasonal-naive point path plus an empirical residual distribution.
-
-    Seasonal naive alone is a point forecast, and a point forecast cannot be compared on
-    pinball loss or turned into an order quantity. The spread comes from the method's own
-    in-sample errors: ``e_t = y_t - y_{t-7}``, whose quantiles say how wrong "same weekday
-    last week" has actually been on this series.
-
-    Returns:
-        Array of shape ``(horizon, n_levels)``.
-
-    """
+    """Seasonal-naive point path plus an empirical residual distribution."""
     values = train.dropna().to_numpy(dtype=float)
     point = seasonal_naive(values, horizon, SEASON_LENGTH)
     residuals = values[SEASON_LENGTH:] - values[:-SEASON_LENGTH]
@@ -274,36 +180,7 @@ def baseline_daily(train: pd.Series, horizon: int, levels: tuple[float, ...]) ->
 
 
 def baseline_total(train: pd.Series, horizon: int, levels: tuple[float, ...]) -> np.ndarray:
-    """Empirical quantiles of the horizon-day totals this series has actually produced.
-
-    This is **tier 1's rule, verbatim** -- the browser calculator's ``windowTotals`` followed
-    by an empirical ``quantile``. Using it here makes the tier 2 comparison answer the
-    question a user actually has: *does fitting a model beat what the quick calculator
-    already gives me, on my own data?*
-
-    Why not seasonal naive at this grain
-    ------------------------------------
-    The first version of this function did use seasonal naive: project the last 7 days four
-    times over, then add the quantiles of its rolling-origin residuals. Running it on real
-    M5 data showed why that is wrong for a *total*. ``FOODS_3_086-CA_3`` happens to end on a
-    week selling 249 units against a 100-unit average week, so seasonal naive projected 996
-    for the next 28 days on a series whose mean 28-day total is 399 -- and the order
-    quantity came out at 974 units at a **41%** service level, which is to say two and a
-    half times the average demand while claiming to be deliberately under-stocking.
-
-    Seasonal naive was not malfunctioning; carrying the last week forward is its definition,
-    and it is a reasonable daily forecast. But a single anomalous final week should not
-    scale a month's purchase order, and the empirical distribution of realised totals cannot
-    be moved that far by one week.
-
-    Known limitation, stated: the windows overlap, so the totals are autocorrelated and the
-    tails are a little tighter than independent sampling would give. Tier 1 has exactly the
-    same property, which is part of why the two remain comparable.
-
-    Returns:
-        Array of shape ``(1, n_levels)``.
-
-    """
+    """Empirical quantiles of the horizon-day totals this series has actually produced."""
     values = train.dropna().to_numpy(dtype=float)
     if values.size < horizon:
         # Too short for even one complete window: fall back to scaling the mean, which is
@@ -323,26 +200,7 @@ def baseline_total(train: pd.Series, horizon: int, levels: tuple[float, ...]) ->
 def backtest_sku(
     series: pd.Series, horizon: int, critical_ratio: float, region: str | None = None
 ) -> tuple[MethodScore, MethodScore, int]:
-    """Score the model and the baseline on rolling origins over the user's own history.
-
-    Rolling origin, never a random split and never a single holdout -- the discipline tier
-    1 states in ``backtest/folds.py``, applied to a series whose length the user chose
-    rather than one this project curated. The fold count comes from
-    :func:`~inventory_engine.service.folds.fold_count_for`, so a 90-day series gets the two
-    folds it can support instead of five folds with fortnight-long training windows.
-
-    Only the two levels that are actually scored get fitted per fold -- the median for MASE
-    and the critical ratio for pinball -- rather than the whole grid. The remaining levels
-    exist to draw the chart's band and to interpolate the order quantity, neither of which
-    the backtest measures, so fitting them five times over is pure cost. On a two-year
-    series this took one SKU from 23s to under 10s, which is the difference between a
-    50-SKU upload finishing inside the job timeout and not.
-
-    Returns:
-        ``(model_score, baseline_score, n_folds)``. ``n_folds`` of zero means the series
-        could not be backtested at this horizon at all.
-
-    """
+    """Score the model and the baseline on rolling origins over the user's own history."""
     n_folds = fold_count_for(len(series), horizon)
     if n_folds == 0:
         return MethodScore(MODEL_NAME), MethodScore(BASELINE_NAME), 0
@@ -402,18 +260,7 @@ def _at(levels: tuple[float, ...], level: float) -> int:
 
 
 def _training_origins(train: pd.Series, horizon: int) -> pd.DatetimeIndex:
-    """Origins to build daily training rows from, strided when there are too many.
-
-    The daily frame is one row per ``(origin, horizon)`` pair, so it grows as
-    ``n_days x horizon``: a two-year series at a 28-day horizon is ~19,600 rows, fitted
-    five times over during the backtest. That was 24 seconds for a single SKU, which puts a
-    50-product upload past the job timeout.
-
-    Adjacent origins differ by one day and produce near-identical feature rows, so striding
-    costs very little information for a large saving. The full date range is kept -- this
-    thins the sampling, it does not truncate history, which would quietly discard the
-    oldest seasonality.
-    """
+    """Origins to build daily training rows from, strided when there are too many."""
     available = train.index[WARMUP_DAYS:]
     if len(available) * horizon <= MAX_TRAIN_ROWS:
         return pd.DatetimeIndex(available)
@@ -426,11 +273,7 @@ def _training_origins(train: pd.Series, horizon: int) -> pd.DatetimeIndex:
 def _fit_fold(
     train: pd.Series, horizon: int, levels: tuple[float, ...], region: str | None = None
 ) -> tuple[np.ndarray, np.ndarray] | None:
-    """Fit both grains on ``train`` and predict from its final origin.
-
-    Returns ``None`` when the training window is too short to fit on, which the caller
-    records as an unscorable fold rather than as a zero.
-    """
+    """Fit both grains on ``train`` and predict from its final origin."""
     daily_rows = supervised_frame(
         train, horizon, origins=_training_origins(train, horizon), region=region
     )
@@ -461,17 +304,7 @@ def _fit_fold(
 
 
 def choose_method(model: MethodScore, baseline: MethodScore, n_folds: int) -> tuple[str, str]:
-    """Pick the method to serve, and say why in a sentence a buyer can read.
-
-    The caveat is driven by how many folds the **comparison** actually ran on, not by the
-    fold budget the history allows. Those differ whenever the model could not be fitted in
-    the earliest folds, and quoting the larger number would overstate the evidence behind
-    the choice.
-
-    Returns:
-        ``(method_name, reason)``.
-
-    """
+    """Pick the method to serve, and say why in a sentence a buyer can read."""
     m_pin, b_pin = model.pinball_mean, baseline.pinball_mean
     m_mase, b_mase = model.mase_mean, baseline.mase_mean
     compared = min(model.n_scored, baseline.n_scored)
@@ -531,19 +364,7 @@ def choose_method(model: MethodScore, baseline: MethodScore, n_folds: int) -> tu
 def order_from_distribution(
     levels: tuple[float, ...], total_quantiles: np.ndarray, costs: CostModel, price: float
 ) -> tuple[float, float]:
-    """Turn the horizon-total distribution into an order quantity and its expected cost.
-
-    Both numbers come from ``optimize/`` rather than being recomputed here: the critical
-    ratio from :meth:`~inventory_engine.optimize.costs.CostModel.critical_ratio`, the
-    quantity from :func:`~inventory_engine.optimize.newsvendor.interpolate_quantile`, and
-    the cost from
-    :func:`~inventory_engine.optimize.newsvendor.expected_cost_from_distribution`. Tier 1
-    and tier 2 therefore cannot drift apart on the arithmetic that matters most.
-
-    Returns:
-        ``(order_qty, expected_cost)``.
-
-    """
+    """Turn the horizon-total distribution into an order quantity and its expected cost."""
     cr = costs.critical_ratio()
     raw = interpolate_quantile(np.asarray(levels), total_quantiles, cr)[0]
     qty = float(np.clip(raw, 0.0, None))
@@ -554,17 +375,7 @@ def order_from_distribution(
 
 
 def resolve_price(frame: pd.DataFrame) -> tuple[float, bool]:
-    """Latest quoted price for this SKU, falling back to the shared constant.
-
-    Latest rather than mean: the order being costed is a future one, and retail data
-    reprices. Identical to tier 1's rule, and the fallback is the same
-    :data:`~inventory_engine.optimize.costs.FALLBACK_PRICE` so the two tiers cannot quote
-    different money for the same unpriced product.
-
-    Returns:
-        ``(price, is_fallback)``.
-
-    """
+    """Latest quoted price for this SKU, falling back to the shared constant."""
     if "unit_price" not in frame.columns:
         return FALLBACK_PRICE, True
     priced = pd.to_numeric(frame["unit_price"], errors="coerce").dropna()
@@ -584,22 +395,7 @@ def forecast_sku(
     history_days: int = 120,
     region: str | None = None,
 ) -> SkuForecast:
-    """Fit, backtest, choose, and price one SKU.
-
-    Args:
-        sku: Product identifier, for the result row.
-        frame: This SKU's rows, with ``date``, ``units_sold`` and optionally ``unit_price``.
-        horizon: Days the order must cover.
-        costs: The caller's cost assumptions.
-        history_days: How much history to hand back for the chart.
-        region: Festival calendar the model reads proximity from, or ``None`` for none.
-            ``None`` also switches the festival *adjustment* off entirely, so the whole
-            feature has one switch rather than two that can disagree.
-
-    Returns:
-        A fully populated :class:`SkuForecast`, including the chart series.
-
-    """
+    """Fit, backtest, choose, and price one SKU."""
     series = to_daily(frame)
     cr = costs.critical_ratio()
     levels = levels_for(cr)
@@ -619,9 +415,7 @@ def forecast_sku(
     forecast_qty, _ = order_from_distribution(levels, total, costs, price)
     plan = plan_for(sku, series, horizon=horizon, region=region)
     qty = plan.apply(forecast_qty)
-    # Costed at the quantity actually recommended, not at the one before the adjustment. An
-    # expected cost that describes a different order than the one on the screen is worse
-    # than no expected cost.
+    # Costed at the quantity actually recommended, not at the one before the adjustment.
     cost = expected_cost_from_distribution(np.asarray(levels), total[0], qty, costs, price)
 
     return SkuForecast(
@@ -651,13 +445,7 @@ def _chart_series(
     history_days: int,
     plan: FestivalPlan | None = None,
 ) -> dict:
-    """Assemble the JSON blob the chart draws.
-
-    ``daily_rate`` rather than the raw order quantity: the order covers the whole horizon,
-    so plotting its total as a reference line on a per-day axis would put a line at 140 on
-    a chart whose values are around 5. The rate is the same decision expressed in the
-    chart's own units.
-    """
+    """Assemble the JSON blob the chart draws."""
     plan = plan or FestivalPlan.unchanged()
     tail = series.dropna().tail(history_days)
     last = series.index[-1]
@@ -685,9 +473,8 @@ def _chart_series(
             "daily_rate": round(order_qty / horizon, 3),
             "label": f"Order covers {horizon} days",
         },
-        # The festival run-ups the chart shades, so the days that were adjusted are the days
-        # the reader can see. Empty in the advisory and none states, which is the point:
-        # nothing is highlighted on a chart whose numbers nothing touched.
+        # The festival run-ups the chart shades, so the days that were adjusted are the days the
+        # reader can see.
         "festival_windows": [
             {
                 "key": m.festival_key,

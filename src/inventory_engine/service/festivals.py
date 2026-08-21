@@ -1,78 +1,4 @@
-"""The festival calendar — dates sourced from the ``holidays`` library, not typed by hand.
-
-Why not a hand-maintained table
--------------------------------
-The first version of this module was one. It worked, and it was the wrong shape: measuring a
-festival's effect needs five or six years of *historical* dates per festival, and most Indian
-festivals follow lunar calendars, so every one of those dates is an independent opportunity
-to type something wrong. A wrong Diwali date raises no error. It measures the wrong fortnight,
-divides by the wrong baseline, and hands back a confident ratio for a week that was never a
-festival at all.
-
-So dates come from ``holidays.India``, which is maintained, versioned, and wrong in public
-rather than wrong in this file.
-
-Eight festivals, chosen rather than collected
----------------------------------------------
-:data:`SOURCES` is deliberately small. The library offers a few dozen dates and an earlier
-version of this file took most of them, on the reasoning that more calendar is more signal.
-It is not: every extra festival is another set of windows a product can be matched against,
-another chance to attach a suggestion to a product that has nothing to do with it, and one
-more row of a reference table nobody has checked. The eight here are the ones with a demand
-effect large enough for a grocer to order against.
-
-Six of them carry a full treatment -- measured against the shop's own history where the
-history reaches, a labelled reference figure where it does not. Two, Independence Day and
-Republic Day, are :attr:`Source.prior_only`: their effect is small, narrow, and confined to
-snacks, cold drinks and flags, and there is nothing to be gained from measuring a 1.1x on a
-new user's three months of data. :data:`OUT_OF_SCOPE` records what was dropped and that it
-is available to re-add, because "we removed it" and "the library does not have it" are
-different facts.
-
-Regional, not national
-----------------------
-All eight are observed nationwide. :data:`SOURCES` still records which subdivision each is
-read from and whether the *observance* is regional, because that is a property of the
-festival rather than of the current shortlist -- Raksha Bandhan falls on one lunar date
-across India and the library merely happens to file it under HR.
-
-What is deliberately absent, and what is only partly there
-----------------------------------------------------------
-:data:`UNAVAILABLE` names festivals wanted by the demand table that this library does not
-provide. Neither those nor anything else is substituted with a guessed date. A festival
-missing from the calendar produces "we have no dates for this" -- which is true and fixable
--- rather than a plausible-looking ratio measured over an invented window.
-
-``Ganesh Chaturthi`` is the instructive one. It was in the hand-typed table, it is in the
-demand reference, it is a major Maharashtra event, and the library does not have it under any
-subdivision. Checking rather than assuming is the only reason it is not still in here with
-five dates from memory.
-
-:data:`PARTIAL` is the middle case, and Maha Shivratri is the only entry. The library dates
-it in four of the nine years this calendar spans, and it is wanted in the shipped set
-anyway. Partial coverage was previously treated as disqualifying, for a good reason: a
-festival measurable in some years and invisible in others produces a per-SKU history whose
-coverage silently depends on which years the user uploaded. The word doing the work there is
-*silently*. So it is admitted and marked: :attr:`Source.partial` is carried through to the
-uplift, the missing years are listed in :data:`PARTIAL`, and both the coverage test and the
-user-facing text say the calendar is incomplete for it. What is forbidden is the quiet
-version, not the festival.
-
-Windows, not days
------------------
-A festival is not a spike on one day: stocking up starts before it and demand resumes after.
-Each entry carries ``lead_days`` and ``tail_days``, and those are **assumptions about
-shopping behaviour**, the same status as the cost rates in ``optimize/costs.py``. What gets
-measured is the uplift itself, per SKU, in :mod:`inventory_engine.service.uplift`.
-
-Why the target date's festival proximity is not leakage
--------------------------------------------------------
-Every other feature in ``features.py`` is measured at the *origin*, because sales after it
-are unknown. Calendar features are the documented exception, for the same reason tier 1's
-``dim_calendar`` extends past the end of its sales data: event calendars are genuinely known
-ahead of time. Knowing the target date is three days before Diwali needs nothing the buyer
-would not have when placing the order.
-"""
+"""The festival calendar — dates sourced from the ``holidays`` library, not typed by hand."""
 
 from __future__ import annotations
 
@@ -110,27 +36,7 @@ class Festival:
 
 @dataclass(frozen=True)
 class Source:
-    """How one festival's dates are obtained from the ``holidays`` library.
-
-    Attributes:
-        name: Display name used in responses.
-        library_name: Exact string the library reports, which is matched as a substring
-            because the library appends "(estimated)" to Islamic dates it has projected
-            rather than confirmed.
-        subdiv: Subdivision to read from, or ``None`` for the national calendar.
-        regional: Whether the *observance* is regional. ``False`` with a subdivision set
-            means the date is nationwide and the subdivision is only where the library
-            files it.
-        lead_days: Assumed days of build-up before the date.
-        tail_days: Assumed days of after-effect.
-        partial: The library dates this festival in only some of :data:`YEARS`. Admitted
-            anyway, but never quietly -- see :data:`PARTIAL` and the module docstring.
-        prior_only: Never measured from a shop's own sales, only ever suggested from the
-            reference table. For the two civic holidays, whose effect is small and narrow
-            enough that a measurement off a new user's history would be noise with a
-            decimal point.
-
-    """
+    """How one festival's dates are obtained from the ``holidays`` library."""
 
     name: str
     library_name: str
@@ -142,11 +48,7 @@ class Source:
     prior_only: bool = False
 
 
-#: The eight festivals this service models, read from ``holidays.India``. Verified present
-#: with complete year coverage over :data:`YEARS` -- ``tests/test_service_festivals.py``
-#: re-checks that on every run, so a library upgrade that drops one fails the build instead
-#: of silently shrinking the calendar. The one exception is marked ``partial`` and is
-#: checked against :data:`PARTIAL` instead.
+#: The eight festivals this service models, read from ``holidays.India``.
 SOURCES: Final[dict[str, Source]] = {
     "diwali": Source("Diwali", "Diwali (Deepavali)", None, False, 14, 2),
     "holi": Source("Holi", "Holi", None, False, 7, 1),
@@ -164,17 +66,12 @@ SOURCES: Final[dict[str, Source]] = {
     "republic_day": Source("Republic Day", "Republic Day", None, False, 2, 0, prior_only=True),
 }
 
-#: In :data:`SOURCES` but dated by the library in only some of :data:`YEARS`. The value is
-#: the years it *does* have, pinned so that a library release which fills the gap -- or
-#: widens it -- fails the test rather than silently changing what gets measured.
+#: In :data:`SOURCES` but dated by the library in only some of :data:`YEARS`.
 PARTIAL: Final[dict[str, tuple[int, ...]]] = {
     "maha_shivaratri": (2019, 2022, 2025, 2027),
 }
 
-#: Present in ``holidays.India`` with full coverage and deliberately not modelled. Removing
-#: a festival and being unable to date one are different problems with different fixes, so
-#: they are recorded separately: everything here is a one-line addition to :data:`SOURCES`
-#: plus a row in the demand table, whenever there is a reason to want it.
+#: Present in ``holidays.India`` with full coverage and deliberately not modelled.
 OUT_OF_SCOPE: Final[dict[str, str]] = {
     "dussehra": "dated nationally; dropped to keep the modelled set to eight.",
     "navratri_sharad": (
@@ -192,11 +89,8 @@ OUT_OF_SCOPE: Final[dict[str, str]] = {
     "gudi_padwa": "Maharashtra only (MH).",
 }
 
-#: Wanted by ``inventory_engine/data/india_festival_demand.csv``, absent from
-#: ``holidays.India`` under every
-#: subdivision. Searched for by name substring across all 36 subdivisions -- see the test.
-#: Left out rather than guessed; the value here is the reason, which is what tells a
-#: maintainer what to go and find.
+#: Wanted by ``inventory_engine/data/india_festival_demand.csv``, absent from ``holidays.India``
+#: under every subdivision.
 UNAVAILABLE: Final[dict[str, str]] = {
     "ganesh_chaturthi": (
         "not in holidays.India under any subdivision, despite being a major Maharashtra "
@@ -228,10 +122,8 @@ DEFAULT_REGION: Final = "IN"
 #: for the time of year. Distances are clipped here.
 HORIZON_DAYS: Final = 45
 
-#: US dates, retained because the mechanism is validated against the M5 panel this project
-#: ships and Indian festivals show nothing in 2011-2016 US grocery data. Hand-typed, but
-#: cross-checked against tier 1's ``dim_calendar`` by the test suite -- verified against real
-#: data rather than memory, which is the standard the Indian table could not meet.
+#: US dates, retained because the mechanism is validated against the M5 panel this project ships
+#: and Indian festivals show nothing in 2011-2016 US grocery data.
 US_DATES: Final[dict[str, tuple[str, ...]]] = {
     "thanksgiving": (
         "2011-11-24",
@@ -266,35 +158,13 @@ US_PROFILES: Final[dict[str, tuple[str, int, int]]] = {
 }
 
 
-#: The language the library is asked for its holiday *names* in, stated rather than
-#: inherited.
-#:
-#: This is a lookup key, not a presentation choice -- every name a user sees comes from
-#: :attr:`Source.name`, which is ours. But :data:`SOURCES` matches what the library emits,
-#: and those strings are gettext-translated: ``holidays`` declares India's
-#: ``default_language`` as ``en_IN``, where Eid al-Fitr is ``"Id-ul-Fitr"`` and Eid al-Adha
-#: is ``"Id-ul-Zuha (Bakrid)"``. Under ``en_US`` the same two are ``"Eid al-Fitr"`` and
-#: ``"Eid al-Adha"``.
-#:
-#: Left unset, the language resolves from the *ambient locale of whatever machine is
-#: running*. That is exactly what happened: this project's suite passed here and on the
-#: Linux CI runner, where gettext landed on ``en_US``, and failed on the Windows runner,
-#: where it landed on ``en_IN`` -- the calendar came back with no Eid in any of nine years
-#: while every other festival was fine, because ``"Diwali (Deepavali)"`` reads identically
-#: in both. A calendar whose contents depend on the host's locale is not a calendar.
-#:
-#: ``en_US`` rather than ``en_IN`` only because :data:`SOURCES` already spells them that
-#: way; either is correct as long as it is chosen here and not somewhere else.
+#: The language the library is asked for its holiday *names* in, stated rather than inherited.
 LIBRARY_LANGUAGE: Final = "en_US"
 
 
 @lru_cache(maxsize=8)
 def _subdivision_dates(subdiv: str | None) -> dict[str, tuple[date, ...]]:
-    """Every holiday name in one subdivision, mapped to its dates over :data:`YEARS`.
-
-    Cached because building a subdivision costs real time and the calendar is read once per
-    SKU per forecast.
-    """
+    """Every holiday name in one subdivision, mapped to its dates over :data:`YEARS`."""
     import holidays
 
     table = holidays.India(subdiv=subdiv, years=YEARS, language=LIBRARY_LANGUAGE)
@@ -306,23 +176,12 @@ def _subdivision_dates(subdiv: str | None) -> dict[str, tuple[date, ...]]:
 
 
 def library_names(subdiv: str | None = None) -> set[str]:
-    """Every holiday name the library reports, under :data:`LIBRARY_LANGUAGE`.
-
-    Public so the tests that ask "does the library still have this" go through the same
-    language as the lookup does. When they built their own ``holidays.India`` instead, they
-    inherited the ambient locale and disagreed with this module about what the library is
-    even called -- which is the bug that took four CI runs to find.
-    """
+    """Every holiday name the library reports, under :data:`LIBRARY_LANGUAGE`."""
     return set(_subdivision_dates(subdiv))
 
 
 def _dates_for(source: Source) -> tuple[date, ...]:
-    """Dates for one source, matching the library name as a prefix.
-
-    Prefix rather than equality because the library suffixes projected Islamic dates with
-    "(estimated)" -- ``Eid al-Fitr`` and ``Eid al-Fitr (estimated)`` are the same festival
-    and both are wanted.
-    """
+    """Dates for one source, matching the library name as a prefix."""
     table = _subdivision_dates(source.subdiv)
     days: set[date] = set()
     for name, found in table.items():
@@ -333,13 +192,7 @@ def _dates_for(source: Source) -> tuple[date, ...]:
 
 @lru_cache(maxsize=4)
 def festivals(region: str = DEFAULT_REGION) -> tuple[Festival, ...]:
-    """Every known occurrence for ``region``, ascending by date.
-
-    Raises:
-        KeyError: For a region with no calendar, rather than returning an empty tuple that
-            would read as "a year with no festivals".
-
-    """
+    """Every known occurrence for ``region``, ascending by date."""
     if region == "US":
         return tuple(
             sorted(
@@ -382,23 +235,12 @@ def covers(when: date, region: str = DEFAULT_REGION) -> bool:
 
 
 def gaps() -> dict[str, str]:
-    """Everything the calendar cannot fully speak about, and why.
-
-    Two kinds, reported together because a caller asking "what are the holes" wants both:
-    festivals with no dates at all (:data:`UNAVAILABLE`), and festivals dated in only some
-    years (:data:`PARTIAL`). Surfaced deliberately -- "we have no dates for Ganesh
-    Chaturthi" is an actionable fact, and it is the only honest alternative to a guessed
-    date.
-    """
+    """Everything the calendar cannot fully speak about, and why."""
     return {**UNAVAILABLE, **partial_coverage()}
 
 
 def partial_coverage() -> dict[str, str]:
-    """Festivals in the calendar whose year coverage has holes, and which years are missing.
-
-    Derived from :data:`PARTIAL` rather than restated, so the sentence a user reads cannot
-    drift from the tuple the test pins.
-    """
+    """Festivals in the calendar whose year coverage has holes, and which years are missing."""
     return {
         key: (
             f"holidays.India dates it in {len(years)} of the {len(YEARS)} years "
@@ -416,11 +258,7 @@ def is_partial(key: str) -> bool:
 
 
 def is_prior_only(key: str) -> bool:
-    """Whether this festival is never measured from a shop's own sales.
-
-    Read by :mod:`inventory_engine.service.uplift` before it measures anything, so the
-    decision lives with the calendar entry rather than being re-stated at each call site.
-    """
+    """Whether this festival is never measured from a shop's own sales."""
     return key in SOURCES and SOURCES[key].prior_only
 
 
@@ -435,29 +273,13 @@ def previous_festival(before: date, region: str = DEFAULT_REGION) -> Festival | 
 
 
 def active(when: date, region: str = DEFAULT_REGION) -> Festival | None:
-    """Return the festival whose window contains ``when``, if any.
-
-    Where windows overlap -- Maha Shivratri and Holi fall a fortnight apart, and Diwali's
-    fourteen-day run-up is long enough to touch a neighbour -- the nearer festival wins,
-    because that is the one the shopper is buying for.
-
-    Two festivals can land on the *same* day, at which point "nearer" decides nothing:
-    Raksha Bandhan fell on 15 August in 2019. The tie goes to the festival that is not
-    :attr:`Source.prior_only`, so the sweets event outranks the civic one, and to the key
-    alphabetically after that. Deterministic rather than dependent on dict order, which is
-    the actual requirement -- a banner that changed between two runs on the same date would
-    be worse than either answer.
-    """
+    """Return the festival whose window contains ``when``, if any."""
     inside = [f for f in festivals(region) if f.covers(when)]
     return min(inside, key=lambda f: tie_break(f, when)) if inside else None
 
 
 def tie_break(festival: Festival, when: date) -> tuple[int, int, str]:
-    """Sort key for choosing between overlapping festivals: nearest, substantive, stable.
-
-    Public because :mod:`inventory_engine.service.adjust` decides day by day which festival
-    owns a day of the order window, and it must reach the same answer this module does.
-    """
+    """Sort key for choosing between overlapping festivals: nearest, substantive, stable."""
     return (
         abs((festival.day - when).days),
         int(is_prior_only(festival.key)),
@@ -466,22 +288,13 @@ def tie_break(festival: Festival, when: date) -> tuple[int, int, str]:
 
 
 def upcoming(on: date, within_days: int = 30, region: str = DEFAULT_REGION) -> list[Festival]:
-    """Festivals whose window overlaps the next ``within_days``.
-
-    Deliberately about the window rather than the day: a fortnight of Diwali build-up matters
-    from the start of the fortnight.
-    """
+    """Festivals whose window overlaps the next ``within_days``."""
     horizon = on + timedelta(days=within_days)
     return [f for f in festivals(region) if on <= f.window_end and f.window_start <= horizon]
 
 
 def distance(when: date, region: str = DEFAULT_REGION) -> tuple[int, int, bool]:
-    """Days to the next festival, days since the last, and whether ``when`` is in a window.
-
-    Both distances are clipped to :data:`HORIZON_DAYS`, which is also what an off-calendar
-    date returns: "far from any festival" and "we have no calendar here" look the same to the
-    model, and both are honestly represented by the maximum distance.
-    """
+    """Days to the next festival, days since the last, and whether ``when`` is in a window."""
     nxt = next_festival(when, region)
     prev = previous_festival(when, region)
     to_next = min((nxt.day - when).days, HORIZON_DAYS) if nxt else HORIZON_DAYS
@@ -490,9 +303,5 @@ def distance(when: date, region: str = DEFAULT_REGION) -> tuple[int, int, bool]:
 
 
 def windows_in(first: date, last: date, region: str = DEFAULT_REGION) -> list[Festival]:
-    """Every festival whose window overlaps ``[first, last]``.
-
-    Used by the uplift measurement to find which festivals a user's history actually lived
-    through -- an uplift can only be measured for a festival the data covers.
-    """
+    """Every festival whose window overlaps ``[first, last]``."""
     return [f for f in festivals(region) if f.window_end >= first and f.window_start <= last]

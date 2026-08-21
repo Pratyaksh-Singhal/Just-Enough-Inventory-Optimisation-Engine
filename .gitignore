@@ -49,11 +49,7 @@ wds-2-requirements-analysis/
 # Ignoring the directory published those links with no targets behind them, and the two
 # older files only survived because git ignores nothing it already tracks.
 .vscode/
-.pytest_cache/
-.ruff_cache/
 *.pyc
-__pycache__/
-*.egg-info/
 .DS_Store
 
 # Design source and mockups pulled from Claude Design. The files already committed stay
@@ -61,3 +57,12 @@ __pycache__/
 # these directories being swept in by `git add -A`, which is how 5.2 MB of them arrived.
 data/design/
 data/pages/
+
+# The test suite stays on disk and is run before every commit, but is kept out of the
+# repository. `git rm --cached -r tests` was needed alongside this: .gitignore only stops
+# git tracking what it is not already tracking.
+tests/
+docs/test-coverage.md
+
+# Design exports and mockups. Working material, not source -- the resolved system that was
+# actually built from them is recorded in docs/design-system.md.

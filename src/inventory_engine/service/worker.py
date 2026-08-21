@@ -1,37 +1,4 @@
-"""The worker. The only process in tier 2 that fits a model.
-
-Run it with ``arq inventory_engine.service.worker.WorkerSettings``.
-
-Concurrency
------------
-arq is asyncio and model fitting is CPU-bound, so fitting is pushed into a thread executor
-rather than run on the event loop -- otherwise one long fit would stall the worker's
-heartbeat and arq would consider the job lost while it was in fact progressing.
-
-**One fit at a time.** :data:`FIT_THREADS` is 1, and that is a correctness constraint, not
-a tuning choice. The first version used two threads on the reasoning that LightGBM releases
-the GIL during training, so threads would give real parallelism for free. The GIL part is
-true and the conclusion was still wrong: LightGBM's training loop is OpenMP-parallel, and
-concurrent ``train()`` calls from several Python threads in one process can deadlock inside
-the OMP runtime.
-
-It did. Two runs of the demo upload finished in 12s; the third wedged with the process
-sitting at a flat 91 seconds of CPU and no further progress -- the job stuck in ``running``
-forever with nothing in the log after "forecast job starting". A race, so it passed twice
-before it failed.
-
-Parallelism is not lost, only moved: LightGBM's own ``num_threads`` still uses several
-cores inside each fit, and arq's ``max_jobs`` still runs separate jobs concurrently. What
-is forbidden is two ``train()`` calls in flight in one interpreter.
-
-Failure handling
-----------------
-A SKU that fails does not fail the job. Its error is recorded against that SKU and the
-remaining SKUs still produce results, because a single pathological series should not cost
-the user their whole run. A failure of the job *itself* -- storage gone, database
-unreachable -- moves the row to ``FAILED`` with a message, and the traceback goes to
-Sentry rather than into a database column.
-"""
+"""The worker. The only process in tier 2 that fits a model."""
 
 from __future__ import annotations
 
@@ -73,31 +40,18 @@ from inventory_engine.service.storage import LocalDiskStorage
 
 log = logging.getLogger("inventory_engine.worker")
 
-#: Fitting threads. **Must stay 1** -- see the module docstring. Raising it reintroduces
-#: concurrent LightGBM ``train()`` calls in one process, which deadlock in OpenMP.
-#: ``tests/test_service_worker`` asserts the value so the reason survives the next person
-#: who reads "1" as a performance oversight.
+#: Fitting threads. **Must stay 1** -- see the module docstring. Raising it reintroduces concurrent
+#: LightGBM ``train()`` calls in one process, which deadlock in OpenMP.
 FIT_THREADS = 1
 
 
 async def run_forecast_job(ctx: dict, job_id: str, request_id: str) -> dict:
-    """Fit every admitted SKU in a dataset and record the results.
-
-    Args:
-        ctx: arq context.
-        job_id: ``forecast_jobs.id`` to process.
-        request_id: The API request that caused this, for log correlation.
-
-    Returns:
-        A small summary dict, which arq stores as the task result.
-
-    """
+    """Fit every admitted SKU in a dataset and record the results."""
     settings = get_settings()
     factory = get_sessionmaker()
     started = datetime.now(UTC)
-    # Re-bind the API's request id in this process, so every line the worker writes for
-    # this job joins the API's lines for the request that caused it. This is the whole
-    # point of carrying the id through the queue rather than generating a new one here.
+    # Re-bind the API's request id in this process, so every line the worker writes for this job
+    # joins the API's lines for the request that caused it.
     bind_request_id(request_id)
     log.info("forecast job starting", extra={"job_id": job_id})
 
@@ -187,14 +141,7 @@ def _dominant_method(results: list[SkuForecast]) -> str:
 
 
 def _load_admitted(upload_dir, storage_uri: str, admitted: list[str]) -> dict[str, pd.DataFrame]:
-    """Read the stored CSV and split it into the admitted SKUs' frames.
-
-    The gate is re-run rather than trusted from the row, but only for its *cleaning*: the
-    duplicate merge, negative clip and date parse have to be applied identically to what
-    the verdict was computed on, or the model would see rows the gate never scored. Which
-    SKUs to keep still comes from the database, so the admission decision itself is made
-    exactly once.
-    """
+    """Read the stored CSV and split it into the admitted SKUs' frames."""
     storage = LocalDiskStorage(upload_dir)
     with storage.open(storage_uri) as handle:
         raw = pd.read_csv(handle)
@@ -225,12 +172,7 @@ async def _fit_all(
     costs: CostModel,
     region: str | None = None,
 ) -> tuple[list[SkuForecast], list[tuple[str, str]]]:
-    """Fit every SKU off the event loop, collecting failures rather than raising them.
-
-    ``region`` reaches the pipeline through a ``partial`` because ``run_in_executor`` takes
-    positional arguments only, and passing a calendar by position four arguments deep is
-    exactly how the wrong one gets passed.
-    """
+    """Fit every SKU off the event loop, collecting failures rather than raising them."""
     loop = asyncio.get_running_loop()
     results: list[SkuForecast] = []
     failures: list[tuple[str, str]] = []
@@ -287,12 +229,7 @@ def _finite(value: float | None) -> float | None:
 
 
 async def purge_uploads(ctx: dict) -> dict:
-    """Destroy uploads past the retention window, plus any orphaned files.
-
-    Runs on the worker rather than as a separate cron container: it needs the same
-    database, the same uploads volume and the same settings, and a second deployable to
-    delete some rows is a second thing to forget to deploy.
-    """
+    """Destroy uploads past the retention window, plus any orphaned files."""
     settings = get_settings()
     bind_request_id(f"purge-{datetime.now(UTC):%Y%m%d}")
     storage = LocalDiskStorage(settings.upload_dir)
@@ -317,9 +254,8 @@ async def purge_uploads(ctx: dict) -> dict:
 class WorkerSettings:
     """arq entry point. ``arq inventory_engine.service.worker.WorkerSettings``."""
 
-    #: Registered under an explicit name rather than letting arq infer ``__name__``, so
-    #: that renaming the coroutine cannot silently orphan every job the API enqueues under
-    #: the old name. ``tests/test_service_worker`` asserts producer and consumer agree.
+    #: Registered under an explicit name rather than letting arq infer ``__name__``, so that
+    #: renaming the coroutine cannot silently orphan every job the API enqueues under the old name.
     functions = [func(run_forecast_job, name=FORECAST_TASK)]
     #: Retention runs at 03:15 daily. Not on a timer from process start: a worker that
     #: restarts often would either never reach the interval or run the purge on every boot.
@@ -331,11 +267,7 @@ class WorkerSettings:
 
     @staticmethod
     async def on_startup(ctx: dict) -> None:
-        """Install JSON logging and Sentry for the worker process.
-
-        Separate from the API's initialisation and tagged separately: "the worker is
-        erroring" and "the API is erroring" are different pages and different fixes.
-        """
+        """Install JSON logging and Sentry for the worker process."""
         configure_logging("worker")
         init_sentry("worker")
         log.info("worker started")

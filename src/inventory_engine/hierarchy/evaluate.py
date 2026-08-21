@@ -1,15 +1,4 @@
-"""E6-S5 and WRMSSE — score forecasts at every hierarchy level, before and after MinT.
-
-Two things live here that could not exist before the hierarchy did:
-
-**Level-wise accuracy.** Reconciliation is not free. MinT redistributes information across
-levels, so aggregate levels usually improve while the bottom level can degrade slightly.
-Reporting only the level that improved would be choosing the evidence; both are reported.
-
-**WRMSSE.** The M5 competition metric is RMSSE weighted by each series' share of dollar
-sales, summed across every series at every aggregation level. It needs the hierarchy, which
-is why E5 deferred it here rather than reporting a number it had not computed.
-"""
+"""E6-S5 and WRMSSE — score forecasts at every hierarchy level, before and after MinT."""
 
 from __future__ import annotations
 
@@ -41,13 +30,7 @@ def _actuals_by_level(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
 
 
 def _series_weights(con: duckdb.DuckDBPyConnection, y_df: pd.DataFrame, fold: Fold) -> pd.Series:
-    """Dollar-sales share per series over the 28 days before the fold origin.
-
-    M5 weights each series by its share of revenue, so a slow-moving SKU cannot dominate
-    the headline number simply by being hard to forecast. Prices come from the bottom level
-    and are aggregated upward with units, which is what makes the weights consistent across
-    levels.
-    """
+    """Dollar-sales share per series over the 28 days before the fold origin."""
     start = pd.Timestamp(fold.origin_date) - pd.Timedelta(days=WEIGHT_WINDOW_DAYS - 1)
     revenue = con.execute(
         f"""
@@ -75,20 +58,10 @@ def _series_weights(con: duckdb.DuckDBPyConnection, y_df: pd.DataFrame, fold: Fo
 def score_levels(
     con: duckdb.DuckDBPyConnection, folds: tuple[Fold, ...], model_name: str = "lgbm"
 ) -> pd.DataFrame:
-    """Score base and reconciled forecasts at every hierarchy level.
-
-    Writes rows to ``backtest_fold_metrics`` with ``level`` set per hierarchy level and
-    ``model_name`` suffixed ``_mint`` for reconciled forecasts, so both appear side by side.
-
-    Returns:
-        The metric rows written.
-
-    """
+    """Score base and reconciled forecasts at every hierarchy level."""
     con.execute(BACKTEST_METRICS_DDL)
-    # Delete exactly what this function writes: aggregate-level rows for the base model,
-    # every level for the reconciled model, and the hierarchy-wide WRMSSE. Stated as an
-    # allowlist rather than "everything that isn't item_store", so it cannot grow to
-    # cover rows another scorer owns. Note `_` is a LIKE wildcard, hence ends_with().
+    # Delete exactly what this function writes: aggregate-level rows for the base model, every
+    # level for the reconciled model, and the hierarchy-wide WRMSSE.
     con.execute(
         f"""
         DELETE FROM {BACKTEST_METRICS}
@@ -146,10 +119,8 @@ def score_levels(
                 )
             frame = pd.DataFrame(per_series)
             for level, sub in frame.groupby("level"):
-                # E5's scorer already owns (base model, item_store); writing it again here
-                # would duplicate the key and make any later divergence between the two
-                # paths average silently instead of surfacing. Reconciled rows are ours at
-                # every level, including the bottom.
+                # E5's scorer already owns (base model, item_store); writing it again here would
+                # duplicate the key and make any later divergence between the two paths average
                 if not is_rec and level == "item_store":
                     continue
                 for metric in ("mase", "rmsse", "bias"):
@@ -224,13 +195,7 @@ _COLUMNS: Final[tuple[str, ...]] = (
 def level_comparison(
     con: duckdb.DuckDBPyConnection, metric: str = "rmsse", model_name: str = "lgbm"
 ) -> pd.DataFrame:
-    """Before/after accuracy per hierarchy level, with the delta.
-
-    Restricted to ``model_name`` and its ``_mint`` counterpart, and to the overall rows.
-    Omitting the ``stratum``/``horizon`` filter silently averaged the per-stratum and
-    per-horizon breakdowns into the headline figure, which made the bottom level look far
-    better than it is.
-    """
+    """Before/after accuracy per hierarchy level, with the delta."""
     reconciled_name = f"{model_name}_mint"
     frame = con.execute(
         f"""
