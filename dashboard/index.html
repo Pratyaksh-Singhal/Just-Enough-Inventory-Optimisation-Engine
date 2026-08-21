@@ -271,12 +271,6 @@
     gap: 34px
   }
 
-  .rule {
-    height: 1px;
-    background: var(--line-soft);
-    border: 0;
-    margin: 0
-  }
 
   .card {
     background: var(--surface);
@@ -285,77 +279,24 @@
     padding: 20px
   }
 
-  .grid {
-    display: grid;
-    gap: 14px
-  }
 
-  .g4 {
-    grid-template-columns: repeat(4, 1fr)
-  }
 
-  .g3 {
-    grid-template-columns: repeat(3, 1fr)
-  }
 
-  .g2 {
-    grid-template-columns: repeat(2, 1fr)
-  }
 
   @media(max-width:900px) {
-    .g4 {
-      grid-template-columns: repeat(2, 1fr)
-    }
 
     .g3,
-    .g2 {
-      grid-template-columns: 1fr
-    }
   }
 
   @media(max-width:560px) {
-    .g4 {
-      grid-template-columns: 1fr
-    }
   }
 
   /* ---------- hero ---------- */
-  .hero {
-    display: flex;
-    gap: 44px;
-    align-items: flex-end;
-    flex-wrap: wrap;
-    padding-bottom: 6px
-  }
 
-  .hero .figure {
-    font-family: var(--mono);
-    font-size: clamp(52px, 9vw, 86px);
-    line-height: .92;
-    font-weight: 600;
-    letter-spacing: -.045em;
-    color: var(--jade);
-    font-variant-numeric: tabular-nums
-  }
 
-  .hero .caption {
-    max-width: 44ch;
-    color: var(--ink-2);
-    font-size: 14px
-  }
 
-  .hero .caption strong {
-    color: var(--ink);
-    font-weight: 600
-  }
 
   /* ---------- stat tiles ---------- */
-  .tile {
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: var(--r);
-    padding: 15px 16px
-  }
 
   .tile .k {
     font-family: var(--mono);
@@ -381,13 +322,6 @@
     color: var(--ink-3)
   }
 
-  .chip {
-    display: inline-block;
-    padding: 1px 6px;
-    border-radius: 2px;
-    font-family: var(--mono);
-    font-size: 11px
-  }
 
   .chip.good {
     background: var(--jade-dim);
@@ -405,17 +339,6 @@
   }
 
   /* ---------- callout: the annotations that must be visible ---------- */
-  .callout {
-    border: 1px solid var(--line);
-    border-left: 3px solid var(--jade);
-    border-radius: var(--r);
-    background: var(--callout-jade);
-    padding: 24px;
-    font-family: var(--sans);
-    font-size: 15.5px;
-    line-height: 1.62;
-    color: var(--ink-2);
-  }
 
   .callout.amber {
     border-left-color: var(--amber);
@@ -437,15 +360,7 @@
     display: block
   }
 
-  .callout strong {
-    color: var(--ink);
-    font-weight: 600
-  }
 
-  .callout em {
-    font-style: italic;
-    color: var(--ink)
-  }
 
   /* ---------- tables ---------- */
   .tw {
@@ -510,19 +425,6 @@
     color: var(--amber)
   }
 
-  /* ---------- simulator ---------- */
-  .sim {
-    display: grid;
-    grid-template-columns: 300px 1fr;
-    gap: 26px;
-    align-items: start
-  }
-
-  @media(max-width:880px) {
-    .sim {
-      grid-template-columns: 1fr
-    }
-  }
 
   .ctrl {
     margin-bottom: 20px
@@ -600,11 +502,6 @@
     background: linear-gradient(90deg, var(--amber) 0%, var(--amber) var(--p, 50%), var(--line) var(--p, 50%))
   }
 
-  .readout {
-    border-top: 1px solid var(--line);
-    padding-top: 15px;
-    margin-top: 4px
-  }
 
   .readout .row {
     display: flex;
@@ -624,15 +521,6 @@
     font-variant-numeric: tabular-nums
   }
 
-  .big-cr {
-    font-family: var(--mono);
-    font-size: 40px;
-    font-weight: 600;
-    letter-spacing: -.035em;
-    color: var(--jade);
-    font-variant-numeric: tabular-nums;
-    line-height: 1
-  }
 
   /* ---------- charts ---------- */
   figure {
@@ -835,24 +723,7 @@
     text-transform: uppercase
   }
 
-  .legend {
-    display: flex;
-    gap: 16px;
-    flex-wrap: wrap;
-    font-family: var(--mono);
-    font-size: 11.5px;
-    color: var(--ink-2);
-    margin-bottom: 12px
-  }
 
-  .legend i {
-    display: inline-block;
-    width: 9px;
-    height: 9px;
-    border-radius: 2px;
-    margin-right: 6px;
-    vertical-align: baseline
-  }
 
   /* ---------- prose ---------- */
   /* Barlow, not the serif this used to set. The design carries exactly three faces --
@@ -950,24 +821,6 @@
     .steps { grid-template-columns: 1fr }
   }
 
-  /* Below this the page is read on a laptop half-screen or a phone, where every box that
-     was merely generous on a 1500px canvas costs a screenful. Shrink the padding and the
-     display figures together -- trimming only one leaves big numbers in cramped boxes. */
-  @media (max-width: 700px) {
-    .wrap { padding-left: 18px; padding-right: 18px }
-    main.wrap { padding-top: 32px; padding-bottom: 64px }
-    footer.wrap { padding-top: 24px; padding-bottom: 36px }
-    h2 { font-size: 32px }
-    .card { padding: 16px }
-    .drop { padding: 22px 16px }
-    .drop-ico { width: 30px; height: 30px; margin-bottom: 10px }
-    .drop-t { font-size: 16px }
-    .filestats { gap: 12px; margin-top: 14px; padding-top: 14px }
-    .filestats b { font-size: 15px }
-    .step-head { margin-bottom: 14px }
-    .derive-row b { font-size: 21px }
-    .results { margin-top: 22px }
-  }
 
   .steps .step + .step { margin-top: 0; padding-top: 0; border-top: 0 }
 
@@ -1832,7 +1685,9 @@
   }
 
   .ctable th:first-child, .ctable td:first-child { text-align: left }
-  .ctable th:last-child, .ctable td:last-child { text-align: left }
+  /* Only the order list ends in prose (a chip). The other two .ctable tables end in a
+     signed percentage and must stay right-aligned with the numbers above them. */
+  #calcTable th:last-child, #calcTable td:last-child { text-align: left }
   .ctable tbody tr { border-bottom: 1px solid var(--line-soft) }
   .ctable tbody tr:last-child { border-bottom: 0 }
   .ctable td.name { font-family: var(--sans); font-size: 15px }
@@ -2189,6 +2044,27 @@
   .ff-cols b { color: var(--ink-3); font-weight: 500; margin-right: 8px }
   .ff-cols code { color: var(--ink); background: var(--surface-2); padding: 1px 5px; border-radius: 2px }
   .ff-cols .lose code { background: transparent; padding: 0 }
+  /* ---------- narrow screens ----------
+     Last in the file, and that placement is the rule rather than tidiness. Every override
+     here has the same specificity as its base rule, so the cascade falls back to source
+     order: declared above those base rules, as this block originally was, none of it
+     applied and the page kept desktop sizes on a phone. Anything added below this point
+     must be a base rule, never a narrow-screen override. */
+  @media (max-width: 700px) {
+    .wrap { padding-left: 18px; padding-right: 18px }
+    main.wrap { padding-top: 32px; padding-bottom: 64px }
+    footer.wrap { padding-top: 24px; padding-bottom: 36px }
+    h2 { font-size: 32px }
+    .card { padding: 16px }
+    .drop { padding: 22px 16px }
+    .drop-ico { width: 30px; height: 30px; margin-bottom: 10px }
+    .drop-t { font-size: 16px }
+    .filestats { gap: 12px; margin-top: 14px; padding-top: 14px }
+    .filestats b { font-size: 15px }
+    .step-head { margin-bottom: 14px }
+    .derive-row b { font-size: 21px }
+    .results { margin-top: 22px }
+  }
 </style>
 
 <header>
@@ -3131,45 +3007,6 @@
   const SW = DATA.sweep, NAIVE = DATA.naive, F95 = DATA.fixed95;
   const cost = (p, cu, co) => p.short * cu + p.left * co;
 
-  function renderCurve(cu, co, cr, best) {
-    const w = 760, h = 310, ml = 64, mr = 18, mt = 14, mb = 42, iw = w - ml - mr, ih = h - mt - mb;
-    const costs = SW.map(p => cost(p, cu, co));
-    const nC = cost(NAIVE, cu, co), fC = cost(F95, cu, co);
-    const lo = 0, hi = Math.max(...costs, nC, fC) * 1.06;
-    const X = c => ml + (c - 0.10) / (0.99 - 0.10) * iw;
-    const Y = v => mt + ih - (v - lo) / (hi - lo) * ih;
-    let s = `<svg class="fluid" viewBox="0 0 ${w} ${h}" role="img" aria-label="Total cost against service level">`;
-    for (let i = 0; i <= 4; i++) {
-      const v = lo + (hi - lo) * i / 4, y = Y(v);
-      s += `<line x1="${ml}" y1="${y}" x2="${w - mr}" y2="${y}" class="gridline"/>`;
-      s += `<text x="${ml - 9}" y="${y + 3.5}" class="axis" text-anchor="end">${'$' + fmt(Math.round(v / 1000)) + 'k'}</text>`;
-    }
-    [0.1, 0.25, 0.5, 0.75, 0.95].forEach(t => {
-      s += `<text x="${X(t)}" y="${h - 22}" class="axis" text-anchor="middle">${Math.round(t * 100)}%</text>`;
-    });
-    s += `<text x="${ml}" y="${h - 6}" class="axis-title">service level (CR)</text>`;
-    // reference lines
-    s += `<line x1="${ml}" y1="${Y(nC)}" x2="${w - mr}" y2="${Y(nC)}" stroke="${C.ink3}" stroke-width="1.5" stroke-dasharray="4 4"/>`;
-    s += `<text x="${w - mr}" y="${Y(nC) - 7}" class="axis" text-anchor="end" style="fill:${C.ink3}">naive ${money(nC)}</text>`;
-    if (Y(fC) > mt + 8) {
-      s += `<line x1="${ml}" y1="${Y(fC)}" x2="${w - mr}" y2="${Y(fC)}" stroke="${C.amber}" stroke-width="1.5" stroke-dasharray="4 4"/>`;
-      s += `<text x="${w - mr}" y="${Y(fC) - 7}" class="axis" text-anchor="end" style="fill:${C.amber}">fixed 95% ${money(fC)}</text>`;
-    } else {
-      s += `<text x="${w - mr}" y="${mt + 12}" class="axis" text-anchor="end" style="fill:${C.amber}">fixed 95% ${money(fC)} ↑ off-scale</text>`;
-    }
-    // curve
-    const pts = SW.map((p, i) => `${X(p.cr).toFixed(1)},${Y(costs[i]).toFixed(1)}`).join(' ');
-    s += `<polyline points="${pts}" fill="none" stroke="${C.jade}" stroke-width="2" stroke-linejoin="round"/>`;
-    // optimum
-    const bx = X(best.cr), by = Y(best.cost);
-    s += `<line x1="${bx}" y1="${mt}" x2="${bx}" y2="${mt + ih}" stroke="${C.jade}" stroke-width="1" stroke-dasharray="3 3" opacity=".55"/>`;
-    s += `<circle cx="${bx}" cy="${by}" r="5.5" fill="${C.jade}" stroke="#0C1211" stroke-width="2"/>`;
-    const lblX = bx > w - 190 ? bx - 12 : bx + 12, anch = bx > w - 190 ? 'end' : 'start';
-    s += `<text x="${lblX}" y="${by - 13}" class="axis" text-anchor="${anch}" style="fill:#E8EFEC;font-size:11.5px">optimum ${Math.round(best.cr * 100)}% · ${money(best.cost)}</text>`;
-    s += '</svg>';
-    $('#curve').innerHTML = s;
-    return { nC, fC };
-  }
 
   /* Fig. 03. The design's model, not the old one: spoilage is the assumption you move, and
      the in-stock target is a number you *pick* so the page can price picking it wrong. The
