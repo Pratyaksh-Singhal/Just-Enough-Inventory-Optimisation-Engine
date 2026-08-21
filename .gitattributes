@@ -1,0 +1,11 @@
+# The built dashboard is deployed byte for byte, and the deploy workflow compares a hash
+# of the served page against this file. Its line endings therefore must not depend on the
+# operating system that checked it out: a Windows clone produced CRLF, git stored LF, and
+# a deploy run from that clone shipped a page whose hash could never match the commit it
+# came from. The content was identical and the check still failed, which is the worst kind
+# of red -- correct code, failing gate.
+dashboard/index.html   text eol=lf
+dashboard/index.template.html text eol=lf
+
+# Same reasoning: this one is read and executed by the page-behaviour tests.
+tests/js/*.js text eol=lf
