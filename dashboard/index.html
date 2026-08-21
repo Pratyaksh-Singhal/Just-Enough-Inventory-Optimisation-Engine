@@ -1325,10 +1325,14 @@
     letter-spacing: .04em
   }
 
+  /* Centred so it reads the same under every tab. The content columns above it are
+     deliberately different widths -- 1000px on Why, 1200px on Proof, full width on the
+     calculator -- and a left-aligned footer picks a fight with whichever one it is under. */
   footer.wrap {
     border-top: 1px solid var(--line);
     padding-top: 30px;
     padding-bottom: 48px;
+    text-align: center;
     color: var(--ink-3);
     font-family: var(--mono);
     font-size: 11.5px;
@@ -1357,14 +1361,13 @@
      1280px canvas; the values here are its values, moved into classes and onto our own
      tokens. Nothing on this tab is hardcoded arithmetic -- every figure is written by
      renderHome() from DATA, so the page cannot drift from the warehouse it describes. */
-  .home-block { margin-top: 112px }
+  .home-block { margin-top: 72px }
 
   .home-hero {
     display: grid;
     grid-template-columns: 1.15fr 1fr;
     gap: 64px;
-    align-items: center;
-    padding-top: 40px
+    align-items: center
   }
 
   .home-eye {
@@ -1656,7 +1659,7 @@
   }
 
   @media (max-width: 700px) {
-    .home-block { margin-top: 72px }
+    .home-block { margin-top: 48px }
     h1.home-h1 { font-size: 46px }
     h2.home-h2, .home-cta h2 { font-size: 32px }
     .home-stat, .home-grid > div { padding: 22px }
@@ -2778,12 +2781,7 @@
           ordering rule wins at every spoilage rate from 0.0 to 1.0, so the conclusion does not
           depend on them.</p>
       </div>
-    </div>
-  </section>
 
-  <!-- ============ SIMULATOR ============ -->
-  <section id="simulator" class="stack fade" hidden>
-    <div class="reading wide">
       <div class="why-fig" style="border-top:0;padding-top:0;margin-bottom:32px">
         <p class="why-eye">Fig. 03 &mdash; move the assumptions yourself</p>
         <div class="sim">
@@ -2838,6 +2836,9 @@
     </div>
   </section>
 
+  <!-- ============ SIMULATOR ============ -->
+
+
   <!-- ============ FORECAST ============ -->
   
   <!-- ============ PERFORMANCE ============ -->
@@ -2845,17 +2846,13 @@
 </main>
 
 <footer class="wrap">
-  <div>Built on M5 (Walmart) — CA / FOODS, 720 series, 1.4M rows. All costs USD; every cost
-    parameter is a stated assumption, not a measurement.</div>
-  <div style="margin-top:6px">DuckDB · LightGBM (Tweedie) · statsforecast · Nixtla hierarchicalforecast · FastAPI · 525
-    tests</div>
-  <!-- The technical-details tab is gone and the README carries this twice, but the live app
-       is its own front door: a reader who never opens the repository would otherwise never
-       reach the one artefact that is hardest to fake. One line, not a tab. -->
-  <div style="margin-top:6px">Five decisions this project got wrong the first time, and what
-    the wrong version actually returned on real data:
-    <a href="https://github.com/Pratyaksh-Singhal/Inventory-Optimization-Engine/blob/dev/docs/what-went-wrong.md"
-       target="_blank" rel="noopener">what-went-wrong.md</a></div>
+  <div>Just Enough &middot; tier 1 proof on M5 retail data, tier 2 live on your own</div>
+  <!-- The one link kept. The live app is its own front door: a reader who never opens the
+       repository would otherwise never reach the artefact that is hardest to fake. -->
+  <div style="margin-top:6px">Cost figures are stated assumptions. Both tiers label them as
+    such &middot; <a
+      href="https://github.com/Pratyaksh-Singhal/Inventory-Optimization-Engine/blob/dev/docs/what-went-wrong.md"
+      target="_blank" rel="noopener">what went wrong</a></div>
 </footer>
 
 <script>
@@ -2961,7 +2958,7 @@
     calculator: ['calculator'],
     full: ['full'],
     why: ['why'],
-    overview: ['overview', 'simulator'],
+    overview: ['overview'],
   };
   const ALL_SECTIONS = Object.values(TAB_SECTIONS).flat();
   const tabs = [...document.querySelectorAll('.tab')];
