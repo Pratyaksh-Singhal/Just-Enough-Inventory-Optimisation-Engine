@@ -139,6 +139,20 @@ jobs:
           fi
           echo "Postgres integration tests ran against a real database, drift check included."
 
+      # The dashboard's JavaScript is only executed when node is present, and node is
+      # preinstalled on this runner -- so here the skip is a defect, not a configuration.
+      # Without this the whole page-behaviour suite could quietly stop running and the job
+      # would stay green, which is the failure the Postgres assertion above exists to stop.
+      - name: Assert the dashboard behaviour tests actually ran
+        shell: bash
+        run: |
+          python -m pytest tests/test_dashboard_behaviour.py -q --no-header -rs | tee page.log
+          if grep -qi "skipped" page.log; then
+            echo "::error::dashboard behaviour tests skipped -- node was not found on the runner"
+            exit 1
+          fi
+          echo "The dashboard's own JavaScript was executed."
+
   test-windows:
     name: pytest (windows)
     runs-on: windows-latest
