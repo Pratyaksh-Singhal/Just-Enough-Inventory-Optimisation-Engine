@@ -15,6 +15,7 @@ import pandas as pd
 import pytest
 from fastapi.testclient import TestClient
 
+from inventory_engine.service import app as app_module
 from inventory_engine.service.app import create_app
 from inventory_engine.service.db.models import Base, Dataset, DatasetSku
 from inventory_engine.service.db.session import get_session
@@ -260,8 +261,6 @@ def test_the_dashboard_is_served_at_the_root_when_configured(tmp_path, monkeypat
     """
     from fastapi.testclient import TestClient
 
-    from inventory_engine.service.app import create_app
-
     page = tmp_path / "dash"
     page.mkdir()
     (page / "index.html").write_text("<h1>dashboard</h1>", encoding="utf-8")
@@ -281,8 +280,6 @@ def test_the_api_routes_win_over_the_static_mount(tmp_path, monkeypatch):
     """
     from fastapi.testclient import TestClient
 
-    from inventory_engine.service.app import create_app
-
     page = tmp_path / "dash"
     page.mkdir()
     (page / "index.html").write_text("<h1>dashboard</h1>", encoding="utf-8")
@@ -298,8 +295,6 @@ def test_no_dashboard_configured_leaves_the_api_alone(monkeypatch):
     """Unset is the normal case for a worker or a bare API. It must not raise on startup."""
     from fastapi.testclient import TestClient
 
-    from inventory_engine.service.app import create_app
-
     monkeypatch.delenv("DASHBOARD_DIR", raising=False)
     with TestClient(create_app(configure_observability=False)) as client:
         assert client.get("/").status_code == 404
@@ -314,8 +309,6 @@ def test_a_configured_but_missing_dashboard_dir_does_not_break_the_api(tmp_path,
     the festival table from a repository root that does not exist once installed.
     """
     from fastapi.testclient import TestClient
-
-    from inventory_engine.service.app import create_app
 
     monkeypatch.setenv("DASHBOARD_DIR", str(tmp_path / "nope"))
     with TestClient(create_app(configure_observability=False)) as client:
@@ -408,3 +401,91 @@ def test_a_partial_pass_still_reports_what_was_left_out(client):
     assert [row["sku"] for row in body["admitted"]] == ["LONG"]
     assert [row["sku"] for row in body["excluded"]] == ["SHORT"]
     assert body["excluded"][0]["reasons"]
+
+
+# --------------------------------------------------------------------------- page views
+
+
+@pytest.fixture
+def counted(monkeypatch):
+    """Capture what the page-view middleware would have sent, without a PostHog key."""
+    seen: list[tuple[str, str, dict]] = []
+
+    class Recorder:
+        def capture(self, event, distinct_id=None, **properties):
+            seen.append((event, distinct_id, properties))
+            return properties
+
+    monkeypatch.setattr(app_module, "analytics", lambda: Recorder())
+    return seen
+
+
+def test_opening_the_dashboard_counts_one_page_view(tmp_path, monkeypatch, counted):
+    """Nothing else on this service fires until somebody uploads a file.
+
+    Without this the funnel could show four people while the site had four thousand
+    readers, and there would be no way to tell those two apart.
+    """
+    (tmp_path / "index.html").write_text("<h1>page</h1>", encoding="utf-8")
+    monkeypatch.setattr(app_module, "get_settings", lambda: ServiceSettings(dashboard_dir=tmp_path))
+    with TestClient(app_module.create_app(configure_observability=False)) as c:
+        assert c.get("/").status_code == 200
+
+    events = [e for e in counted if e[0] == "page_view"]
+    assert len(events) == 1
+    assert events[0][2] == {"path": "/"}
+
+
+def test_an_api_call_is_not_counted_as_a_page_view(client, counted):
+    """The middleware sees every request; only the dashboard route is a visit."""
+    client.get("/health")
+    post(client, csv_bytes(days=120))
+    assert not [e for e in counted if e[0] == "page_view"]
+
+
+def test_a_page_view_carries_no_address_and_no_agent(tmp_path, monkeypatch, counted):
+    """The identifier is a digest; the inputs must not travel with it."""
+    (tmp_path / "index.html").write_text("<h1>page</h1>", encoding="utf-8")
+    monkeypatch.setattr(app_module, "get_settings", lambda: ServiceSettings(dashboard_dir=tmp_path))
+    with TestClient(app_module.create_app(configure_observability=False)) as c:
+        c.get("/", headers={"User-Agent": "Mozilla/5.0 (SecretBrowser)"})
+
+    event, distinct_id, properties = next(e for e in counted if e[0] == "page_view")
+    assert "SecretBrowser" not in distinct_id
+    assert "SecretBrowser" not in str(properties)
+    assert "testclient" not in distinct_id
+
+
+def test_a_counting_failure_never_breaks_the_page(tmp_path, monkeypatch):
+    """A page must still load when analytics is broken; it is not part of serving."""
+    (tmp_path / "index.html").write_text("<h1>page</h1>", encoding="utf-8")
+    monkeypatch.setattr(app_module, "get_settings", lambda: ServiceSettings(dashboard_dir=tmp_path))
+
+    def explode():
+        raise RuntimeError("analytics is down")
+
+    monkeypatch.setattr(app_module, "analytics", explode)
+    with TestClient(app_module.create_app(configure_observability=False)) as c:
+        assert c.get("/").status_code == 200
+
+
+def test_deleting_a_dataset_is_counted(client, counted, monkeypatch):
+    """Deletion is the only evidence the retention promise does anything for anybody."""
+    monkeypatch.setattr(
+        "inventory_engine.service.routers.full_forecast.analytics", lambda: _Recorder(counted)
+    )
+    dataset_id = post(client, csv_bytes(days=120)).json()["dataset_id"]
+    assert client.delete(f"/datasets/{dataset_id}").status_code == 200
+
+    event = next(e for e in counted if e[0] == "data_deleted")
+    assert event[2]["dataset_id"] == dataset_id
+    assert event[2]["jobs_cancelled"] == 0
+
+
+class _Recorder:
+    def __init__(self, sink):
+        self.sink = sink
+
+    def capture(self, event, distinct_id=None, **properties):
+        self.sink.append((event, distinct_id, properties))
+        return properties

@@ -29,6 +29,7 @@ from inventory_engine.service.db.session import get_session
 from inventory_engine.service.gate import GateReport, evaluate, refusal_message
 from inventory_engine.service.jobs import enqueue_forecast
 from inventory_engine.service.observability import (
+    EVENT_DATA_DELETED,
     EVENT_DATASET_CREATED,
     EVENT_FORECAST_ENQUEUED,
     EVENT_UPLOAD_RECEIVED,
@@ -489,6 +490,7 @@ def _result_of(row: ForecastResult, horizon: int) -> SkuResult:
 @router.delete("/datasets/{dataset_id}", response_model=DeleteResponse)
 def delete_dataset_endpoint(
     dataset_id: uuid.UUID,
+    request: Request,
     session: Session = Depends(get_session),
     storage: LocalDiskStorage = Depends(get_storage),
 ) -> DeleteResponse:
@@ -510,6 +512,16 @@ def delete_dataset_endpoint(
         raise HTTPException(status_code=404, detail=f"no dataset {dataset_id}")
 
     result = delete_dataset(session, storage, dataset)
+    # Counted because deletion is a feature, and one worth knowing is used: it is the only
+    # evidence that the retention promise on the page does something for anybody. Both
+    # properties are already on the allowlist -- an opaque id and a count -- so nothing
+    # about the file itself travels.
+    analytics().capture(
+        EVENT_DATA_DELETED,
+        getattr(request.state, "client_id", "anonymous"),
+        dataset_id=str(dataset_id),
+        jobs_cancelled=result.jobs_cancelled,
+    )
     log.info(
         "dataset deleted on request",
         extra={"dataset_id": str(dataset_id), "jobs_cancelled": result.jobs_cancelled},

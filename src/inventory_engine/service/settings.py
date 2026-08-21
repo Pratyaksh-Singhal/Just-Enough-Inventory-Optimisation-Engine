@@ -28,6 +28,8 @@ class ServiceSettings(BaseSettings):
         sentry_dsn: Error tracking, on both API and worker. Unset disables it.
         posthog_api_key: Product analytics. Unset disables it.
         posthog_host: PostHog ingestion endpoint, for EU or self-hosted instances.
+        analytics_salt: Seed for the day-scoped visitor hash. Unset means each process
+            invents its own, which over-counts visitors after a restart.
         environment: Tag attached to Sentry events and PostHog properties.
         dashboard_dir: Directory holding the built ``index.html``, served at ``/`` so the
             page and the API share an origin. ``None`` serves no page, which is right for a
@@ -58,6 +60,7 @@ class ServiceSettings(BaseSettings):
     sentry_dsn: str | None = None
     posthog_api_key: str | None = None
     posthog_host: str = "https://us.i.posthog.com"
+    analytics_salt: str | None = None
     environment: str = "development"
 
     dashboard_dir: Path | None = None

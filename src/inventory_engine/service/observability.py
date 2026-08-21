@@ -37,11 +37,14 @@ README rather than papered over -- an operator who cannot accept it should leave
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
+import os
 import sys
 import uuid
 from contextvars import ContextVar
+from datetime import UTC, datetime
 from typing import Any, Final
 
 from inventory_engine.service.settings import ServiceSettings, get_settings
@@ -227,6 +230,13 @@ EVENT_DATASET_CREATED: Final = "dataset_created"
 EVENT_FORECAST_ENQUEUED: Final = "forecast_enqueued"
 EVENT_FORECAST_COMPLETED: Final = "forecast_completed"
 EVENT_FORECAST_FAILED: Final = "forecast_failed"
+#: A dashboard page load. Counted server-side, because every other event on this list
+#: fires only once somebody uploads a file -- so the funnel could show four people and
+#: the site could have had four thousand readers, with no way to tell the two apart.
+EVENT_PAGE_VIEW: Final = "page_view"
+#: A deletion carried out. The one feature outside the funnel that already talks to the
+#: server, so counting it costs no new request and breaks no promise made on the page.
+EVENT_DATA_DELETED: Final = "data_deleted"
 
 FUNNEL: Final[tuple[str, ...]] = (
     EVENT_UPLOAD_RECEIVED,
@@ -262,6 +272,10 @@ ALLOWED_PROPERTIES: Final = frozenset(
         "rejection_reason",
         "status_code",
         "fatal",
+        # Page views. `path` is the dashboard route only ("/"), never a query string,
+        # and `jobs_cancelled` is a count.
+        "path",
+        "jobs_cancelled",
     }
 )
 
@@ -343,3 +357,49 @@ def reset_analytics() -> None:
     """Drop the cached client. For tests that change the environment."""
     global _analytics
     _analytics = None
+
+
+# --------------------------------------------------------------------------- visitors
+
+#: Regenerated whenever the UTC date changes. Yesterday's identifiers cannot be recomputed
+#: once it rolls, which is the property that makes this a counting mechanism rather than a
+#: tracking one: there is no way, even for us, to link a visitor across two days.
+_salt: tuple[str, bytes] | None = None
+
+
+def _daily_salt(settings: ServiceSettings | None = None) -> bytes:
+    """Return today's salt, rotating it when the date changes."""
+    global _salt
+    today = datetime.now(UTC).date().isoformat()
+    if _salt is None or _salt[0] != today:
+        settings = settings or get_settings()
+        # A configured seed keeps every process agreeing on the same identifier for the
+        # same visitor. Without one each process invents its own, which over-counts after a
+        # restart -- honest but blunter, and preferable to inventing a default seed that
+        # would be identical across every deployment of this code.
+        seed = (settings.analytics_salt or os.urandom(32).hex()).encode()
+        _salt = (today, hashlib.sha256(seed + today.encode()).digest())
+    return _salt[1]
+
+
+def visitor_id(
+    ip: str | None,
+    user_agent: str | None,
+    settings: ServiceSettings | None = None,
+) -> str:
+    """Return an opaque, day-scoped identifier for one visitor.
+
+    Neither the address nor the user agent is stored or sent anywhere -- they are salted
+    and hashed here, and only the digest leaves this function. The digest changes at
+    midnight UTC, so "unique visitors" means unique *today* and nothing longer. That is the
+    honest limit of counting people who have not been asked to identify themselves, and it
+    is the same approach Plausible and similar tools take.
+    """
+    material = _daily_salt(settings) + (ip or "-").encode() + b"|" + (user_agent or "-").encode()
+    return hashlib.sha256(material).hexdigest()[:32]
+
+
+def reset_salt() -> None:
+    """Drop the cached salt. For tests that pin a date or a seed."""
+    global _salt
+    _salt = None

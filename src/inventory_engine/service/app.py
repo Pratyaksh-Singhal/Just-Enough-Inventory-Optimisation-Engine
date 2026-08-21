@@ -8,19 +8,26 @@ Postgres dependency, a Redis dependency, or an upload surface. They are mounted 
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
+from typing import Final
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from inventory_engine.service.observability import (
+    EVENT_PAGE_VIEW,
+    analytics,
     bind_request_id,
     configure_logging,
     init_sentry,
+    visitor_id,
 )
 from inventory_engine.service.routers import full_forecast
 from inventory_engine.service.settings import get_settings
+
+log = logging.getLogger(__name__)
 
 #: Header carrying the id that joins an API log line to the worker log line it caused.
 REQUEST_ID_HEADER = "X-Request-ID"
@@ -119,7 +126,41 @@ async def _request_id_middleware(request: Request, call_next: Callable) -> Respo
     request.state.client_id = request.headers.get(CLIENT_ID_HEADER) or "anonymous"
     response = await call_next(request)
     response.headers[REQUEST_ID_HEADER] = request_id
+    _count_page_view(request, response)
     return response
+
+
+#: Paths that mean "somebody opened the dashboard". The mount serves the page at both,
+#: depending on whether the browser followed the directory index.
+_PAGE_PATHS: Final = frozenset({"/", "/index.html"})
+
+
+def _count_page_view(request: Request, response: Response) -> None:
+    """Record one dashboard page load, if that is what this request was.
+
+    Server-side on purpose. Every other event this service records fires only once
+    somebody uploads a file, so the funnel could show four people while the site had four
+    thousand readers -- and the calculator, which is the part most visitors actually use,
+    would be invisible either way. Counting here needs no cookie, no client script and no
+    third party in the browser: the page stays exactly as self-contained as it claims.
+
+    The identifier is a day-scoped hash of address and user agent, computed and discarded
+    inside :func:`visitor_id`. Never raises -- a counting failure must not turn into a
+    failed page load.
+    """
+    if request.method != "GET" or request.url.path not in _PAGE_PATHS:
+        return
+    if response.status_code >= 400:
+        return
+    try:
+        client = request.client
+        analytics().capture(
+            EVENT_PAGE_VIEW,
+            visitor_id(client.host if client else None, request.headers.get("user-agent")),
+            path=request.url.path,
+        )
+    except Exception:  # noqa: BLE001 - analytics must never break a page load
+        log.debug("page view not counted", exc_info=True)
 
 
 app = create_app()

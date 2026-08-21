@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 
 import pytest
 
@@ -23,6 +24,8 @@ from inventory_engine.service.observability import (
     component_var,
     init_sentry,
     request_id_var,
+    reset_salt,
+    visitor_id,
 )
 from inventory_engine.service.settings import ServiceSettings
 
@@ -246,3 +249,58 @@ def test_the_scrubber_removes_stack_frame_locals():
 
 def test_the_denied_keys_cover_the_identifiers_the_code_actually_logs():
     assert {"sku", "filename", "storage_uri"} <= DENIED_EXTRA_KEYS
+
+
+# --------------------------------------------------------------------------- visitors
+
+
+def test_the_same_visitor_hashes_the_same_way_within_a_day():
+    reset_salt()
+    a = visitor_id("203.0.113.9", "Mozilla/5.0")
+    b = visitor_id("203.0.113.9", "Mozilla/5.0")
+    assert a == b
+
+
+@pytest.mark.parametrize(
+    "ip,ua",
+    [("203.0.113.10", "Mozilla/5.0"), ("203.0.113.9", "Firefox/1.0")],
+)
+def test_a_different_visitor_hashes_differently(ip, ua):
+    reset_salt()
+    assert visitor_id(ip, ua) != visitor_id("203.0.113.9", "Mozilla/5.0")
+
+
+def test_the_address_and_agent_never_appear_in_the_digest():
+    """The digest is the only thing that leaves ``visitor_id``; it must carry neither input."""
+    reset_salt()
+    digest = visitor_id("203.0.113.9", "Mozilla/5.0 (Macintosh)")
+    assert "203.0.113.9" not in digest
+    assert "Mozilla" not in digest
+    assert re.fullmatch(r"[0-9a-f]{32}", digest)
+
+
+def test_the_identifier_cannot_be_recomputed_after_the_salt_rotates():
+    """Rotation is what makes this counting rather than tracking.
+
+    If yesterday's identifier could be recomputed, the digests would link a visitor across
+    days and the mechanism would be a tracker with extra steps.
+    """
+    reset_salt()
+    today = visitor_id("203.0.113.9", "Mozilla/5.0")
+    reset_salt()  # stands in for the date rolling over: a fresh random seed
+    assert visitor_id("203.0.113.9", "Mozilla/5.0") != today
+
+
+def test_a_missing_address_still_produces_an_identifier():
+    """A proxy that strips the client address must not raise inside a page load."""
+    reset_salt()
+    assert re.fullmatch(r"[0-9a-f]{32}", visitor_id(None, None))
+
+
+def test_a_configured_seed_makes_two_processes_agree():
+    """Without it each process invents its own and the same visitor is counted twice."""
+    settings = ServiceSettings(analytics_salt="a-fixed-seed")
+    reset_salt()
+    first = visitor_id("203.0.113.9", "Mozilla/5.0", settings)
+    reset_salt()
+    assert visitor_id("203.0.113.9", "Mozilla/5.0", settings) == first
