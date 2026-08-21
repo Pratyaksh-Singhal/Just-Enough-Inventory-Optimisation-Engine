@@ -3633,8 +3633,17 @@ __FONTS__
       msg('Uploading and checking your data…');
       const body = new FormData();
       body.append('file', file, name);
-      const r = await fetch(`${api()}/upload`, { method: 'POST', body, headers: headers() });
-      const data = await r.json();
+      let r, data;
+      try {
+        r = await fetch(`${api()}/upload`, { method: 'POST', body, headers: headers() });
+        data = await r.json();
+      } catch (e) {
+        msg(`<span class="lose">The service didn't answer.</span> It sleeps when nobody is
+             using it and takes a second or two to wake — try again shortly. Nothing was
+             uploaded. The <a href="#" data-goto="calculator">How much to order</a> tab
+             needs no service at all.`);
+        return null;
+      }
 
       if (!r.ok) {
         // The gate's refusal is the product here, not an error page: show the shortfall
@@ -3663,6 +3672,17 @@ __FONTS__
         $$('#ffTable').innerHTML = '';
         return null;
       }
+      /* A new file supersedes the last one completely. Everything below is still
+         describing the previous dataset until it is cleared, and the gate summary for the
+         new file renders directly above it. */
+      clearInterval(S.poll);
+      S.job = null; S.results = []; S.sku = null; S.lastJob = null; S.status = null;
+      $$('#ffChartWrap').hidden = true;
+      $$('#ffTable').innerHTML = '';
+      $$('#ffSku').innerHTML = '';
+      $$('#ffAdvice').innerHTML = '';
+      $$('#ffAdvice').hidden = true;
+
       S.dataset = data.dataset_id;
       S.gate = { admitted: data.admitted || [], excluded: data.excluded || [] };
       steps();
@@ -3741,6 +3761,7 @@ __FONTS__
     async function run() {
       if (!S.dataset) return;
       $$('#ffRun').disabled = true;
+      S.status = 'queued'; steps();
       const body = {
         dataset_id: S.dataset,
         horizon: +$$('#ffHorizon').value,
@@ -3771,6 +3792,19 @@ __FONTS__
         try {
           const r = await fetch(`${api()}/forecast/${S.job}`, { headers: headers() });
           const j = await r.json();
+          if (!r.ok) {
+            clearInterval(S.poll);
+            S.job = null; S.status = null; steps();
+            const gone = r.status === 404;
+            msg(gone
+              ? `<span class="lose">This forecast is no longer on the server.</span> Its data
+                 was deleted, either by you or by the 30-day retention policy. Upload the file
+                 again to run a new one.`
+              : `<span class="lose">The service returned ${r.status}.</span>
+                 ${esc(typeof j.detail === 'string' ? j.detail : 'Try running it again.')}`);
+            $$('#ffRun').disabled = !S.dataset;
+            return;
+          }
           if (j.status === 'queued' || j.status === 'running') { msg(esc(j.message)); return; }
           clearInterval(S.poll);
           $$('#ffRun').disabled = false;
@@ -4215,6 +4249,14 @@ __FONTS__
 
   function render() {
     const ds = window.__ffDataset;
+    // Checked before the no-dataset return, because a completed deletion has no dataset by
+    // definition and its confirmation is the last thing this panel exists to say.
+    if (state === 'deleted') {
+      box.hidden = false;
+      box.innerHTML = `<div class="card"><span class="eyebrow">Your data</span>
+        <div class="msg ok" style="margin:0">${esc(done)}</div></div>`;
+      return;
+    }
     if (!ds) { box.hidden = true; return; }
     box.hidden = false;
     const days = ds.retentionDays;
@@ -4228,11 +4270,6 @@ __FONTS__
         to identify you: only an anonymous per-browser id that travels with the request.
       </p>`;
 
-    if (state === 'deleted') {
-      box.innerHTML = `<div class="card"><span class="eyebrow">Your data</span>
-        <div class="msg ok" style="margin:0">${esc(done)}</div></div>`;
-      return;
-    }
     if (state === 'confirming') {
       box.innerHTML = `<div class="card"><span class="eyebrow">Your data</span>${explain}
         <div class="msg" style="margin:0 0 12px"><strong>Delete all of it?</strong>
