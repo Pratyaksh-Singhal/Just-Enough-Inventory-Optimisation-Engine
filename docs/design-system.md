@@ -3,7 +3,8 @@
 The resolved system, as the dashboard actually implements it. Read this before changing
 `dashboard/index.template.html`, and update it when a token changes.
 
-**Canonical source:** `data/design/Just Enough v2.dc.html` (Claude Design export), transcribed
+**Canonical source:** `Just Enough v2.dc.html` (design export, kept locally and not in the
+repository — see `.gitignore`), transcribed
 onto `dashboard/index.template.html`. Where the two disagree, this document records which one
 won and why.
 
