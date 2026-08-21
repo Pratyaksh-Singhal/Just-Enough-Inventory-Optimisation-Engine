@@ -3728,6 +3728,23 @@
       $$('#ffMsg').innerHTML = `<div class="${cls}">${html}</div>`;
     };
 
+    /* The deletion happens in another script block, which cannot see this closure. When it
+       succeeds, everything on this tab describes data that no longer exists. */
+    window.addEventListener('ioe:deleted', () => {
+      clearInterval(S.poll);
+      S.dataset = null; S.job = null; S.results = []; S.sku = null; S.lastJob = null;
+      S.gate = null; S.status = null; S.fileLabel = null;
+      $$('#ffRunCard').hidden = true;
+      $$('#ffRun').disabled = true;
+      $$('#ffChartWrap').hidden = true;
+      $$('#ffTable').innerHTML = '';
+      $$('#ffExcluded').innerHTML = '';
+      $$('#ffAdvice').innerHTML = '';
+      $$('#ffAdvice').hidden = true;
+      $$('#ffFileName').textContent = 'Choose a CSV to upload';
+      steps();
+    });
+
     /* ---- connection ---- */
     async function ping() {
       $$('#ffHealth').textContent = 'Checking…';
@@ -3800,7 +3817,12 @@
            here -- worse than an error, because it looks like it worked. */
         S.dataset = null; S.job = null; S.results = []; S.sku = null; S.lastJob = null;
         S.gate = null; S.status = null; S.fileLabel = null;
-        $$('#ffRunCard').hidden = true; steps();
+        /* NOT hidden here, though every other line in this block is a reset. The refusal
+           that msg() just wrote lives inside this card, so hiding it threw the explanation
+           away a line after producing it -- the file was rejected and the page went blank,
+           which is the exact failure the detailed message exists to prevent. The card is
+           hidden on delete instead, where there genuinely is nothing to say. */
+        steps();
         clearInterval(S.poll);
         $$('#ffRun').disabled = true;
         $$('#ffChartWrap').hidden = true;
@@ -4412,6 +4434,7 @@
       done = body.message;
       state = 'deleted';
       window.__ffDataset = null;
+      window.dispatchEvent(new CustomEvent('ioe:deleted'));
     } catch (e) {
       state = 'idle';
       error = `Not deleted: ${e.message} Your file is still on the server; try again.`;
