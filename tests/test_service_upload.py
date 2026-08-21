@@ -338,3 +338,73 @@ def test_the_upload_response_states_the_retention_window(client):
     response = client.post("/upload", files={"file": ("s.csv", rows, "text/csv")})
     assert response.status_code == 201, response.text
     assert response.json()["retention_days"] == get_settings().upload_retention_days
+
+
+# ------------------------------------------------- the refusal envelope the page renders
+
+
+def test_a_refusal_carries_the_column_mapping_the_page_shows(client):
+    """The dashboard prints "your `item name` was read as sku, `date` is missing".
+
+    That is the whole difference between a refusal a user can act on and one that reads as
+    a bug in the page, so the fields behind it are a contract rather than a convenience.
+    """
+    frame = pd.read_csv(io.BytesIO(csv_bytes(days=21)))
+    response = post(client, frame.to_csv(index=False).encode())
+    detail = response.json()["detail"]
+
+    assert detail["rows_read"] == 21
+    assert detail["column_mapping"] == {
+        "sku": "sku",
+        "date": "date",
+        "units_sold": "units_sold",
+        "unit_price": "unit_price",
+    }
+
+
+def test_a_refusal_names_every_product_and_why(client):
+    """One row per product, each carrying the threshold and both values."""
+    frame = pd.concat(
+        [
+            pd.read_csv(io.BytesIO(csv_bytes(sku="A", days=21))),
+            pd.read_csv(io.BytesIO(csv_bytes(sku="B", days=14))),
+        ]
+    )
+    response = post(client, frame.to_csv(index=False).encode())
+    excluded = {row["sku"]: row for row in response.json()["detail"]["excluded"]}
+
+    assert set(excluded) == {"A", "B"}
+    assert excluded["A"]["n_days"] == 21
+    assert excluded["B"]["n_days"] == 14
+    for row in excluded.values():
+        assert row["reasons"], "a refused product with no stated reason"
+        assert any("needed" in reason for reason in row["reasons"])
+
+
+def test_a_wrong_layout_refusal_is_a_string_not_a_structure(client):
+    """Two shapes reach the page and it renders both.
+
+    A gate refusal is an object with ``column_mapping``; an unreadable file is a plain
+    string. The page branches on that, and rendering the wrong one produced
+    ``[object Object]`` where the explanation should have been.
+    """
+    response = post(client, b"PK\x03\x04" + bytes(range(256)), name="sales.xlsx")
+    assert isinstance(response.json()["detail"], str)
+
+
+def test_a_partial_pass_still_reports_what_was_left_out(client):
+    """A file where some products qualify is a success, not a refusal -- but the page
+    still shows the excluded ones, so they have to survive in the success envelope."""
+    frame = pd.concat(
+        [
+            pd.read_csv(io.BytesIO(csv_bytes(sku="LONG", days=120))),
+            pd.read_csv(io.BytesIO(csv_bytes(sku="SHORT", days=10))),
+        ]
+    )
+    response = post(client, frame.to_csv(index=False).encode())
+    assert response.status_code == 201
+    body = response.json()
+
+    assert [row["sku"] for row in body["admitted"]] == ["LONG"]
+    assert [row["sku"] for row in body["excluded"]] == ["SHORT"]
+    assert body["excluded"][0]["reasons"]
