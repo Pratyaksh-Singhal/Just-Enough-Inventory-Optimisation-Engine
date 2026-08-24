@@ -1,9 +1,7 @@
 """Alembic environment for the tier 2 schema.
 
-The URL comes from ``ServiceSettings`` rather than ``alembic.ini`` so that migrations and
-the running service can never disagree about which database they mean -- a mismatch there
-produces a migration applied to the wrong database, which is the worst kind of quiet
-success. ``alembic.ini`` keeps only logging config.
+The URL comes from ServiceSettings, not alembic.ini, so migrations and the running
+service can never disagree about which database they mean.
 """
 
 from __future__ import annotations
