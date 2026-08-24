@@ -1,14 +1,4 @@
 # Local tier 2 stack: Postgres, Redis, the API and the worker.
-#
-# The API and the worker are the same image with different commands, because they must run
-# the same code -- a worker built from a stale image would fit a model the API cannot
-# describe. They share the uploads volume: LocalDiskStorage hands the worker a path, so
-# both processes have to see the same filesystem. That constraint is what forces the move
-# to S3-compatible storage the moment these run on separate hosts.
-#
-# DATABASE_URL here points at the `db` service. Deployed, it points at a hosted Postgres
-# and nothing else changes -- that is the payoff for using plain Postgres over a
-# provider-specific client.
 
 services:
   db:
@@ -22,9 +12,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      # The API and worker both wait on this. Without it they race the database's first
-      # start and crash-loop until it wins, which reads as a broken stack rather than a
-      # slow one.
+      # The API and worker both wait on this.
       test: ["CMD-SHELL", "pg_isready -U inventory -d inventory"]
       interval: 3s
       timeout: 3s
@@ -45,7 +33,6 @@ services:
       context: .
       dockerfile: Dockerfile
     # 8001 outside, matching run-service's default, so tier 1's run-api keeps 8000 and the
-    # dashboard's prefilled address is right whether the service runs here or on the host.
     command: uvicorn inventory_engine.service.app:app --host 0.0.0.0 --port 8001
     environment:
       DATABASE_URL: postgresql+psycopg://inventory:inventory@db:5432/inventory
