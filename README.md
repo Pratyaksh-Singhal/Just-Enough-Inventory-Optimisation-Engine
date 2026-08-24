@@ -76,11 +76,3 @@ Tier 2 stores an uploaded file so the worker can read it. It is deleted **30 day
 upload whether you ask or not**, and one button removes the file, its forecasts and its
 stored history immediately. No accounts, no cookies. Analytics count page views and runs —
 never file names, product names or figures.
-
-## Documentation
-
-- [`docs/what-went-wrong.md`](docs/what-went-wrong.md) — decisions this project got wrong
-  the first time. None crashed; every one returned a confident, plausible, wrong answer.
-- [`docs/design-system.md`](docs/design-system.md) — the dashboard's tokens, and the CSS
-  rules whose violation each shipped a visible bug.
-- [`docs/BACKLOG.md`](docs/BACKLOG.md) — epics and their status.
