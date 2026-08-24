@@ -59,6 +59,8 @@
   }
 
   /* ---------- header ---------- */
+  html, body { overflow-x: clip }
+
   header {
     border-bottom: 1px solid var(--line);
     background: var(--ground);
@@ -142,7 +144,10 @@
     display: flex;
     gap: 2px;
     overflow-x: auto;
-    scrollbar-width: none
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent)
   }
 
   .tabs::-webkit-scrollbar {
@@ -204,8 +209,8 @@
     font-weight: 500;
     letter-spacing: .12em;
     text-transform: uppercase;
-    color: var(--jade);
-    background: var(--jade-dim);
+    color: var(--blue);
+    background: var(--blue-dim);
     border-radius: 2px;
     padding: 2px 5px;
     margin-left: 7px;
@@ -2024,6 +2029,16 @@
     .derive-row b { font-size: 21px }
     .results { margin-top: 22px }
 
+    /* Header. On a 390px phone the masthead wrapped to three rows -- wordmark, exchange
+       rate, currency pills -- and pushed the tabs off the first screen. */
+    .masthead { padding: 14px 0 10px; gap: 8px 12px }
+    .masthead h1 { font-size: 19px }
+    .masthead .sub { display: none }
+    .fx-rate { display: none }
+    .tab { font-size: 10.5px; padding: 8px 9px; letter-spacing: .04em }
+    .live-tag { font-size: 8px; padding: 1px 4px; margin-left: 5px }
+    .tabs .tab-gap { width: 8px }
+
     /* Proof it works. Fig 03 shipped with no narrow-screen rules of its own, so the
        controls, the callout and the chart all kept their desktop sizes in a phone column. */
     .proof-lede { font-size: 15px }
@@ -2040,6 +2055,7 @@
     .why-fig { padding-top: 22px; margin-bottom: 30px }
     .ctable th, .ctable td { padding-left: 14px; padding-right: 14px }
   }
+  .m-nums { font-family: var(--mono); font-size: 10.5px; color: var(--ink-4) }
 </style>
 
 <header>
@@ -3797,24 +3813,19 @@
 
       $$('#ffTable').innerHTML = `<thead><tr>
           <th>Product</th><th>Order this many</th><th>Festival</th><th>Method used</th>
-          <th>Accuracy (MASE)</th><th>Baseline</th><th>Unit price</th></tr></thead><tbody>` +
+          <th>Confidence</th><th>Unit price</th></tr></thead><tbody>` +
         S.results.map(r => {
-          const a = r.accuracy;
-          const mm = a.mase_model == null ? '—'
-            : `${a.mase_model.toFixed(3)}${a.mase_model_spread != null ? ` <span style="color:var(--ink-3)">±${a.mase_model_spread.toFixed(3)}</span>` : ''}`;
-          const mb = a.mase_baseline == null ? '—'
-            : `${a.mase_baseline.toFixed(3)}${a.mase_baseline_spread != null ? ` <span style="color:var(--ink-3)">±${a.mase_baseline_spread.toFixed(3)}</span>` : ''}`;
           const px = r.unit_price == null ? '—'
             : (r.price_is_fallback
               ? `<span style="color:var(--ink-3)" title="No unit_price in your file">${moneyFine(r.unit_price)}*</span>`
               : moneyFine(r.unit_price));
+          const c = confidence(r.accuracy);
           return `<tr class="ff-row" data-sku="${esc(r.sku)}">
             <td>${esc(r.sku)}</td>
             <td class="num"><span class="order-qty">${fmt(Math.ceil(r.order_qty))}</span></td>
             <td>${festTag(r)}</td>
             <td>${methodLabel(r.method_used)}</td>
-            <td class="num">${mm}</td>
-            <td class="num">${mb}</td>
+            <td><span class="chip-note ${c.cls}" title="${esc(c.detail)}">${c.word}</span></td>
             <td class="num">${px}</td></tr>`;
         }).join('') + '</tbody>';
 
@@ -3831,6 +3842,28 @@
     const methodLabel = m => m === 'seasonal_naive'
       ? 'Repeat last week'
       : 'Fitted model';
+
+    /* MASE and a fold spread are the right numbers and the wrong words for this screen: the
+       person reading it stocks a shop. The same comparison is translated into one of three
+       words, and the figures behind it stay one hover or one click away rather than being
+       thrown out. Lower MASE is better, and below 1.0 beats repeating last week outright. */
+    function confidence(a) {
+      const fmt3 = v => (v == null ? '—' : v.toFixed(3));
+      const spread = (v, s) => fmt3(v) + (s != null ? ` ±${s.toFixed(3)}` : '');
+      const detail = `Fitted model ${spread(a.mase_model, a.mase_model_spread)}`
+        + ` vs repeat-last-week ${spread(a.mase_baseline, a.mase_baseline_spread)}`
+        + ` over ${a.n_folds} fold(s). Lower is better; under 1.0 beats repeating last week.`;
+
+      const m = a.mase_model, b = a.mase_baseline;
+      if (m == null || b == null) return { word: 'Not scored', cls: 'warn', detail };
+      const winner = Math.min(m, b), loser = Math.max(m, b);
+      // One fold is one opinion. It is not enough to call anything good, whatever it scored.
+      if (a.n_folds < 2) return { word: 'Uncertain', cls: 'warn', detail };
+      const margin = loser > 0 ? 1 - winner / loser : 0;
+      if (winner < 1.0 && margin >= 0.10) return { word: 'Good', cls: '', detail };
+      if (winner < 1.2) return { word: 'Fair', cls: 'cool', detail };
+      return { word: 'Uncertain', cls: 'warn', detail };
+    }
 
     /* The per-row festival state. */
     function festTag(r) {
@@ -4003,7 +4036,15 @@
       svg.addEventListener('pointerleave', () => { tip.style.opacity = 0; cross.style.opacity = 0; });
 
       const won = r.method_used === 'seasonal_naive';
-      $$('#ffMethod').innerHTML = `<span class="m-tag">${methodLabel(r.method_used)}</span><br>${esc(r.method_reason)}`;
+      const a = r.accuracy;
+      const num = (v, s) => v == null ? '—' : v.toFixed(3) + (s != null ? ` ±${s.toFixed(3)}` : '');
+      // The real figures live here, against the product the user actually clicked, rather
+      // than in six columns nobody outside forecasting can read.
+      $$('#ffMethod').innerHTML = `<span class="m-tag">${methodLabel(r.method_used)}</span><br>`
+        + `${esc(r.method_reason)}<br><span class="m-nums">MASE `
+        + `${num(a.mase_model, a.mase_model_spread)} fitted vs `
+        + `${num(a.mase_baseline, a.mase_baseline_spread)} repeat-last-week, `
+        + `${a.n_folds} fold(s)</span>`;
       renderFestival(r);
       $$('#ffChartCap').innerHTML = `
         Solid line is what you actually sold; dashed is the forecast for the next
