@@ -2885,7 +2885,19 @@
      move has already happened and re-pushing it would trap the reader on this tab. */
   window.addEventListener('popstate', e => {
     const name = (e.state && e.state.tab) || location.hash.replace('#', '') || 'home';
-    if (TAB_SECTIONS[name]) show(name);
+    if (TAB_SECTIONS[name]) { show(name); return; }
+    /* Not a tab. An in-page anchor such as #method-block pushes its own entry with no
+       state, and returning to it used to do nothing at all: the address bar changed while
+       the screen stayed on whatever tab you had moved to, so Back appeared broken and
+       Forward appeared to skip. Resolve which tab owns the target and show that, then go
+       to the element itself. */
+    const el = document.getElementById(name);
+    if (!el) return;
+    const section = el.closest('section');
+    const owner = section && Object.keys(TAB_SECTIONS)
+      .find(tab => TAB_SECTIONS[tab].includes(section.id));
+    if (owner) show(owner);
+    el.scrollIntoView();
   });
 
   tabs.forEach(t => t.addEventListener('click', e => {
