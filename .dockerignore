@@ -1,29 +1,11 @@
-# Build context control.
-#
-# Without this file the context is ~1.8 GB -- .venv at 1.1 GB and data/ at 740 MB, of which
-# 324 MB is the DuckDB warehouse. All of it is uploaded to the builder before the first
-# instruction runs. On a hosted builder that is the difference between a deploy and a
-# timeout.
-#
-# The Dockerfile copies four things: pyproject.toml, README.md, src/, and (added for the
-# release command) alembic.ini + migrations/. Everything else is context the build never
-# reads.
+# Build context control. Without this file the context is ~1.8 GB -- .venv at 1.1 GB and data/ at
 
 # --- The two that matter ---------------------------------------------------------------
 .venv/
 venv/
 env/
 
-# Raw M5 extracts, the derived warehouse, and users' uploaded history. Nothing in the
-# deployed service reads any of it: tier 2 works on what the user uploads at runtime, and
-# the dashboard's tier 1 figures are inlined as JSON at build time by
-# scripts/build_dashboard.py. The 324 MB warehouse would otherwise be shipped for nothing.
-#
-# Anchored with a leading slash so it means the *repository's* data/ and nothing else. The
-# festival demand table now lives at src/inventory_engine/data/ -- it is package data that
-# ships with the wheel -- and excluding it broke every forecast in the first deployment.
-# The negation below is belt and braces against an implementation that matches nested
-# directories.
+# Raw M5 extracts, the derived warehouse, and users' uploaded history.
 /data/
 !src/inventory_engine/data/
 
@@ -62,12 +44,8 @@ wds-1-project-brief/
 wds-2-requirements-analysis/
 
 # --- Not copied by the Dockerfile ------------------------------------------------------
-# The suite does not run inside the image; CI runs it on the runner. Remove this line if
-# that ever changes.
 tests/
-# NOT ignored: dashboard/. The service now serves the built page at / so that the Full
-# forecast tab and the API share an origin -- see app.py::_mount_dashboard. Only the built
-# artefact is needed, not the template.
+# NOT ignored: dashboard/. The service now serves the built page at / so that the Full forecast
 dashboard/*
 !dashboard/index.html
 node_modules/
