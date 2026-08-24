@@ -8,43 +8,40 @@ primary_region = "sin"
   dockerfile = "Dockerfile"
 
 [deploy]
-  # Runs in a temporary Machine on the newly built image, ONCE per deploy attempt -- not on boot,
+
   release_command = "alembic upgrade head"
 
 [processes]
-  # uvicorn and arq in one Machine, for the volume reason above.
+
   app = "bash -c 'arq inventory_engine.service.worker.WorkerSettings & uvicorn inventory_engine.service.app:app --host 0.0.0.0 --port 8001 & wait -n; exit $?'"
 
 [env]
-  # ServiceSettings resolves upload_dir from PROJECT_ROOT, which is meaningless once the package
+
   UPLOAD_DIR = "/data/uploads"
   ENVIRONMENT = "production"
-  # DATABASE_URL and REDIS_URL are secrets, not env -- see the commands in the handover.
 
 [http_service]
   internal_port = 8001
   force_https = true
   processes = ["app"]
 
-  # Scale to zero. Stopped and suspended Machines are not billed for CPU or RAM, so an idle
   auto_stop_machines = "suspend"
   auto_start_machines = true
   min_machines_running = 0
 
   [[http_service.checks]]
-    grace_period = "30s"      # migrations have already run; this is just app boot
+    grace_period = "30s"
     interval = "30s"
     method = "GET"
     path = "/health"
     protocol = "http"
     timeout = "5s"
-    # /health reports database, queue and storage separately and returns 200 with
 
 [[mounts]]
   source = "uploads"
   destination = "/data/uploads"
   processes = ["app"]
-  # 1 GB, the Fly minimum. Volumes are billed hourly whether or not the Machine is running --
+
 
 [[vm]]
   size = "shared-cpu-2x"
