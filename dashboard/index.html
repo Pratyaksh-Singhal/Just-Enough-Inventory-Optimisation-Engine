@@ -2871,8 +2871,22 @@
   function goTo(name) {
     show(name);
     try { localStorage.setItem(TAB_KEY, name); } catch (e) { /* private mode */ }
-    history.replaceState(null, '', '#' + name);
+    /* pushState, not replaceState. Replacing overwrote the single history entry, so Back
+       had nowhere to go but off the site entirely -- five tabs behaved like one page. A
+       repeat click on the tab you are already on still replaces, or holding Back would
+       walk through duplicates of the same screen. */
+    const url = '#' + name;
+    const same = location.hash === url;
+    history[same ? 'replaceState' : 'pushState']({ tab: name }, '', url);
   }
+
+  /* Back and Forward. The entry carries its tab, and the hash is the fallback for entries
+     pushed before this existed or typed by hand. show() rather than goTo(): the history
+     move has already happened and re-pushing it would trap the reader on this tab. */
+  window.addEventListener('popstate', e => {
+    const name = (e.state && e.state.tab) || location.hash.replace('#', '') || 'home';
+    if (TAB_SECTIONS[name]) show(name);
+  });
 
   tabs.forEach(t => t.addEventListener('click', e => {
     e.preventDefault();   // goTo owns the URL; the anchor's own jump would double it
@@ -2887,6 +2901,8 @@
       catch (e) { /* private mode */ }
     }
     if (wanted && wanted !== 'home') show(wanted);
+    // Seed the first entry so the earliest Back lands on a tab rather than a null state.
+    history.replaceState({ tab: wanted || 'home' }, '', '#' + (wanted || 'home'));
   }
   document.addEventListener('click', e => {
     const g = e.target.closest('[data-goto]');
