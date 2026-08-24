@@ -25,17 +25,7 @@ data/uploads/
 # Agent tooling — installed artefacts, not project source (~1,050 files).
 # .claude/settings.json is deliberately NOT ignored: the permission config is team-wide.
 .claude/skills/
-# ...but the WDS project config is source, not an installed artefact: it carries the folder
-# convention and project settings a fresh clone needs to reproduce the workspace.
-#
-# Excluded as `_bmad/*` rather than `_bmad/`, because git cannot re-include a file whose
-# parent *directory* is excluded -- it never descends far enough to see the negation. The
-# path has to be re-opened one level at a time. (`data/*.csv` above needs no such dance:
-# it excludes files by pattern, not the directory itself.)
-_bmad/*
-!_bmad/wds/
-_bmad/wds/*
-!_bmad/wds/config.yaml
+_bmad/
 _bmad-output/
 design-artifacts/
 wds-0-project-setup/
