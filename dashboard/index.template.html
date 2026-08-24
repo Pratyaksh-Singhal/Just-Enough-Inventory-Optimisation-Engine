@@ -82,6 +82,15 @@ __FONTS__
     letter-spacing: -.01em
   }
 
+  /* The wordmark goes home, which is what every reader will try first. Styled to inherit
+     rather than to look like a link: it is the masthead, not body copy. */
+  .masthead h1 a {
+    color: inherit;
+    text-decoration: none
+  }
+
+  .masthead h1 a:hover { color: var(--jade-hi) }
+
   .masthead .sub {
     font-family: var(--mono);
     font-size: 11.5px;
@@ -2073,7 +2082,7 @@ __FONTS__
 <header>
   <div class="wrap">
     <div class="masthead">
-      <h1>Just Enough</h1>
+      <h1><a href="#home" data-goto="home">Just Enough</a></h1>
       <span class="sub">INVENTORY OPTIMIZATION ENGINE</span>
       <div class="fx">
         <span class="fx-rate" id="fxRate"></span>
