@@ -24,7 +24,9 @@ on:
       ref:
         description: "Branch, tag or SHA to deploy"
         required: false
-        default: dev
+        # main, since dev is merged into it. A run left on the default deploys the branch
+        # that is meant to be live, not whatever happens to be in flight.
+        default: main
 
 # Two deploys of the same app at once is one deploy too many.
 concurrency:
