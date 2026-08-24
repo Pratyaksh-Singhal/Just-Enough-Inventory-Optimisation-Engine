@@ -1,4 +1,3 @@
-# Raw M5 extracts and derived warehouse — too large for git, rebuildable from Kaggle.
 data/*.csv
 data/*.duckdb
 data/*.duckdb.wal
@@ -18,14 +17,13 @@ node_modules/
 dashboard/dist/
 .env
 
-# Tier 2: users' own uploaded sales history. Never in the repo, never in a backup that
-# was not deliberately configured to hold it.
 data/uploads/
 
-# Agent tooling — installed artefacts, not project source (~1,050 files).
-# .claude/settings.json is deliberately NOT ignored: the permission config is team-wide.
 .claude/skills/
-_bmad/
+
+_bmad/*
+_bmad/wds/*
+docs/
 _bmad-output/
 design-artifacts/
 wds-0-project-setup/
@@ -34,25 +32,10 @@ wds-2-requirements-analysis/
 .claude/
 .cursor/
 
-# NOT ignored: docs/. It holds reader-facing documentation the README and the dashboard
-# link by path -- BACKLOG.md, BRANCHING.md, backlog/epic-*.md and what-went-wrong.md.
-# Ignoring the directory published those links with no targets behind them, and the two
-# older files only survived because git ignores nothing it already tracks.
 .vscode/
 *.pyc
 .DS_Store
 
-# Design source and mockups pulled from Claude Design. The files already committed stay
-# tracked -- git ignores nothing it already tracks -- so this only stops NEW files under
-# these directories being swept in by `git add -A`, which is how 5.2 MB of them arrived.
 data/design/
 data/pages/
-
-# The test suite stays on disk and is run before every commit, but is kept out of the
-# repository. `git rm --cached -r tests` was needed alongside this: .gitignore only stops
-# git tracking what it is not already tracking.
 tests/
-docs/test-coverage.md
-
-# Design exports and mockups. Working material, not source -- the resolved system that was
-# actually built from them is recorded in docs/design-system.md.
