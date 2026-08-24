@@ -186,7 +186,10 @@ def main() -> int:
     out = ROOT / "dashboard" / "index.html"
     rendered = template.replace("__DATA__", payload).replace("__FONTS__", _font_css())
     _check_scripts(rendered)
-    out.write_text(rendered, encoding="utf-8")
+    # newline="" so Python does not translate to CRLF on Windows. The page is deployed
+    # byte for byte and the deploy compares a hash of the served page against this file,
+    # so a build on Windows would ship a page that could never match its own commit.
+    out.write_text(rendered, encoding="utf-8", newline="")
     print(f"wrote {out}  ({out.stat().st_size / 1024:.1f} KB)")
     return 0
 
