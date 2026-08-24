@@ -1,8 +1,7 @@
 # One image, two commands (api, worker). See docker-compose.yml for why they must match.
 FROM python:3.11-slim
 
-# libgomp is LightGBM's OpenMP runtime. It is a worker-side need, but the image is shared,
-# and a separate slimmer API image would be two Dockerfiles to keep in step for a few MB.
+# libgomp is LightGBM's OpenMP runtime.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends libgomp1 \
     && rm -rf /var/lib/apt/lists/*
@@ -18,15 +17,11 @@ COPY pyproject.toml README.md ./
 COPY src ./src
 RUN pip install --upgrade pip && pip install ".[api,models,service]"
 
-# Needed by the release command, which runs `alembic upgrade head` in this image before any
-# new Machine starts. Without these two the migration cannot be found and every deploy
-# fails at the release step -- which is the safe direction to fail, but only after wasting
-# a build.
+# Needed by the release command, which runs `alembic upgrade head` before any Machine starts.
 COPY alembic.ini ./
 COPY migrations ./migrations
 
-# The built dashboard, served at / by the API so the page and its own endpoints share an
-# origin. The path is passed explicitly rather than derived: see settings.dashboard_dir.
+# The built dashboard, served at / by the API so the page and its own endpoints share an origin.
 COPY dashboard/index.html ./dashboard/index.html
 ENV DASHBOARD_DIR=/app/dashboard
 
