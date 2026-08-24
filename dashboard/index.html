@@ -168,6 +168,8 @@
     background: none;
     border: 0;
     border-bottom: 2px solid transparent;
+    display: inline-block;
+    text-decoration: none;
     color: var(--ink-3);
     font-family: var(--mono);
     font-size: 11.5px;
@@ -2096,12 +2098,12 @@
       </div>
     </div>
     <div class="tabs" role="tablist">
-      <button class="tab" role="tab" aria-selected="true" data-t="home">Home</button>
-      <button class="tab" role="tab" aria-selected="false" data-t="calculator">How much to order</button>
-      <button class="tab" role="tab" aria-selected="false" data-t="full">Full forecast<span class="live-tag">live</span></button>
+      <a class="tab" role="tab" aria-selected="true" data-t="home" href="#home">Home</a>
+      <a class="tab" role="tab" aria-selected="false" data-t="calculator" href="#calculator">How much to order</a>
+      <a class="tab" role="tab" aria-selected="false" data-t="full" href="#full">Full forecast<span class="live-tag">live</span></a>
       <div class="tab-gap" aria-hidden="true"></div>
-      <button class="tab" role="tab" aria-selected="false" data-t="why">Why these numbers</button>
-      <button class="tab" role="tab" aria-selected="false" data-t="overview">Proof it works</button>
+      <a class="tab" role="tab" aria-selected="false" data-t="why" href="#why">Why these numbers</a>
+      <a class="tab" role="tab" aria-selected="false" data-t="overview" href="#overview">Proof it works</a>
     </div>
   </div>
 </header>
@@ -2862,10 +2864,19 @@
   }
   /* Remember which tab you were on. */
   const TAB_KEY = 'ioe.tab';
-  tabs.forEach(t => t.addEventListener('click', () => {
-    show(t.dataset.t);
-    try { localStorage.setItem(TAB_KEY, t.dataset.t); } catch (e) { /* private mode */ }
-    history.replaceState(null, '', '#' + t.dataset.t);
+  /* One way to change tab, used by both the strip and every in-page link. They used to
+     differ: a data-goto button called show() alone, so the URL kept naming the tab you had
+     left, a reload landed somewhere else than the screen you were looking at, and the tab
+     could not be linked to. */
+  function goTo(name) {
+    show(name);
+    try { localStorage.setItem(TAB_KEY, name); } catch (e) { /* private mode */ }
+    history.replaceState(null, '', '#' + name);
+  }
+
+  tabs.forEach(t => t.addEventListener('click', e => {
+    e.preventDefault();   // goTo owns the URL; the anchor's own jump would double it
+    goTo(t.dataset.t);
   }));
 
   function restoreTab() {
@@ -2879,7 +2890,7 @@
   }
   document.addEventListener('click', e => {
     const g = e.target.closest('[data-goto]');
-    if (g) { e.preventDefault(); show(g.dataset.goto); }
+    if (g) { e.preventDefault(); goTo(g.dataset.goto); }
   });
 
   /* ---------------- overview ---------------- */
