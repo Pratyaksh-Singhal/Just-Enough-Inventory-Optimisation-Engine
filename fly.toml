@@ -1,86 +1,32 @@
 # Fly.io deployment for tier 2 (the upload -> forecast -> order service).
-#
-# Tier 1 is deliberately NOT deployed. The dashboard's only runtime fetches go to this
-# service (/health, /upload, /forecast/run, /forecast/{id}); every tier 1 figure is inlined
-# as JSON at build time by scripts/build_dashboard.py. Deploying tier 1 would mean shipping
-# the 324 MB DuckDB warehouse for endpoints nothing calls.
-#
-# ONE process group, not two -- read this before "fixing" it
-# ----------------------------------------------------------
-# The obvious shape is two process groups, `api` and `worker`. It does not work here.
-# Fly's own docs: "A Machine can only mount one volume at a time and a volume can be
-# attached to only one Machine." Two process groups are two Machines, so they would get
-# two separate volumes -- and `LocalDiskStorage` hands the worker a *filesystem path* that
-# the API wrote. The worker would look for an upload that is not on its disk and every job
-# would fail.
-#
-# docker-compose.yml already says this: "They share the uploads volume ... That constraint
-# is what forces the move to S3-compatible storage the moment these run on separate hosts."
-# Running both in one Machine keeps that constraint satisfied and keeps LocalDiskStorage
-# unchanged. The alternative is object storage (Tigris/R2) and a storage rewrite.
 
 app = "inventory-optimization-engine"
-# Singapore, not Mumbai. The instinct is to sit closest to the operator, but the database
-# is the latency that matters: Neon is in ap-southeast-1, and the API makes several queries
-# per request while the worker makes more. Colocating with Postgres turns a ~55 ms
-# round-trip into ~1 ms and costs the reader ~35 ms once on the HTTP hop. Asia-Pacific
-# egress is $0.04/GB against India's $0.12/GB, so it is cheaper as well.
+# Singapore, not Mumbai. The instinct is to sit closest to the operator, but the database is the
 primary_region = "sin"
 
 [build]
   dockerfile = "Dockerfile"
 
 [deploy]
-  # Runs in a temporary Machine on the newly built image, ONCE per deploy attempt -- not on
-  # boot, and not on restart. A non-zero exit stops the deploy before any new Machine
-  # serves traffic. Verified against fly.io/docs/reference/configuration/ rather than
-  # assumed, because a migration re-running on every boot is a failure class this project
-  # has already paid for once.
+  # Runs in a temporary Machine on the newly built image, ONCE per deploy attempt -- not on boot,
   release_command = "alembic upgrade head"
 
 [processes]
   # uvicorn and arq in one Machine, for the volume reason above.
-  #
-  # `wait -n` returns when EITHER exits, and the container then exits non-zero so Fly
-  # restarts it. Without it, a dead arq would leave uvicorn happily serving while every
-  # forecast sat in `queued` for ever -- a silent failure, which is the one kind this
-  # codebase refuses to ship.
   app = "bash -c 'arq inventory_engine.service.worker.WorkerSettings & uvicorn inventory_engine.service.app:app --host 0.0.0.0 --port 8001 & wait -n; exit $?'"
 
 [env]
-  # ServiceSettings resolves upload_dir from PROJECT_ROOT, which is meaningless once the
-  # package is pip-installed into site-packages. Set it explicitly to the mount point.
+  # ServiceSettings resolves upload_dir from PROJECT_ROOT, which is meaningless once the package
   UPLOAD_DIR = "/data/uploads"
   ENVIRONMENT = "production"
   # DATABASE_URL and REDIS_URL are secrets, not env -- see the commands in the handover.
-  # DATABASE_URL points at Neon (free tier), not Fly Postgres: Fly's Managed Postgres has
-  # no free tier and starts at $38/month, which is more than the rest of this deployment
-  # by a factor of thirty. Neon gives 0.5 GB and 100 compute-hours/month permanently, and
-  # scales itself to zero after 5 minutes idle. Its connection string carries
-  # `?sslmode=require`; psycopg honours it unchanged.
 
 [http_service]
   internal_port = 8001
   force_https = true
   processes = ["app"]
 
-  # Scale to zero. Stopped and suspended Machines are not billed for CPU or RAM, so an
-  # idle portfolio deployment costs only its volume.
-  #
-  # The earlier version of this file pinned min_machines_running = 1 to protect in-flight
-  # jobs, on the reasoning that suspending mid-fit would strand a job in `running` for ever.
-  # That reasoning was half right and the conclusion was wrong: the dashboard polls
-  # /forecast/{job_id} every couple of seconds for the whole life of a job, so a running
-  # forecast is a continuous stream of requests and the proxy never sees the app as idle.
-  #
-  # The residual risk is narrow and worth naming: if the reader closes the tab mid-forecast,
-  # polling stops, the Machine suspends, and that job's row stays `running` for ever. It is
-  # an abandoned job, nobody is waiting on it, and the alternative was paying about $12 a
-  # month to protect it. Recorded in the README limitations rather than hidden.
-  #
-  # "suspend" over "stop": it restores from memory in a second or two instead of cold
-  # booting Python and LightGBM, which is the difference between a reviewer waiting and a
-  # reviewer leaving.
+  # Scale to zero. Stopped and suspended Machines are not billed for CPU or RAM, so an idle
   auto_stop_machines = "suspend"
   auto_start_machines = true
   min_machines_running = 0
@@ -93,23 +39,15 @@ primary_region = "sin"
     protocol = "http"
     timeout = "5s"
     # /health reports database, queue and storage separately and returns 200 with
-    # status="degraded" when one is down, so a failing dependency shows in the body rather
-    # than flapping the Machine. See routers/full_forecast.py::health.
 
 [[mounts]]
   source = "uploads"
   destination = "/data/uploads"
   processes = ["app"]
-  # 1 GB, the Fly minimum. Volumes are billed hourly whether or not the Machine is running
-  # -- Fly's docs are explicit about it -- so this $0.15/month is the only fixed cost in
-  # the whole deployment. It is not optional: an upload has to survive between the POST
-  # that stores it and the worker that reads it, across a suspend.
+  # 1 GB, the Fly minimum. Volumes are billed hourly whether or not the Machine is running --
 
 [[vm]]
   size = "shared-cpu-2x"
   memory = "2gb"
   processes = ["app"]
-  # 2 vCPU because LightGBM's SMALL_DATA_PARAMS sets num_threads = 2 and uvicorn has to
-  # keep answering health checks while a fit runs. 1x would let a fit starve the check and
-  # get the Machine killed mid-job. 2 GB is headroom for pandas on a 50 MB upload; 1 GB is
-  # probably enough and is the first thing to trim if the bill matters more than the margin.
+  # 2 vCPU because LightGBM's SMALL_DATA_PARAMS sets num_threads = 2 and uvicorn has to keep
