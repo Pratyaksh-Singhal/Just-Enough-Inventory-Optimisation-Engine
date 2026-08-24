@@ -201,6 +201,21 @@
   }
 
   svg.arrow { stroke: currentColor; fill: none; flex: none }
+
+  /* A grid or flex item will not shrink below its min-content width unless told to, and an
+     <svg> carrying only a viewBox reports that viewBox as its intrinsic width. So the 880px
+     chart set a floor for its whole column, the column set one for the page, and every
+     paragraph beside it was pushed off the screen. This is the fix for that whole class:
+     items may shrink, and a fluid chart never exceeds its box. */
+  .sim > *,
+  .home-grid > div,
+  .proof-head > div,
+  .home-split > *,
+  .home-hero > *,
+  .steps > *,
+  .ff-costs > * { min-width: 0 }
+
+  svg.fluid { max-width: 100% }
   .drop-ico svg, .dl-btn svg { flex: none }
 
   .live-tag {
